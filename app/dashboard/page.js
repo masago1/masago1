@@ -5,12 +5,29 @@ import { useEffect, useState } from "react";
 export default function DashboardPage() {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [message, setMessage] = useState("");
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    loadReservations();
+    checkAuth();
   }, []);
+
+  async function checkAuth() {
+    const accessToken = localStorage.getItem("masago_access_token");
+    const email = localStorage.getItem("masago_user_email");
+
+    if (!accessToken) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setUserEmail(email || "");
+    setAuthChecking(false);
+
+    loadReservations();
+  }
 
   async function loadReservations() {
     try {
@@ -94,6 +111,14 @@ export default function DashboardPage() {
     }
   }
 
+  function handleLogout() {
+    localStorage.removeItem("masago_access_token");
+    localStorage.removeItem("masago_refresh_token");
+    localStorage.removeItem("masago_user_email");
+
+    window.location.href = "/login";
+  }
+
   function formatDate(date) {
     if (!date) return "";
 
@@ -105,7 +130,6 @@ export default function DashboardPage() {
   function getStatusLabel(status) {
     if (status === "accepted") return "Confirmată";
     if (status === "rejected") return "Respinsă";
-
     return "În așteptare";
   }
 
@@ -128,6 +152,23 @@ export default function DashboardPage() {
       background: "#fff4dd",
       color: "#9a6700",
     };
+  }
+
+  if (authChecking) {
+    return (
+      <main
+        style={{
+          fontFamily: "Arial, sans-serif",
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#f6f7f9",
+        }}
+      >
+        Se verifică autentificarea...
+      </main>
+    );
   }
 
   return (
@@ -153,6 +194,7 @@ export default function DashboardPage() {
             alignItems: "center",
             gap: "20px",
             marginBottom: "30px",
+            flexWrap: "wrap",
           }}
         >
           <div>
@@ -163,17 +205,54 @@ export default function DashboardPage() {
             <p style={{ color: "#777", margin: 0 }}>
               Casa Bunicii
             </p>
+
+            {userEmail && (
+              <p
+                style={{
+                  color: "#999",
+                  marginTop: "5px",
+                  marginBottom: 0,
+                  fontSize: "13px",
+                }}
+              >
+                {userEmail}
+              </p>
+            )}
           </div>
 
-          <a
-            href="/"
+          <div
             style={{
-              textDecoration: "none",
-              color: "#555",
+              display: "flex",
+              gap: "10px",
+              alignItems: "center",
             }}
           >
-            ← Înapoi la aplicație
-          </a>
+            <a
+              href="/"
+              style={{
+                textDecoration: "none",
+                color: "#555",
+                padding: "10px 14px",
+              }}
+            >
+              ← Înapoi la aplicație
+            </a>
+
+            <button
+              onClick={handleLogout}
+              style={{
+                border: "none",
+                background: "#222",
+                color: "white",
+                borderRadius: "10px",
+                padding: "11px 16px",
+                fontWeight: "bold",
+                cursor: "pointer",
+              }}
+            >
+              Deconectare
+            </button>
+          </div>
         </div>
 
         {loading && <p>Se încarcă rezervările...</p>}
@@ -235,81 +314,46 @@ export default function DashboardPage() {
                   }}
                 >
                   <div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "#888",
-                      }}
-                    >
+                    <div style={{ fontSize: "13px", color: "#888" }}>
                       Client
                     </div>
-
                     <strong>
                       {reservation.customer_name}
                     </strong>
                   </div>
 
                   <div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "#888",
-                      }}
-                    >
+                    <div style={{ fontSize: "13px", color: "#888" }}>
                       Telefon
                     </div>
-
                     {reservation.customer_phone}
                   </div>
 
                   <div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "#888",
-                      }}
-                    >
+                    <div style={{ fontSize: "13px", color: "#888" }}>
                       Data
                     </div>
-
                     {formatDate(
                       reservation.reservation_date
                     )}
                   </div>
 
                   <div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "#888",
-                      }}
-                    >
+                    <div style={{ fontSize: "13px", color: "#888" }}>
                       Ora
                     </div>
-
                     {reservation.reservation_time}
                   </div>
 
                   <div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "#888",
-                      }}
-                    >
+                    <div style={{ fontSize: "13px", color: "#888" }}>
                       Persoane
                     </div>
-
                     {reservation.guests}
                   </div>
 
                   <div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        color: "#888",
-                      }}
-                    >
+                    <div style={{ fontSize: "13px", color: "#888" }}>
                       Status
                     </div>
 
