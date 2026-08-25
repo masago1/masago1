@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 export default function DashboardPage() {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export default function DashboardPage() {
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/reservations?select=*&order=created_at.desc`,
+        `${supabaseUrl}/rest/v1/reservations?select=*&order=id.desc`,
         {
           headers: {
             apikey: supabaseKey,
@@ -45,12 +46,88 @@ export default function DashboardPage() {
     }
   }
 
+  async function updateReservation(id, newStatus) {
+    setUpdatingId(id);
+    setMessage("");
+
+    try {
+      const supabaseUrl =
+        process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+      const supabaseKey =
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/reservations?id=eq.${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: supabaseKey,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            status: newStatus,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(errorText);
+        setMessage("Nu am putut actualiza rezervarea.");
+        return;
+      }
+
+      setReservations((currentReservations) =>
+        currentReservations.map((reservation) =>
+          reservation.id === id
+            ? { ...reservation, status: newStatus }
+            : reservation
+        )
+      );
+    } catch (error) {
+      console.error(error);
+      setMessage("A apărut o eroare la actualizare.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   function formatDate(date) {
     if (!date) return "";
 
     const [year, month, day] = date.split("-");
 
     return `${day}/${month}/${year}`;
+  }
+
+  function getStatusLabel(status) {
+    if (status === "accepted") return "Confirmată";
+    if (status === "rejected") return "Respinsă";
+
+    return "În așteptare";
+  }
+
+  function getStatusStyle(status) {
+    if (status === "accepted") {
+      return {
+        background: "#e8f7ee",
+        color: "#147a3d",
+      };
+    }
+
+    if (status === "rejected") {
+      return {
+        background: "#fdecec",
+        color: "#b42318",
+      };
+    }
+
+    return {
+      background: "#fff4dd",
+      color: "#9a6700",
+    };
   }
 
   return (
@@ -74,6 +151,7 @@ export default function DashboardPage() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: "20px",
             marginBottom: "30px",
           }}
         >
@@ -98,9 +176,7 @@ export default function DashboardPage() {
           </a>
         </div>
 
-        {loading && (
-          <p>Se încarcă rezervările...</p>
-        )}
+        {loading && <p>Se încarcă rezervările...</p>}
 
         {message && (
           <p
@@ -108,24 +184,24 @@ export default function DashboardPage() {
               background: "#ffecec",
               padding: "15px",
               borderRadius: "10px",
+              marginBottom: "20px",
             }}
           >
             {message}
           </p>
         )}
 
-        {!loading &&
-          reservations.length === 0 && (
-            <div
-              style={{
-                background: "white",
-                padding: "30px",
-                borderRadius: "15px",
-              }}
-            >
-              Nu există rezervări momentan.
-            </div>
-          )}
+        {!loading && reservations.length === 0 && (
+          <div
+            style={{
+              background: "white",
+              padding: "30px",
+              borderRadius: "15px",
+            }}
+          >
+            Nu există rezervări momentan.
+          </div>
+        )}
 
         <div
           style={{
@@ -133,107 +209,186 @@ export default function DashboardPage() {
             gap: "15px",
           }}
         >
-          {reservations.map((reservation) => (
-            <div
-              key={reservation.id}
-              style={{
-                background: "white",
-                padding: "22px",
-                borderRadius: "15px",
-                boxShadow:
-                  "0 4px 15px rgba(0,0,0,0.06)",
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(140px, 1fr))",
-                gap: "15px",
-                alignItems: "center",
-              }}
-            >
-              <div>
+          {reservations.map((reservation) => {
+            const statusStyle = getStatusStyle(
+              reservation.status
+            );
+
+            return (
+              <div
+                key={reservation.id}
+                style={{
+                  background: "white",
+                  padding: "22px",
+                  borderRadius: "15px",
+                  boxShadow:
+                    "0 4px 15px rgba(0,0,0,0.06)",
+                }}
+              >
                 <div
                   style={{
-                    fontSize: "13px",
-                    color: "#888",
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(130px, 1fr))",
+                    gap: "18px",
+                    alignItems: "center",
                   }}
                 >
-                  Client
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#888",
+                      }}
+                    >
+                      Client
+                    </div>
+
+                    <strong>
+                      {reservation.customer_name}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#888",
+                      }}
+                    >
+                      Telefon
+                    </div>
+
+                    {reservation.customer_phone}
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#888",
+                      }}
+                    >
+                      Data
+                    </div>
+
+                    {formatDate(
+                      reservation.reservation_date
+                    )}
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#888",
+                      }}
+                    >
+                      Ora
+                    </div>
+
+                    {reservation.reservation_time}
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#888",
+                      }}
+                    >
+                      Persoane
+                    </div>
+
+                    {reservation.guests}
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#888",
+                      }}
+                    >
+                      Status
+                    </div>
+
+                    <span
+                      style={{
+                        display: "inline-block",
+                        marginTop: "4px",
+                        padding: "7px 10px",
+                        borderRadius: "999px",
+                        fontSize: "13px",
+                        fontWeight: "bold",
+                        ...statusStyle,
+                      }}
+                    >
+                      {getStatusLabel(
+                        reservation.status
+                      )}
+                    </span>
+                  </div>
                 </div>
 
-                <strong>
-                  {reservation.customer_name}
-                </strong>
-              </div>
-
-              <div>
                 <div
                   style={{
-                    fontSize: "13px",
-                    color: "#888",
+                    display: "flex",
+                    gap: "10px",
+                    marginTop: "20px",
                   }}
                 >
-                  Telefon
+                  <button
+                    onClick={() =>
+                      updateReservation(
+                        reservation.id,
+                        "accepted"
+                      )
+                    }
+                    disabled={
+                      updatingId === reservation.id
+                    }
+                    style={{
+                      flex: 1,
+                      border: "none",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      background: "#18794e",
+                      color: "white",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✅ Acceptă
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      updateReservation(
+                        reservation.id,
+                        "rejected"
+                      )
+                    }
+                    disabled={
+                      updatingId === reservation.id
+                    }
+                    style={{
+                      flex: 1,
+                      border: "none",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      background: "#c9362b",
+                      color: "white",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ❌ Respinge
+                  </button>
                 </div>
-
-                {reservation.customer_phone}
               </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#888",
-                  }}
-                >
-                  Data
-                </div>
-
-                {formatDate(
-                  reservation.reservation_date
-                )}
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#888",
-                  }}
-                >
-                  Ora
-                </div>
-
-                {reservation.reservation_time}
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#888",
-                  }}
-                >
-                  Persoane
-                </div>
-
-                {reservation.guests}
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#888",
-                  }}
-                >
-                  Status
-                </div>
-
-                <strong>
-                  {reservation.status || "pending"}
-                </strong>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </main>
