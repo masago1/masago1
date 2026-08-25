@@ -11,82 +11,9 @@ export default function RestaurantPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Formateaza automat data ca ZZ/LL/AAAA
-  function handleDateChange(e) {
-    let value = e.target.value.replace(/\D/g, "");
-
-    if (value.length > 8) {
-      value = value.slice(0, 8);
-    }
-
-    if (value.length >= 5) {
-      value =
-        value.slice(0, 2) +
-        "/" +
-        value.slice(2, 4) +
-        "/" +
-        value.slice(4);
-    } else if (value.length >= 3) {
-      value =
-        value.slice(0, 2) +
-        "/" +
-        value.slice(2);
-    }
-
-    setDate(value);
-  }
-
-  // Converteste ZZ/LL/AAAA in YYYY-MM-DD pentru Supabase
-  function convertDateForSupabase(dateString) {
-    const parts = dateString.split("/");
-
-    if (parts.length !== 3) {
-      return null;
-    }
-
-    const day = parts[0];
-    const month = parts[1];
-    const year = parts[2];
-
-    if (
-      day.length !== 2 ||
-      month.length !== 2 ||
-      year.length !== 4
-    ) {
-      return null;
-    }
-
-    const dayNumber = Number(day);
-    const monthNumber = Number(month);
-    const yearNumber = Number(year);
-
-    const testDate = new Date(
-      yearNumber,
-      monthNumber - 1,
-      dayNumber
-    );
-
-    if (
-      testDate.getFullYear() !== yearNumber ||
-      testDate.getMonth() !== monthNumber - 1 ||
-      testDate.getDate() !== dayNumber
-    ) {
-      return null;
-    }
-
-    return `${year}-${month}-${day}`;
-  }
-
   async function handleReservation() {
     if (!date || !time || !name || !phone) {
       setMessage("Completează toate câmpurile.");
-      return;
-    }
-
-    const formattedDate = convertDateForSupabase(date);
-
-    if (!formattedDate) {
-      setMessage("Introdu o dată validă în format ZZ/LL/AAAA.");
       return;
     }
 
@@ -102,6 +29,7 @@ export default function RestaurantPage() {
 
       if (!supabaseUrl || !supabaseKey) {
         setMessage("Conexiunea cu baza de date nu este configurată.");
+        setLoading(false);
         return;
       }
 
@@ -109,17 +37,15 @@ export default function RestaurantPage() {
         `${supabaseUrl}/rest/v1/reservations`,
         {
           method: "POST",
-
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${supabaseKey}`,
             "Content-Type": "application/json",
             Prefer: "return=representation",
           },
-
           body: JSON.stringify({
             restaurant_name: "Casa Bunicii",
-            reservation_date: formattedDate,
+            reservation_date: date,
             reservation_time: time,
             guests: Number(guests),
             customer_name: name,
@@ -132,14 +58,11 @@ export default function RestaurantPage() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(errorText);
-
         setMessage("A apărut o eroare la rezervare.");
         return;
       }
 
-      setMessage(
-        "Rezervarea a fost trimisă cu succes! ✅"
-      );
+      setMessage("Rezervarea a fost trimisă cu succes! ✅");
 
       setDate("");
       setTime("");
@@ -148,12 +71,13 @@ export default function RestaurantPage() {
       setPhone("");
     } catch (error) {
       console.error(error);
-
       setMessage("A apărut o eroare la rezervare.");
     } finally {
       setLoading(false);
     }
   }
+
+  const today = new Date().toISOString().split("T")[0];
 
   return (
     <main
@@ -172,6 +96,7 @@ export default function RestaurantPage() {
           background: "white",
           padding: "35px",
           borderRadius: "20px",
+          boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
         }}
       >
         <a
@@ -195,9 +120,7 @@ export default function RestaurantPage() {
 
         <p>📍 Timișoara</p>
 
-        <p>
-          ⭐ 9.2 • Bucătărie românească
-        </p>
+        <p>⭐ 9.2 • Bucătărie românească</p>
 
         <div
           style={{
@@ -236,15 +159,15 @@ export default function RestaurantPage() {
             marginTop: "20px",
           }}
         >
-          {/* DATA */}
+          <label style={{ fontWeight: "bold" }}>
+            Data rezervării
+          </label>
 
           <input
-            type="text"
-            inputMode="numeric"
-            placeholder="ZZ/LL/AAAA"
+            type="date"
             value={date}
-            maxLength={10}
-            onChange={handleDateChange}
+            min={today}
+            onChange={(e) => setDate(e.target.value)}
             style={{
               padding: "15px",
               borderRadius: "10px",
@@ -253,13 +176,13 @@ export default function RestaurantPage() {
             }}
           />
 
-          {/* ORA */}
+          <label style={{ fontWeight: "bold" }}>
+            Ora
+          </label>
 
           <select
             value={time}
-            onChange={(e) =>
-              setTime(e.target.value)
-            }
+            onChange={(e) => setTime(e.target.value)}
             style={{
               padding: "15px",
               borderRadius: "10px",
@@ -267,42 +190,23 @@ export default function RestaurantPage() {
               fontSize: "16px",
             }}
           >
-            <option value="">
-              Alege ora
-            </option>
-
-            <option value="18:00">
-              18:00
-            </option>
-
-            <option value="18:30">
-              18:30
-            </option>
-
-            <option value="19:00">
-              19:00
-            </option>
-
-            <option value="19:30">
-              19:30
-            </option>
-
-            <option value="20:00">
-              20:00
-            </option>
-
-            <option value="20:30">
-              20:30
-            </option>
+            <option value="">Alege ora</option>
+            <option value="18:00">18:00</option>
+            <option value="18:30">18:30</option>
+            <option value="19:00">19:00</option>
+            <option value="19:30">19:30</option>
+            <option value="20:00">20:00</option>
+            <option value="20:30">20:30</option>
+            <option value="21:00">21:00</option>
           </select>
 
-          {/* PERSOANE */}
+          <label style={{ fontWeight: "bold" }}>
+            Număr de persoane
+          </label>
 
           <select
             value={guests}
-            onChange={(e) =>
-              setGuests(e.target.value)
-            }
+            onChange={(e) => setGuests(e.target.value)}
             style={{
               padding: "15px",
               borderRadius: "10px",
@@ -310,48 +214,25 @@ export default function RestaurantPage() {
               fontSize: "16px",
             }}
           >
-            <option value="1">
-              1 persoană
-            </option>
-
-            <option value="2">
-              2 persoane
-            </option>
-
-            <option value="3">
-              3 persoane
-            </option>
-
-            <option value="4">
-              4 persoane
-            </option>
-
-            <option value="5">
-              5 persoane
-            </option>
-
-            <option value="6">
-              6 persoane
-            </option>
-
-            <option value="7">
-              7 persoane
-            </option>
-
-            <option value="8">
-              8 persoane
-            </option>
+            <option value="1">1 persoană</option>
+            <option value="2">2 persoane</option>
+            <option value="3">3 persoane</option>
+            <option value="4">4 persoane</option>
+            <option value="5">5 persoane</option>
+            <option value="6">6 persoane</option>
+            <option value="7">7 persoane</option>
+            <option value="8">8 persoane</option>
           </select>
 
-          {/* NUME */}
+          <label style={{ fontWeight: "bold" }}>
+            Nume
+          </label>
 
           <input
             type="text"
             placeholder="Numele tău"
             value={name}
-            onChange={(e) =>
-              setName(e.target.value)
-            }
+            onChange={(e) => setName(e.target.value)}
             style={{
               padding: "15px",
               borderRadius: "10px",
@@ -360,15 +241,15 @@ export default function RestaurantPage() {
             }}
           />
 
-          {/* TELEFON */}
+          <label style={{ fontWeight: "bold" }}>
+            Număr de telefon
+          </label>
 
           <input
             type="tel"
-            placeholder="Număr de telefon"
+            placeholder="07xx xxx xxx"
             value={phone}
-            onChange={(e) =>
-              setPhone(e.target.value)
-            }
+            onChange={(e) => setPhone(e.target.value)}
             style={{
               padding: "15px",
               borderRadius: "10px",
@@ -376,8 +257,6 @@ export default function RestaurantPage() {
               fontSize: "16px",
             }}
           />
-
-          {/* BUTON */}
 
           <button
             onClick={handleReservation}
@@ -390,10 +269,9 @@ export default function RestaurantPage() {
               padding: "16px",
               fontSize: "17px",
               fontWeight: "bold",
-              cursor: loading
-                ? "not-allowed"
-                : "pointer",
+              cursor: loading ? "not-allowed" : "pointer",
               opacity: loading ? 0.7 : 1,
+              marginTop: "5px",
             }}
           >
             {loading
@@ -406,6 +284,7 @@ export default function RestaurantPage() {
               style={{
                 textAlign: "center",
                 fontWeight: "bold",
+                marginTop: "5px",
               }}
             >
               {message}
