@@ -61,7 +61,7 @@ export default function RestaurantPage() {
           headers: {
             apikey: supabaseKey,
             "Content-Type": "application/json",
-            Prefer: "return=representation",
+            Prefer: "return=minimal",
           },
 
           body: JSON.stringify({
