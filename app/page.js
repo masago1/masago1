@@ -284,21 +284,25 @@ export default function Home() {
                   Reducere la nota de plată
                 </p>
 
-                <button
-                  style={{
-                    width: "100%",
-                    background: "#222",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "10px",
-                    padding: "13px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    marginTop: "5px",
-                  }}
-                >
-                  Vezi disponibilitatea
-                </button>
+                <a
+  href="/restaurant"
+  style={{
+    display: "block",
+    width: "100%",
+    background: "#222",
+    color: "white",
+    borderRadius: "10px",
+    padding: "13px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    marginTop: "5px",
+    textAlign: "center",
+    textDecoration: "none",
+    boxSizing: "border-box",
+  }}
+>
+  Vezi disponibilitatea
+</a>
               </div>
             </div>
           ))}
