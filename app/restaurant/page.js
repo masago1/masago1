@@ -3,7 +3,8 @@
 import { useState } from "react";
 
 export default function RestaurantPage() {
-  const [date, setDate] = useState("");
+  const [dateIso, setDateIso] = useState("");
+  const [dateDisplay, setDateDisplay] = useState("");
   const [time, setTime] = useState("");
   const [guests, setGuests] = useState("2");
   const [name, setName] = useState("");
@@ -11,8 +12,22 @@ export default function RestaurantPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function handleDateChange(e) {
+    const value = e.target.value;
+
+    setDateIso(value);
+
+    if (!value) {
+      setDateDisplay("");
+      return;
+    }
+
+    const [year, month, day] = value.split("-");
+    setDateDisplay(`${day}/${month}/${year}`);
+  }
+
   async function handleReservation() {
-    if (!date || !time || !name || !phone) {
+    if (!dateIso || !time || !name || !phone) {
       setMessage("Completează toate câmpurile.");
       return;
     }
@@ -29,7 +44,6 @@ export default function RestaurantPage() {
 
       if (!supabaseUrl || !supabaseKey) {
         setMessage("Conexiunea cu baza de date nu este configurată.");
-        setLoading(false);
         return;
       }
 
@@ -45,7 +59,7 @@ export default function RestaurantPage() {
           },
           body: JSON.stringify({
             restaurant_name: "Casa Bunicii",
-            reservation_date: date,
+            reservation_date: dateIso,
             reservation_time: time,
             guests: Number(guests),
             customer_name: name,
@@ -64,7 +78,8 @@ export default function RestaurantPage() {
 
       setMessage("Rezervarea a fost trimisă cu succes! ✅");
 
-      setDate("");
+      setDateIso("");
+      setDateDisplay("");
       setTime("");
       setGuests("2");
       setName("");
@@ -119,7 +134,6 @@ export default function RestaurantPage() {
         </h1>
 
         <p>📍 Timișoara</p>
-
         <p>⭐ 9.2 • Bucătărie românească</p>
 
         <div
@@ -139,9 +153,7 @@ export default function RestaurantPage() {
             -30% reducere
           </h2>
 
-          <p>
-            Reducerea se aplică la nota de plată.
-          </p>
+          <p>Reducerea se aplică la nota de plată.</p>
         </div>
 
         <h2
@@ -163,18 +175,58 @@ export default function RestaurantPage() {
             Data rezervării
           </label>
 
-          <input
-            type="date"
-            value={date}
-            min={today}
-            onChange={(e) => setDate(e.target.value)}
+          <div
             style={{
-              padding: "15px",
-              borderRadius: "10px",
-              border: "1px solid #ddd",
-              fontSize: "16px",
+              position: "relative",
             }}
-          />
+          >
+            <input
+              type="text"
+              readOnly
+              placeholder="ZZ/LL/AAAA"
+              value={dateDisplay}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "15px",
+                paddingRight: "55px",
+                borderRadius: "10px",
+                border: "1px solid #ddd",
+                fontSize: "16px",
+                background: "white",
+              }}
+            />
+
+            <input
+              type="date"
+              value={dateIso}
+              min={today}
+              onChange={handleDateChange}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: "35px",
+                height: "35px",
+                opacity: 0,
+                cursor: "pointer",
+              }}
+            />
+
+            <span
+              style={{
+                position: "absolute",
+                right: "18px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                fontSize: "22px",
+                pointerEvents: "none",
+              }}
+            >
+              📅
+            </span>
+          </div>
 
           <label style={{ fontWeight: "bold" }}>
             Ora
@@ -284,7 +336,6 @@ export default function RestaurantPage() {
               style={{
                 textAlign: "center",
                 fontWeight: "bold",
-                marginTop: "5px",
               }}
             >
               {message}
