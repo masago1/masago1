@@ -8,8 +8,27 @@ export default function RestaurantPage() {
   const [guests, setGuests] = useState("2");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
+
+  function generateReservationCode() {
+    const randomPart = crypto
+      .randomUUID()
+      .replaceAll("-", "")
+      .slice(0, 8)
+      .toUpperCase();
+
+    return `MASAGO-${randomPart}`;
+  }
+
+  function formatDateRomanian(value) {
+    if (!value) return "";
+
+    const [year, month, day] = value.split("-");
+    return `${day}/${month}/${year}`;
+  }
 
   async function handleReservation() {
     setMessage("");
@@ -41,9 +60,22 @@ export default function RestaurantPage() {
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      setMessage("Conexiunea cu Supabase nu este configurată.");
+      setMessage(
+        "Conexiunea cu Supabase nu este configurată."
+      );
       return;
     }
+
+    const reservationCode =
+      generateReservationCode();
+
+    const reservationSummary = {
+      code: reservationCode,
+      date: formatDateRomanian(date),
+      time,
+      guests,
+      name: name.trim(),
+    };
 
     setLoading(true);
 
@@ -52,11 +84,13 @@ export default function RestaurantPage() {
         `${supabaseUrl}/rest/v1/reservations`,
         {
           method: "POST",
+
           headers: {
             apikey: supabaseKey,
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
+
           body: JSON.stringify({
             restaurant_name: "Casa Bunicii",
             reservation_date: date,
@@ -65,18 +99,27 @@ export default function RestaurantPage() {
             customer_name: name.trim(),
             customer_phone: phone.trim(),
             status: "pending",
+            reservation_code: reservationCode,
           }),
         }
       );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("Supabase error:", errorText);
-        setMessage(`Eroare Supabase: ${errorText}`);
+
+        console.error(
+          "Supabase error:",
+          errorText
+        );
+
+        setMessage(
+          `Eroare Supabase: ${errorText}`
+        );
+
         return;
       }
 
-      setMessage("✅ Rezervarea a fost trimisă cu succes!");
+      setConfirmation(reservationSummary);
 
       setDate("");
       setTime("19:00");
@@ -85,15 +128,18 @@ export default function RestaurantPage() {
       setPhone("");
     } catch (error) {
       console.error(error);
-      setMessage(`Eroare: ${error.message}`);
+
+      setMessage(
+        `Eroare: ${error.message}`
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  function formatDateRomanian(value) {
-    if (!value) return "";
-    return value.split("-").reverse().join("/");
+  function makeAnotherReservation() {
+    setConfirmation(null);
+    setMessage("");
   }
 
   const fieldStyle = {
@@ -129,6 +175,7 @@ export default function RestaurantPage() {
       }}
     >
       {/* HEADER */}
+
       <header
         style={{
           background: "white",
@@ -152,7 +199,14 @@ export default function RestaurantPage() {
             letterSpacing: "-1px",
           }}
         >
-          Masago<span style={{ color: "#FF5A3C" }}>.</span>
+          Masago
+          <span
+            style={{
+              color: "#FF5A3C",
+            }}
+          >
+            .
+          </span>
         </a>
 
         <a
@@ -168,6 +222,7 @@ export default function RestaurantPage() {
       </header>
 
       {/* HERO */}
+
       <section
         style={{
           background:
@@ -191,9 +246,11 @@ export default function RestaurantPage() {
             <div
               style={{
                 display: "inline-block",
-                background: "rgba(255,90,60,0.16)",
+                background:
+                  "rgba(255,90,60,0.16)",
                 color: "#FF8A73",
-                border: "1px solid rgba(255,90,60,0.35)",
+                border:
+                  "1px solid rgba(255,90,60,0.35)",
                 borderRadius: "999px",
                 padding: "8px 12px",
                 fontSize: "14px",
@@ -206,7 +263,8 @@ export default function RestaurantPage() {
 
             <h1
               style={{
-                fontSize: "clamp(44px, 6vw, 66px)",
+                fontSize:
+                  "clamp(44px, 6vw, 66px)",
                 margin: 0,
                 letterSpacing: "-2px",
               }}
@@ -222,8 +280,9 @@ export default function RestaurantPage() {
                 maxWidth: "600px",
               }}
             >
-              Bucătărie românească și preparate tradiționale,
-              cu oferte disponibile în anumite intervale.
+              Bucătărie românească și
+              preparate tradiționale, cu oferte
+              disponibile în anumite intervale.
             </p>
 
             <div
@@ -271,7 +330,8 @@ export default function RestaurantPage() {
               justifyContent: "center",
               fontSize: "110px",
               border: "1px solid #334057",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+              boxShadow:
+                "0 20px 60px rgba(0,0,0,0.25)",
             }}
           >
             🍲
@@ -280,6 +340,7 @@ export default function RestaurantPage() {
       </section>
 
       {/* CONTENT */}
+
       <section
         style={{
           maxWidth: "1180px",
@@ -292,7 +353,8 @@ export default function RestaurantPage() {
           alignItems: "start",
         }}
       >
-        {/* LEFT */}
+        {/* INFORMATII */}
+
         <div>
           <div
             style={{
@@ -300,7 +362,8 @@ export default function RestaurantPage() {
               border: "1px solid #ebedf0",
               borderRadius: "20px",
               padding: "28px",
-              boxShadow: "0 10px 30px rgba(23,32,51,0.05)",
+              boxShadow:
+                "0 10px 30px rgba(23,32,51,0.05)",
               marginBottom: "22px",
             }}
           >
@@ -319,8 +382,10 @@ export default function RestaurantPage() {
                 lineHeight: 1.7,
               }}
             >
-              Casa Bunicii este listat în Masago pentru rezervări
-              cu reducere în intervalele disponibile.
+              Casa Bunicii este listat în
+              Masago pentru rezervări cu
+              reducere în intervalele
+              disponibile.
             </p>
 
             <div
@@ -332,21 +397,39 @@ export default function RestaurantPage() {
             >
               <div>
                 <strong>📍 Locație</strong>
-                <div style={{ color: "#667085", marginTop: "4px" }}>
+
+                <div
+                  style={{
+                    color: "#667085",
+                    marginTop: "4px",
+                  }}
+                >
                   Timișoara
                 </div>
               </div>
 
               <div>
                 <strong>🍽️ Tip</strong>
-                <div style={{ color: "#667085", marginTop: "4px" }}>
+
+                <div
+                  style={{
+                    color: "#667085",
+                    marginTop: "4px",
+                  }}
+                >
                   Bucătărie românească
                 </div>
               </div>
 
               <div>
                 <strong>⭐ Evaluare</strong>
-                <div style={{ color: "#667085", marginTop: "4px" }}>
+
+                <div
+                  style={{
+                    color: "#667085",
+                    marginTop: "4px",
+                  }}
+                >
                   9.2
                 </div>
               </div>
@@ -388,199 +471,456 @@ export default function RestaurantPage() {
                 lineHeight: 1.6,
               }}
             >
-              Reducerea se aplică la nota de plată conform
-              condițiilor restaurantului și intervalului rezervat.
+              Reducerea se aplică la nota de
+              plată conform condițiilor
+              restaurantului și intervalului
+              rezervat.
             </p>
           </div>
         </div>
 
-        {/* BOOKING CARD */}
+        {/* CONFIRMARE SAU FORMULAR */}
+
         <div
           style={{
             background: "white",
             border: "1px solid #ebedf0",
             borderRadius: "22px",
             padding: "30px",
-            boxShadow: "0 18px 45px rgba(23,32,51,0.08)",
+            boxShadow:
+              "0 18px 45px rgba(23,32,51,0.08)",
           }}
         >
-          <p
-            style={{
-              margin: 0,
-              color: "#FF5A3C",
-              fontWeight: "900",
-              fontSize: "13px",
-              textTransform: "uppercase",
-              letterSpacing: "1px",
-            }}
-          >
-            Rezervare
-          </p>
-
-          <h2
-            style={{
-              fontSize: "30px",
-              margin: "7px 0 8px",
-            }}
-          >
-            Rezervă o masă
-          </h2>
-
-          <p
-            style={{
-              color: "#737c8d",
-              marginTop: 0,
-              marginBottom: "28px",
-            }}
-          >
-            Completează detaliile și trimitem rezervarea către
-            restaurant.
-          </p>
-
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Data rezervării</label>
-
-            <input
-              type="date"
-              value={date}
-              min={new Date().toISOString().split("T")[0]}
-              onChange={(e) => setDate(e.target.value)}
-              style={inputStyle}
-            />
-
-            {date && (
+          {confirmation ? (
+            <>
               <div
                 style={{
-                  marginTop: "7px",
-                  color: "#7a8393",
-                  fontSize: "14px",
+                  width: "64px",
+                  height: "64px",
+                  margin: "0 auto 20px",
+                  borderRadius: "50%",
+                  background: "#E9F8EF",
+                  color: "#16865C",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "30px",
                 }}
               >
-                Data selectată:{" "}
-                <strong>{formatDateRomanian(date)}</strong>
+                ✓
               </div>
-            )}
-          </div>
 
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Ora</label>
+              <div
+                style={{
+                  textAlign: "center",
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    color: "#16865C",
+                    textTransform: "uppercase",
+                    letterSpacing: "1px",
+                    fontSize: "13px",
+                    fontWeight: "900",
+                  }}
+                >
+                  Rezervare trimisă
+                </p>
 
-            <select
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="18:00">18:00</option>
-              <option value="18:30">18:30</option>
-              <option value="19:00">19:00</option>
-              <option value="19:30">19:30</option>
-              <option value="20:00">20:00</option>
-              <option value="20:30">20:30</option>
-              <option value="21:00">21:00</option>
-              <option value="21:30">21:30</option>
-            </select>
-          </div>
+                <h2
+                  style={{
+                    fontSize: "30px",
+                    margin: "8px 0",
+                  }}
+                >
+                  Mulțumim,{" "}
+                  {confirmation.name}!
+                </h2>
 
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Număr de persoane</label>
+                <p
+                  style={{
+                    color: "#737C8D",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Solicitarea a fost trimisă
+                  către Casa Bunicii și așteaptă
+                  confirmarea restaurantului.
+                </p>
+              </div>
 
-            <select
-              value={guests}
-              onChange={(e) => setGuests(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="1">1 persoană</option>
-              <option value="2">2 persoane</option>
-              <option value="3">3 persoane</option>
-              <option value="4">4 persoane</option>
-              <option value="5">5 persoane</option>
-              <option value="6">6 persoane</option>
-              <option value="7">7 persoane</option>
-              <option value="8">8 persoane</option>
-            </select>
-          </div>
+              <div
+                style={{
+                  margin: "25px 0",
+                  padding: "22px",
+                  background: "#172033",
+                  color: "white",
+                  borderRadius: "16px",
+                  textAlign: "center",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#AEB7C6",
+                    fontSize: "12px",
+                    textTransform: "uppercase",
+                    letterSpacing: "1px",
+                    fontWeight: "800",
+                  }}
+                >
+                  Cod rezervare
+                </div>
 
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Nume</label>
+                <div
+                  style={{
+                    fontSize: "27px",
+                    fontWeight: "900",
+                    letterSpacing: "2px",
+                    marginTop: "8px",
+                  }}
+                >
+                  {confirmation.code}
+                </div>
+              </div>
 
-            <input
-              type="text"
-              placeholder="Numele tău"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(3, 1fr)",
+                  gap: "10px",
+                  marginBottom: "25px",
+                }}
+              >
+                <div
+                  style={confirmationBox}
+                >
+                  <span style={confirmationLabel}>
+                    Data
+                  </span>
 
-          <div style={fieldStyle}>
-            <label style={labelStyle}>Număr de telefon</label>
+                  <strong>
+                    {confirmation.date}
+                  </strong>
+                </div>
 
-            <input
-              type="tel"
-              placeholder="07xxxxxxxx"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
+                <div
+                  style={confirmationBox}
+                >
+                  <span style={confirmationLabel}>
+                    Ora
+                  </span>
 
-          <button
-            onClick={handleReservation}
-            disabled={loading}
-            style={{
-              width: "100%",
-              marginTop: "5px",
-              border: "none",
-              borderRadius: "12px",
-              padding: "16px",
-              background: loading ? "#aeb4bf" : "#FF5A3C",
-              color: "white",
-              fontSize: "17px",
-              fontWeight: "900",
-              cursor: loading ? "not-allowed" : "pointer",
-              boxShadow: loading
-                ? "none"
-                : "0 10px 24px rgba(255,90,60,0.22)",
-            }}
-          >
-            {loading ? "Se trimite..." : "Rezervă masa"}
-          </button>
+                  <strong>
+                    {confirmation.time}
+                  </strong>
+                </div>
 
-          {message && (
-            <div
-              style={{
-                marginTop: "20px",
-                padding: "14px",
-                borderRadius: "11px",
-                background: message.includes("✅")
-                  ? "#EAF7EF"
-                  : "#FFF0EC",
-                color: message.includes("✅")
-                  ? "#177245"
-                  : "#A33A29",
-                fontWeight: "800",
-                textAlign: "center",
-                lineHeight: 1.5,
-                wordBreak: "break-word",
-              }}
-            >
-              {message}
-            </div>
+                <div
+                  style={confirmationBox}
+                >
+                  <span style={confirmationLabel}>
+                    Persoane
+                  </span>
+
+                  <strong>
+                    {confirmation.guests}
+                  </strong>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: "#FFF4DD",
+                  color: "#7A5800",
+                  padding: "14px",
+                  borderRadius: "11px",
+                  fontSize: "14px",
+                  lineHeight: 1.5,
+                  marginBottom: "18px",
+                }}
+              >
+                ⏳ Rezervarea este momentan{" "}
+                <strong>în așteptare</strong>.
+                Restaurantul trebuie să o
+                confirme.
+              </div>
+
+              <button
+                onClick={makeAnotherReservation}
+                style={{
+                  width: "100%",
+                  border: "1px solid #DDE1E6",
+                  borderRadius: "12px",
+                  padding: "14px",
+                  background: "white",
+                  color: "#172033",
+                  fontWeight: "900",
+                  cursor: "pointer",
+                }}
+              >
+                Fă altă rezervare
+              </button>
+            </>
+          ) : (
+            <>
+              <p
+                style={{
+                  margin: 0,
+                  color: "#FF5A3C",
+                  fontWeight: "900",
+                  fontSize: "13px",
+                  textTransform: "uppercase",
+                  letterSpacing: "1px",
+                }}
+              >
+                Rezervare
+              </p>
+
+              <h2
+                style={{
+                  fontSize: "30px",
+                  margin: "7px 0 8px",
+                }}
+              >
+                Rezervă o masă
+              </h2>
+
+              <p
+                style={{
+                  color: "#737c8d",
+                  marginTop: 0,
+                  marginBottom: "28px",
+                }}
+              >
+                Completează detaliile și
+                trimitem rezervarea către
+                restaurant.
+              </p>
+
+              <div style={fieldStyle}>
+                <label style={labelStyle}>
+                  Data rezervării
+                </label>
+
+                <input
+                  type="date"
+                  value={date}
+                  min={
+                    new Date()
+                      .toISOString()
+                      .split("T")[0]
+                  }
+                  onChange={(e) =>
+                    setDate(e.target.value)
+                  }
+                  style={inputStyle}
+                />
+
+                {date && (
+                  <div
+                    style={{
+                      marginTop: "7px",
+                      color: "#7a8393",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Data selectată:{" "}
+                    <strong>
+                      {formatDateRomanian(date)}
+                    </strong>
+                  </div>
+                )}
+              </div>
+
+              <div style={fieldStyle}>
+                <label style={labelStyle}>
+                  Ora
+                </label>
+
+                <select
+                  value={time}
+                  onChange={(e) =>
+                    setTime(e.target.value)
+                  }
+                  style={inputStyle}
+                >
+                  <option value="18:00">
+                    18:00
+                  </option>
+
+                  <option value="18:30">
+                    18:30
+                  </option>
+
+                  <option value="19:00">
+                    19:00
+                  </option>
+
+                  <option value="19:30">
+                    19:30
+                  </option>
+
+                  <option value="20:00">
+                    20:00
+                  </option>
+
+                  <option value="20:30">
+                    20:30
+                  </option>
+
+                  <option value="21:00">
+                    21:00
+                  </option>
+
+                  <option value="21:30">
+                    21:30
+                  </option>
+                </select>
+              </div>
+
+              <div style={fieldStyle}>
+                <label style={labelStyle}>
+                  Număr de persoane
+                </label>
+
+                <select
+                  value={guests}
+                  onChange={(e) =>
+                    setGuests(e.target.value)
+                  }
+                  style={inputStyle}
+                >
+                  <option value="1">
+                    1 persoană
+                  </option>
+
+                  <option value="2">
+                    2 persoane
+                  </option>
+
+                  <option value="3">
+                    3 persoane
+                  </option>
+
+                  <option value="4">
+                    4 persoane
+                  </option>
+
+                  <option value="5">
+                    5 persoane
+                  </option>
+
+                  <option value="6">
+                    6 persoane
+                  </option>
+
+                  <option value="7">
+                    7 persoane
+                  </option>
+
+                  <option value="8">
+                    8 persoane
+                  </option>
+                </select>
+              </div>
+
+              <div style={fieldStyle}>
+                <label style={labelStyle}>
+                  Nume
+                </label>
+
+                <input
+                  type="text"
+                  placeholder="Numele tău"
+                  value={name}
+                  onChange={(e) =>
+                    setName(e.target.value)
+                  }
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={fieldStyle}>
+                <label style={labelStyle}>
+                  Număr de telefon
+                </label>
+
+                <input
+                  type="tel"
+                  placeholder="07xxxxxxxx"
+                  value={phone}
+                  onChange={(e) =>
+                    setPhone(e.target.value)
+                  }
+                  style={inputStyle}
+                />
+              </div>
+
+              <button
+                onClick={handleReservation}
+                disabled={loading}
+                style={{
+                  width: "100%",
+                  marginTop: "5px",
+                  border: "none",
+                  borderRadius: "12px",
+                  padding: "16px",
+                  background: loading
+                    ? "#aeb4bf"
+                    : "#FF5A3C",
+                  color: "white",
+                  fontSize: "17px",
+                  fontWeight: "900",
+                  cursor: loading
+                    ? "not-allowed"
+                    : "pointer",
+                  boxShadow: loading
+                    ? "none"
+                    : "0 10px 24px rgba(255,90,60,0.22)",
+                }}
+              >
+                {loading
+                  ? "Se trimite..."
+                  : "Rezervă masa"}
+              </button>
+
+              {message && (
+                <div
+                  style={{
+                    marginTop: "20px",
+                    padding: "14px",
+                    borderRadius: "11px",
+                    background: "#FFF0EC",
+                    color: "#A33A29",
+                    fontWeight: "800",
+                    textAlign: "center",
+                    lineHeight: 1.5,
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {message}
+                </div>
+              )}
+
+              <p
+                style={{
+                  color: "#98A0AE",
+                  fontSize: "12px",
+                  textAlign: "center",
+                  marginTop: "18px",
+                  marginBottom: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                Trimiterea rezervării nu
+                înseamnă confirmare automată.
+                Restaurantul poate confirma sau
+                respinge solicitarea.
+              </p>
+            </>
           )}
-
-          <p
-            style={{
-              color: "#98A0AE",
-              fontSize: "12px",
-              textAlign: "center",
-              marginTop: "18px",
-              marginBottom: 0,
-              lineHeight: 1.5,
-            }}
-          >
-            Trimiterea rezervării nu înseamnă confirmare automată.
-            Restaurantul poate confirma sau respinge solicitarea.
-          </p>
         </div>
       </section>
 
@@ -592,7 +932,11 @@ export default function RestaurantPage() {
           color: "#7A8393",
         }}
       >
-        <strong style={{ color: "#172033" }}>
+        <strong
+          style={{
+            color: "#172033",
+          }}
+        >
           Masago.
         </strong>{" "}
         © 2026
@@ -600,3 +944,20 @@ export default function RestaurantPage() {
     </main>
   );
 }
+
+const confirmationBox = {
+  background: "#F6F7F9",
+  padding: "14px 8px",
+  borderRadius: "11px",
+  textAlign: "center",
+};
+
+const confirmationLabel = {
+  display: "block",
+  color: "#8A92A0",
+  fontSize: "11px",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+  marginBottom: "5px",
+  fontWeight: "800",
+};
