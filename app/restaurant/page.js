@@ -11,9 +11,9 @@ export default function RestaurantPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Transformă YYYY-MM-DD în ZZ/LL/AAAA pentru afișare
   function formatDateRomanian(value) {
     if (!value) return "";
+
     const [year, month, day] = value.split("-");
     return `${day}/${month}/${year}`;
   }
@@ -41,12 +41,16 @@ export default function RestaurantPage() {
       return;
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      setMessage("Lipsesc setările Supabase.");
+      setMessage(
+        "Conexiunea cu Supabase nu este configurată."
+      );
       return;
     }
 
@@ -76,17 +80,20 @@ export default function RestaurantPage() {
         }
       );
 
-      const result = await response.text();
-
       if (!response.ok) {
-        console.error("Supabase error:", result);
-        setMessage(`Eroare Supabase: ${result}`);
+        const errorText = await response.text();
+        console.error(errorText);
+
+        setMessage(
+          `Eroare Supabase: ${errorText}`
+        );
         return;
       }
 
-      setMessage("✅ Rezervarea a fost trimisă cu succes!");
+      setMessage(
+        "✅ Rezervarea a fost trimisă cu succes!"
+      );
 
-      // Golim formularul după rezervare
       setDate("");
       setTime("");
       setGuests("2");
@@ -94,7 +101,10 @@ export default function RestaurantPage() {
       setPhone("");
     } catch (error) {
       console.error(error);
-      setMessage(`Eroare: ${error.message}`);
+
+      setMessage(
+        `Eroare: ${error.message}`
+      );
     } finally {
       setLoading(false);
     }
@@ -137,7 +147,8 @@ export default function RestaurantPage() {
           background: "white",
           padding: "35px",
           borderRadius: "20px",
-          boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
+          boxShadow:
+            "0 8px 30px rgba(0,0,0,0.08)",
         }}
       >
         <a
@@ -150,12 +161,20 @@ export default function RestaurantPage() {
           ← Înapoi la restaurante
         </a>
 
-        <h1 style={{ fontSize: "32px", marginBottom: "10px" }}>
+        <h1
+          style={{
+            fontSize: "32px",
+            marginBottom: "10px",
+          }}
+        >
           Casa Bunicii
         </h1>
 
         <p>📍 Timișoara</p>
-        <p>⭐ 9.2 • Bucătărie românească</p>
+
+        <p>
+          ⭐ 9.2 • Bucătărie românească
+        </p>
 
         <div
           style={{
@@ -169,26 +188,35 @@ export default function RestaurantPage() {
           <h2
             style={{
               color: "#ff5a3c",
-              marginTop: "0",
+              marginTop: 0,
             }}
           >
             -30% reducere
           </h2>
 
-          <p>Reducerea se aplică la nota de plată.</p>
+          <p>
+            Reducerea se aplică la nota de plată.
+          </p>
         </div>
 
         <h2>Rezervă o masă</h2>
 
-        {/* DATA */}
         <div style={fieldStyle}>
-          <label style={labelStyle}>Data rezervării</label>
+          <label style={labelStyle}>
+            Data rezervării
+          </label>
 
           <input
             type="date"
             value={date}
-            min={new Date().toISOString().split("T")[0]}
-            onChange={(e) => setDate(e.target.value)}
+            min={
+              new Date()
+                .toISOString()
+                .split("T")[0]
+            }
+            onChange={(e) =>
+              setDate(e.target.value)
+            }
             style={inputStyle}
           />
 
@@ -201,95 +229,163 @@ export default function RestaurantPage() {
               }}
             >
               Data selectată:{" "}
-              <strong>{formatDateRomanian(date)}</strong>
+              <strong>
+                {formatDateRomanian(date)}
+              </strong>
             </div>
           )}
         </div>
 
-        {/* ORA */}
         <div style={fieldStyle}>
-          <label style={labelStyle}>Ora</label>
+          <label style={labelStyle}>
+            Ora
+          </label>
 
           <select
             value={time}
-            onChange={(e) => setTime(e.target.value)}
+            onChange={(e) =>
+              setTime(e.target.value)
+            }
             style={inputStyle}
           >
-            <option value="">Alege ora</option>
-            <option value="18:00">18:00</option>
-            <option value="18:30">18:30</option>
-            <option value="19:00">19:00</option>
-            <option value="19:30">19:30</option>
-            <option value="20:00">20:00</option>
-            <option value="20:30">20:30</option>
-            <option value="21:00">21:00</option>
-            <option value="21:30">21:30</option>
+            <option value="">
+              Alege ora
+            </option>
+
+            <option value="18:00">
+              18:00
+            </option>
+
+            <option value="18:30">
+              18:30
+            </option>
+
+            <option value="19:00">
+              19:00
+            </option>
+
+            <option value="19:30">
+              19:30
+            </option>
+
+            <option value="20:00">
+              20:00
+            </option>
+
+            <option value="20:30">
+              20:30
+            </option>
+
+            <option value="21:00">
+              21:00
+            </option>
+
+            <option value="21:30">
+              21:30
+            </option>
           </select>
         </div>
 
-        {/* PERSOANE */}
         <div style={fieldStyle}>
-          <label style={labelStyle}>Număr de persoane</label>
+          <label style={labelStyle}>
+            Număr de persoane
+          </label>
 
           <select
             value={guests}
-            onChange={(e) => setGuests(e.target.value)}
+            onChange={(e) =>
+              setGuests(e.target.value)
+            }
             style={inputStyle}
           >
-            <option value="1">1 persoană</option>
-            <option value="2">2 persoane</option>
-            <option value="3">3 persoane</option>
-            <option value="4">4 persoane</option>
-            <option value="5">5 persoane</option>
-            <option value="6">6 persoane</option>
-            <option value="7">7 persoane</option>
-            <option value="8">8 persoane</option>
+            <option value="1">
+              1 persoană
+            </option>
+
+            <option value="2">
+              2 persoane
+            </option>
+
+            <option value="3">
+              3 persoane
+            </option>
+
+            <option value="4">
+              4 persoane
+            </option>
+
+            <option value="5">
+              5 persoane
+            </option>
+
+            <option value="6">
+              6 persoane
+            </option>
+
+            <option value="7">
+              7 persoane
+            </option>
+
+            <option value="8">
+              8 persoane
+            </option>
           </select>
         </div>
 
-        {/* NUME */}
         <div style={fieldStyle}>
-          <label style={labelStyle}>Nume</label>
+          <label style={labelStyle}>
+            Nume
+          </label>
 
           <input
             type="text"
             placeholder="Numele tău"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) =>
+              setName(e.target.value)
+            }
             style={inputStyle}
           />
         </div>
 
-        {/* TELEFON */}
         <div style={fieldStyle}>
-          <label style={labelStyle}>Număr de telefon</label>
+          <label style={labelStyle}>
+            Număr de telefon
+          </label>
 
           <input
             type="tel"
             placeholder="07xxxxxxxx"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) =>
+              setPhone(e.target.value)
+            }
             style={inputStyle}
           />
         </div>
 
-        {/* BUTON */}
         <button
           onClick={handleReservation}
           disabled={loading}
           style={{
             width: "100%",
-            background: loading ? "#aaa" : "#ff5a3c",
+            background: loading
+              ? "#aaa"
+              : "#ff5a3c",
             color: "white",
             border: "none",
             borderRadius: "10px",
             padding: "16px",
             fontSize: "17px",
             fontWeight: "bold",
-            cursor: loading ? "not-allowed" : "pointer",
+            cursor: loading
+              ? "not-allowed"
+              : "pointer",
           }}
         >
-          {loading ? "Se trimite..." : "Rezervă masa"}
+          {loading
+            ? "Se trimite..."
+            : "Rezervă masa"}
         </button>
 
         {message && (
