@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function VerificaRezervarePage() {
   const [code, setCode] = useState("");
   const [reservation, setReservation] = useState(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const savedCode =
+      localStorage.getItem("masago_last_reservation_code");
+
+    if (savedCode) {
+      setCode(savedCode);
+      checkReservationByCode(savedCode);
+    }
+  }, []);
 
   function formatDate(date) {
     if (!date) return "";
@@ -45,13 +55,9 @@ export default function VerificaRezervarePage() {
     };
   }
 
-  async function checkReservation(e) {
-    e.preventDefault();
-
-    setMessage("");
-    setReservation(null);
-
-    const cleanCode = code.trim().toUpperCase();
+  async function checkReservationByCode(reservationCode) {
+    const cleanCode =
+      reservationCode.trim().toUpperCase();
 
     if (!cleanCode) {
       setMessage("Introdu codul rezervării.");
@@ -70,6 +76,8 @@ export default function VerificaRezervarePage() {
     }
 
     setLoading(true);
+    setMessage("");
+    setReservation(null);
 
     try {
       const response = await fetch(
@@ -112,6 +120,11 @@ export default function VerificaRezervarePage() {
     }
   }
 
+  async function checkReservation(e) {
+    e.preventDefault();
+    await checkReservationByCode(code);
+  }
+
   const statusData = reservation
     ? getStatusData(reservation.status)
     : null;
@@ -145,8 +158,7 @@ export default function VerificaRezervarePage() {
             letterSpacing: "-1px",
           }}
         >
-          Masago
-          <span style={{ color: "#FF5A3C" }}>.</span>
+          Masago<span style={{ color: "#FF5A3C" }}>.</span>
         </a>
 
         <a
@@ -157,13 +169,13 @@ export default function VerificaRezervarePage() {
             fontWeight: "700",
           }}
         >
-          ← Înapoi la restaurante
+          ← Înapoi
         </a>
       </header>
 
       <section
         style={{
-          padding: "80px 6%",
+          padding: "75px 6%",
         }}
       >
         <div
@@ -175,42 +187,37 @@ export default function VerificaRezervarePage() {
           <div
             style={{
               textAlign: "center",
-              marginBottom: "35px",
+              marginBottom: "30px",
             }}
           >
             <p
               style={{
-                margin: 0,
                 color: "#FF5A3C",
+                fontWeight: "900",
                 textTransform: "uppercase",
                 letterSpacing: "1px",
-                fontWeight: "900",
                 fontSize: "13px",
               }}
             >
-              Status rezervare
+              Rezervarea mea
             </p>
 
             <h1
               style={{
                 fontSize: "42px",
-                margin: "8px 0 12px",
-                letterSpacing: "-1.5px",
+                margin: "8px 0",
               }}
             >
-              Verifică rezervarea
+              Statusul rezervării
             </h1>
 
             <p
               style={{
                 color: "#737C8D",
-                fontSize: "17px",
                 lineHeight: 1.6,
-                margin: 0,
               }}
             >
-              Introdu codul primit după rezervare pentru a vedea
-              dacă restaurantul a confirmat solicitarea.
+              Ultima ta rezervare este încărcată automat.
             </p>
           </div>
 
@@ -220,8 +227,6 @@ export default function VerificaRezervarePage() {
               border: "1px solid #E7E9ED",
               borderRadius: "22px",
               padding: "30px",
-              boxShadow:
-                "0 16px 45px rgba(23,32,51,0.07)",
             }}
           >
             <form onSubmit={checkReservation}>
@@ -237,11 +242,11 @@ export default function VerificaRezervarePage() {
 
               <input
                 type="text"
-                placeholder="MASAGO-ABC12345"
                 value={code}
                 onChange={(e) =>
                   setCode(e.target.value.toUpperCase())
                 }
+                placeholder="MASAGO-ABC12345"
                 style={{
                   width: "100%",
                   boxSizing: "border-box",
@@ -251,7 +256,6 @@ export default function VerificaRezervarePage() {
                   fontSize: "17px",
                   fontWeight: "700",
                   letterSpacing: "1px",
-                  outline: "none",
                 }}
               />
 
@@ -260,24 +264,20 @@ export default function VerificaRezervarePage() {
                 disabled={loading}
                 style={{
                   width: "100%",
-                  marginTop: "15px",
-                  border: "none",
-                  borderRadius: "12px",
+                  marginTop: "14px",
                   padding: "16px",
+                  borderRadius: "12px",
+                  border: "none",
                   background: loading
-                    ? "#AEB4BF"
+                    ? "#aaa"
                     : "#FF5A3C",
                   color: "white",
-                  fontSize: "16px",
                   fontWeight: "900",
-                  cursor: loading
-                    ? "not-allowed"
-                    : "pointer",
                 }}
               >
                 {loading
                   ? "Se verifică..."
-                  : "Verifică rezervarea"}
+                  : "Actualizează statusul"}
               </button>
             </form>
 
@@ -286,9 +286,9 @@ export default function VerificaRezervarePage() {
                 style={{
                   marginTop: "20px",
                   padding: "14px",
+                  borderRadius: "11px",
                   background: "#FFF0EC",
                   color: "#A33A29",
-                  borderRadius: "11px",
                   fontWeight: "800",
                   textAlign: "center",
                 }}
@@ -300,7 +300,7 @@ export default function VerificaRezervarePage() {
             {reservation && statusData && (
               <div
                 style={{
-                  marginTop: "30px",
+                  marginTop: "28px",
                 }}
               >
                 <div
@@ -315,27 +315,16 @@ export default function VerificaRezervarePage() {
                   <div
                     style={{
                       fontSize: "34px",
-                      marginBottom: "8px",
                     }}
                   >
                     {statusData.icon}
                   </div>
 
-                  <h2
-                    style={{
-                      margin: "0 0 8px",
-                      fontSize: "25px",
-                    }}
-                  >
+                  <h2>
                     {statusData.title}
                   </h2>
 
-                  <p
-                    style={{
-                      margin: 0,
-                      lineHeight: 1.6,
-                    }}
-                  >
+                  <p>
                     {statusData.text}
                   </p>
                 </div>
@@ -349,20 +338,18 @@ export default function VerificaRezervarePage() {
                   }}
                 >
                   <div style={rowStyle}>
-                    <span style={labelStyle}>
+                    <span style={rowLabel}>
                       Restaurant
                     </span>
-
                     <strong>
                       {reservation.restaurant_name}
                     </strong>
                   </div>
 
                   <div style={rowStyle}>
-                    <span style={labelStyle}>
+                    <span style={rowLabel}>
                       Data
                     </span>
-
                     <strong>
                       {formatDate(
                         reservation.reservation_date
@@ -371,20 +358,18 @@ export default function VerificaRezervarePage() {
                   </div>
 
                   <div style={rowStyle}>
-                    <span style={labelStyle}>
+                    <span style={rowLabel}>
                       Ora
                     </span>
-
                     <strong>
                       {reservation.reservation_time}
                     </strong>
                   </div>
 
                   <div style={rowStyle}>
-                    <span style={labelStyle}>
+                    <span style={rowLabel}>
                       Persoane
                     </span>
-
                     <strong>
                       {reservation.guests}
                     </strong>
@@ -396,32 +381,14 @@ export default function VerificaRezervarePage() {
                       borderBottom: "none",
                     }}
                   >
-                    <span style={labelStyle}>
+                    <span style={rowLabel}>
                       Cod
                     </span>
-
-                    <strong
-                      style={{
-                        letterSpacing: "1px",
-                      }}
-                    >
+                    <strong>
                       {reservation.reservation_code}
                     </strong>
                   </div>
                 </div>
-
-                <p
-                  style={{
-                    color: "#8A92A0",
-                    fontSize: "13px",
-                    textAlign: "center",
-                    lineHeight: 1.6,
-                    marginTop: "18px",
-                  }}
-                >
-                  Poți reveni oricând pe această pagină și
-                  verifica din nou același cod.
-                </p>
               </div>
             )}
           </div>
@@ -439,7 +406,7 @@ const rowStyle = {
   borderBottom: "1px solid #EEF0F2",
 };
 
-const labelStyle = {
+const rowLabel = {
   color: "#7A8393",
   fontWeight: "700",
 };
