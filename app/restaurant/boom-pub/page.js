@@ -91,228 +91,515 @@ export default function BoomPubPage() {
     }
   }
 
-  const inputStyle = {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: "14px",
-    border: "1px solid #ddd",
-    borderRadius: "9px",
-    fontSize: "16px",
-    background: "white",
+  function formatDateRomanian(value) {
+    if (!value) return "";
+    return value.split("-").reverse().join("/");
+  }
+
+  const fieldStyle = {
+    marginBottom: "18px",
   };
 
   const labelStyle = {
     display: "block",
-    fontWeight: "bold",
-    marginTop: "18px",
-    marginBottom: "7px",
+    fontWeight: "800",
+    marginBottom: "8px",
+    color: "#172033",
+  };
+
+  const inputStyle = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "15px 16px",
+    border: "1px solid #dfe3e8",
+    borderRadius: "12px",
+    fontSize: "16px",
+    background: "white",
+    color: "#172033",
+    outline: "none",
   };
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "#f6f6f6",
-        padding: "40px 20px",
+        background: "#FAFAF8",
         fontFamily: "Arial, sans-serif",
-        color: "#222",
+        color: "#172033",
       }}
     >
-      <div
+      {/* HEADER */}
+      <header
         style={{
-          maxWidth: "760px",
-          margin: "0 auto",
           background: "white",
-          borderRadius: "18px",
-          padding: "32px",
-          boxShadow: "0 8px 30px rgba(0,0,0,0.08)",
+          borderBottom: "1px solid #ececec",
+          padding: "18px 6%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
         }}
       >
         <a
           href="/"
           style={{
             textDecoration: "none",
-            color: "#666",
+            color: "#172033",
+            fontSize: "29px",
+            fontWeight: "900",
+            letterSpacing: "-1px",
           }}
         >
-          ← Înapoi la Masago
+          Masago<span style={{ color: "#FF5A3C" }}>.</span>
         </a>
 
-        <div
+        <a
+          href="/"
           style={{
-            marginTop: "28px",
-            marginBottom: "30px",
+            textDecoration: "none",
+            color: "#485267",
+            fontWeight: "700",
           }}
         >
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "34px",
-            }}
-          >
-            Boom Pub
-          </h1>
+          ← Înapoi la restaurante
+        </a>
+      </header>
 
-          <p
-            style={{
-              color: "#666",
-              marginTop: "8px",
-            }}
-          >
-            Pub • Timișoara
-          </p>
+      {/* HERO */}
+      <section
+        style={{
+          background:
+            "linear-gradient(135deg, #172033 0%, #202C43 100%)",
+          color: "white",
+          padding: "55px 6%",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: "35px",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: "inline-block",
+                background: "rgba(255,90,60,0.16)",
+                color: "#FF8A73",
+                border: "1px solid rgba(255,90,60,0.35)",
+                borderRadius: "999px",
+                padding: "8px 12px",
+                fontSize: "14px",
+                fontWeight: "800",
+                marginBottom: "18px",
+              }}
+            >
+              Pub • Timișoara
+            </div>
+
+            <h1
+              style={{
+                fontSize: "clamp(44px, 6vw, 66px)",
+                margin: 0,
+                letterSpacing: "-2px",
+              }}
+            >
+              Boom Pub
+            </h1>
+
+            <p
+              style={{
+                fontSize: "18px",
+                color: "#cbd2dd",
+                lineHeight: 1.6,
+                maxWidth: "600px",
+              }}
+            >
+              Atmosferă relaxată, băuturi și preparate de pub,
+              cu oferte disponibile în anumite intervale.
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                flexWrap: "wrap",
+                marginTop: "22px",
+              }}
+            >
+              <span
+                style={{
+                  background: "white",
+                  color: "#172033",
+                  padding: "10px 13px",
+                  borderRadius: "10px",
+                  fontWeight: "800",
+                }}
+              >
+                ⭐ 9.1
+              </span>
+
+              <span
+                style={{
+                  background: "#FF5A3C",
+                  color: "white",
+                  padding: "10px 13px",
+                  borderRadius: "10px",
+                  fontWeight: "900",
+                }}
+              >
+                -20% reducere
+              </span>
+            </div>
+          </div>
 
           <div
             style={{
-              marginTop: "18px",
-              background: "#fff0ec",
-              padding: "20px",
-              borderRadius: "15px",
+              height: "320px",
+              borderRadius: "22px",
+              background:
+                "linear-gradient(135deg, #2b3448, #151c2b)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "110px",
+              border: "1px solid #334057",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+            }}
+          >
+            🍻
+          </div>
+        </div>
+      </section>
+
+      {/* CONTENT */}
+      <section
+        style={{
+          maxWidth: "1180px",
+          margin: "0 auto",
+          padding: "55px 6% 80px",
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: "30px",
+          alignItems: "start",
+        }}
+      >
+        {/* LEFT */}
+        <div>
+          <div
+            style={{
+              background: "white",
+              border: "1px solid #ebedf0",
+              borderRadius: "20px",
+              padding: "28px",
+              boxShadow: "0 10px 30px rgba(23,32,51,0.05)",
+              marginBottom: "22px",
+            }}
+          >
+            <h2
+              style={{
+                marginTop: 0,
+                fontSize: "26px",
+              }}
+            >
+              Despre Boom Pub
+            </h2>
+
+            <p
+              style={{
+                color: "#667085",
+                lineHeight: 1.7,
+              }}
+            >
+              Boom Pub este listat în Masago pentru rezervări cu
+              reducere în intervalele disponibile.
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gap: "14px",
+                marginTop: "22px",
+              }}
+            >
+              <div>
+                <strong>📍 Locație</strong>
+                <div style={{ color: "#667085", marginTop: "4px" }}>
+                  Timișoara
+                </div>
+              </div>
+
+              <div>
+                <strong>🍽️ Tip</strong>
+                <div style={{ color: "#667085", marginTop: "4px" }}>
+                  Pub
+                </div>
+              </div>
+
+              <div>
+                <strong>⭐ Evaluare</strong>
+                <div style={{ color: "#667085", marginTop: "4px" }}>
+                  9.1
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "#FFF0EC",
+              border: "1px solid #FFD8CF",
+              borderRadius: "20px",
+              padding: "28px",
             }}
           >
             <div
               style={{
-                display: "inline-block",
-                background: "#ff5a43",
-                color: "white",
-                fontWeight: "bold",
-                fontSize: "24px",
-                padding: "10px 18px",
-                borderRadius: "10px",
+                color: "#FF5A3C",
+                fontWeight: "900",
+                fontSize: "34px",
+                marginBottom: "8px",
               }}
             >
               -20%
             </div>
 
-            <p
+            <h3
               style={{
-                color: "#666",
-                fontSize: "14px",
-                marginBottom: 0,
+                margin: "0 0 10px",
+                fontSize: "22px",
               }}
             >
-              Reducerea se aplică la nota de plată conform condițiilor
-              restaurantului.
+              Oferta Masago
+            </h3>
+
+            <p
+              style={{
+                margin: 0,
+                color: "#5f6777",
+                lineHeight: 1.6,
+              }}
+            >
+              Reducerea se aplică la nota de plată conform
+              condițiilor restaurantului și intervalului rezervat.
             </p>
           </div>
         </div>
 
-        <h2>Rezervă o masă</h2>
-
-        <label style={labelStyle}>Data rezervării</label>
-
-        <input
-          type="date"
-          value={date}
-          min={new Date().toISOString().split("T")[0]}
-          onChange={(e) => setDate(e.target.value)}
-          style={inputStyle}
-        />
-
-        {date && (
-          <div
-            style={{
-              color: "#777",
-              fontSize: "14px",
-              marginTop: "7px",
-            }}
-          >
-            Data selectată:{" "}
-            <strong>
-              {date.split("-").reverse().join("/")}
-            </strong>
-          </div>
-        )}
-
-        <label style={labelStyle}>Ora</label>
-
-        <select
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          style={inputStyle}
-        >
-          <option value="17:00">17:00</option>
-          <option value="17:30">17:30</option>
-          <option value="18:00">18:00</option>
-          <option value="18:30">18:30</option>
-          <option value="19:00">19:00</option>
-          <option value="19:30">19:30</option>
-          <option value="20:00">20:00</option>
-          <option value="20:30">20:30</option>
-          <option value="21:00">21:00</option>
-          <option value="21:30">21:30</option>
-          <option value="22:00">22:00</option>
-        </select>
-
-        <label style={labelStyle}>Număr de persoane</label>
-
-        <select
-          value={guests}
-          onChange={(e) => setGuests(e.target.value)}
-          style={inputStyle}
-        >
-          <option value="1">1 persoană</option>
-          <option value="2">2 persoane</option>
-          <option value="3">3 persoane</option>
-          <option value="4">4 persoane</option>
-          <option value="5">5 persoane</option>
-          <option value="6">6 persoane</option>
-          <option value="7">7 persoane</option>
-          <option value="8">8 persoane</option>
-        </select>
-
-        <label style={labelStyle}>Nume</label>
-
-        <input
-          type="text"
-          placeholder="Numele tău"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={inputStyle}
-        />
-
-        <label style={labelStyle}>Număr de telefon</label>
-
-        <input
-          type="tel"
-          placeholder="07xxxxxxxx"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          style={inputStyle}
-        />
-
-        <button
-          onClick={handleReservation}
-          disabled={loading}
+        {/* BOOKING CARD */}
+        <div
           style={{
-            width: "100%",
-            marginTop: "22px",
-            border: "none",
-            borderRadius: "10px",
-            padding: "16px",
-            background: loading ? "#aaa" : "#ff5a43",
-            color: "white",
-            fontSize: "16px",
-            fontWeight: "bold",
-            cursor: loading ? "not-allowed" : "pointer",
+            background: "white",
+            border: "1px solid #ebedf0",
+            borderRadius: "22px",
+            padding: "30px",
+            boxShadow: "0 18px 45px rgba(23,32,51,0.08)",
           }}
         >
-          {loading ? "Se trimite..." : "Rezervă masa"}
-        </button>
-
-        {message && (
-          <div
+          <p
             style={{
-              marginTop: "18px",
-              textAlign: "center",
-              fontWeight: "bold",
-              wordBreak: "break-word",
+              margin: 0,
+              color: "#FF5A3C",
+              fontWeight: "900",
+              fontSize: "13px",
+              textTransform: "uppercase",
+              letterSpacing: "1px",
             }}
           >
-            {message}
+            Rezervare
+          </p>
+
+          <h2
+            style={{
+              fontSize: "30px",
+              margin: "7px 0 8px",
+            }}
+          >
+            Rezervă o masă
+          </h2>
+
+          <p
+            style={{
+              color: "#737c8d",
+              marginTop: 0,
+              marginBottom: "28px",
+            }}
+          >
+            Completează detaliile și trimitem rezervarea către
+            restaurant.
+          </p>
+
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Data rezervării</label>
+
+            <input
+              type="date"
+              value={date}
+              min={new Date().toISOString().split("T")[0]}
+              onChange={(e) => setDate(e.target.value)}
+              style={inputStyle}
+            />
+
+            {date && (
+              <div
+                style={{
+                  marginTop: "7px",
+                  color: "#7a8393",
+                  fontSize: "14px",
+                }}
+              >
+                Data selectată:{" "}
+                <strong>{formatDateRomanian(date)}</strong>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Ora</label>
+
+            <select
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="17:00">17:00</option>
+              <option value="17:30">17:30</option>
+              <option value="18:00">18:00</option>
+              <option value="18:30">18:30</option>
+              <option value="19:00">19:00</option>
+              <option value="19:30">19:30</option>
+              <option value="20:00">20:00</option>
+              <option value="20:30">20:30</option>
+              <option value="21:00">21:00</option>
+              <option value="21:30">21:30</option>
+              <option value="22:00">22:00</option>
+            </select>
+          </div>
+
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Număr de persoane</label>
+
+            <select
+              value={guests}
+              onChange={(e) => setGuests(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="1">1 persoană</option>
+              <option value="2">2 persoane</option>
+              <option value="3">3 persoane</option>
+              <option value="4">4 persoane</option>
+              <option value="5">5 persoane</option>
+              <option value="6">6 persoane</option>
+              <option value="7">7 persoane</option>
+              <option value="8">8 persoane</option>
+            </select>
+          </div>
+
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Nume</label>
+
+            <input
+              type="text"
+              placeholder="Numele tău"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+
+          <div style={fieldStyle}>
+            <label style={labelStyle}>Număr de telefon</label>
+
+            <input
+              type="tel"
+              placeholder="07xxxxxxxx"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+
+          <button
+            onClick={handleReservation}
+            disabled={loading}
+            style={{
+              width: "100%",
+              marginTop: "5px",
+              border: "none",
+              borderRadius: "12px",
+              padding: "16px",
+              background: loading ? "#aeb4bf" : "#FF5A3C",
+              color: "white",
+              fontSize: "17px",
+              fontWeight: "900",
+              cursor: loading ? "not-allowed" : "pointer",
+              boxShadow: loading
+                ? "none"
+                : "0 10px 24px rgba(255,90,60,0.22)",
+            }}
+          >
+            {loading ? "Se trimite..." : "Rezervă masa"}
+          </button>
+
+          {message && (
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "14px",
+                borderRadius: "11px",
+                background: message.includes("✅")
+                  ? "#EAF7EF"
+                  : "#FFF0EC",
+                color: message.includes("✅")
+                  ? "#177245"
+                  : "#A33A29",
+                fontWeight: "800",
+                textAlign: "center",
+                lineHeight: 1.5,
+                wordBreak: "break-word",
+              }}
+            >
+              {message}
+            </div>
+          )}
+
+          <p
+            style={{
+              color: "#98A0AE",
+              fontSize: "12px",
+              textAlign: "center",
+              marginTop: "18px",
+              marginBottom: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            Trimiterea rezervării nu înseamnă confirmare automată.
+            Restaurantul poate confirma sau respinge solicitarea.
+          </p>
+        </div>
+      </section>
+
+      <footer
+        style={{
+          borderTop: "1px solid #ececec",
+          padding: "30px 6%",
+          textAlign: "center",
+          color: "#7A8393",
+        }}
+      >
+        <strong style={{ color: "#172033" }}>
+          Masago.
+        </strong>{" "}
+        © 2026
+      </footer>
     </main>
   );
 }
