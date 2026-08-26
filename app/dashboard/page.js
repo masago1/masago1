@@ -16,7 +16,6 @@ export default function DashboardPage() {
   const [updatingId, setUpdatingId] = useState(null);
   const [message, setMessage] = useState("");
 
-  // OFERTE
   const [offerDate, setOfferDate] = useState("");
   const [startTime, setStartTime] = useState("18:00");
   const [endTime, setEndTime] = useState("20:00");
@@ -41,9 +40,7 @@ export default function DashboardPage() {
 
     setUserEmail(email || "");
 
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
-
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
@@ -62,10 +59,7 @@ export default function DashboardPage() {
       );
 
       if (!restaurant) {
-        setMessage(
-          "Nu am găsit restaurantul asociat acestui cont."
-        );
-
+        setMessage("Nu am găsit restaurantul asociat acestui cont.");
         setLoading(false);
         return;
       }
@@ -74,17 +68,12 @@ export default function DashboardPage() {
       setRestaurantId(restaurant.id);
 
       await Promise.all([
-        loadReservations(
-          accessToken,
-          supabaseUrl,
-          supabaseKey
-        ),
-        loadOffers(
-          accessToken,
-          supabaseUrl,
-          supabaseKey
-        ),
+        loadReservations(accessToken, supabaseUrl, supabaseKey),
+        loadOffers(accessToken, supabaseUrl, supabaseKey),
       ]);
+    } catch (error) {
+      console.error(error);
+      setMessage("A apărut o eroare la încărcarea dashboard-ului.");
     } finally {
       setAuthChecking(false);
     }
@@ -154,21 +143,14 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         console.error("Reservations error:", data);
-
-        setMessage(
-          "Nu am putut încărca rezervările."
-        );
-
+        setMessage("Nu am putut încărca rezervările.");
         return;
       }
 
       setReservations(data);
     } catch (error) {
       console.error(error);
-
-      setMessage(
-        "A apărut o eroare la încărcarea rezervărilor."
-      );
+      setMessage("A apărut o eroare la încărcarea rezervărilor.");
     } finally {
       setLoading(false);
     }
@@ -205,13 +187,10 @@ export default function DashboardPage() {
 
   async function createOffer(event) {
     event.preventDefault();
-
     setOfferMessage("");
 
     if (!restaurantId) {
-      setOfferMessage(
-        "Restaurantul nu este identificat."
-      );
+      setOfferMessage("Restaurantul nu este identificat.");
       return;
     }
 
@@ -256,14 +235,18 @@ export default function DashboardPage() {
       return;
     }
 
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (offerDate < getTodayISO()) {
+      setOfferMessage(
+        "Nu poți crea o ofertă pentru o dată din trecut."
+      );
+      return;
+    }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-    const accessToken =
-      localStorage.getItem("masago_access_token");
+    const accessToken = localStorage.getItem("masago_access_token");
 
     if (!accessToken) {
       window.location.href = "/login";
@@ -277,14 +260,12 @@ export default function DashboardPage() {
         `${supabaseUrl}/rest/v1/offers`,
         {
           method: "POST",
-
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
-
           body: JSON.stringify({
             restaurant_id: restaurantId,
             offer_date: offerDate,
@@ -305,21 +286,15 @@ export default function DashboardPage() {
       if (!response.ok) {
         const errorText = await response.text();
 
-        console.error(
-          "Create offer error:",
-          errorText
-        );
+        console.error("Create offer error:", errorText);
 
         setOfferMessage(
           `Eroare la crearea ofertei: ${errorText}`
         );
-
         return;
       }
 
-      setOfferMessage(
-        "✅ Oferta a fost creată cu succes!"
-      );
+      setOfferMessage("✅ Oferta a fost creată cu succes!");
 
       setOfferDate("");
       setStartTime("18:00");
@@ -334,7 +309,6 @@ export default function DashboardPage() {
       );
     } catch (error) {
       console.error(error);
-
       setOfferMessage(
         "A apărut o eroare la crearea ofertei."
       );
@@ -347,14 +321,11 @@ export default function DashboardPage() {
     setUpdatingId(id);
     setMessage("");
 
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
-
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-    const accessToken =
-      localStorage.getItem("masago_access_token");
+    const accessToken = localStorage.getItem("masago_access_token");
 
     if (!accessToken) {
       window.location.href = "/login";
@@ -366,14 +337,12 @@ export default function DashboardPage() {
         `${supabaseUrl}/rest/v1/reservations?id=eq.${id}`,
         {
           method: "PATCH",
-
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
-
           body: JSON.stringify({
             status: newStatus,
           }),
@@ -393,7 +362,6 @@ export default function DashboardPage() {
         setMessage(
           "Nu am putut actualiza rezervarea."
         );
-
         return;
       }
 
@@ -419,17 +387,9 @@ export default function DashboardPage() {
   }
 
   function handleLogout() {
-    localStorage.removeItem(
-      "masago_access_token"
-    );
-
-    localStorage.removeItem(
-      "masago_refresh_token"
-    );
-
-    localStorage.removeItem(
-      "masago_user_email"
-    );
+    localStorage.removeItem("masago_access_token");
+    localStorage.removeItem("masago_refresh_token");
+    localStorage.removeItem("masago_user_email");
 
     window.location.href = "/login";
   }
@@ -437,9 +397,7 @@ export default function DashboardPage() {
   function formatDate(date) {
     if (!date) return "";
 
-    const [year, month, day] =
-      date.split("-");
-
+    const [year, month, day] = date.split("-");
     return `${day}/${month}/${year}`;
   }
 
@@ -503,23 +461,19 @@ export default function DashboardPage() {
 
     return {
       today: reservations.filter(
-        (item) =>
-          item.reservation_date === today
+        (item) => item.reservation_date === today
       ).length,
 
       pending: reservations.filter(
-        (item) =>
-          item.status === "pending"
+        (item) => item.status === "pending"
       ).length,
 
       accepted: reservations.filter(
-        (item) =>
-          item.status === "accepted"
+        (item) => item.status === "accepted"
       ).length,
 
       rejected: reservations.filter(
-        (item) =>
-          item.status === "rejected"
+        (item) => item.status === "rejected"
       ).length,
     };
   }, [reservations]);
@@ -551,9 +505,7 @@ export default function DashboardPage() {
         color: "#172033",
       }}
     >
-      {/* ========================================= */}
       {/* HEADER */}
-      {/* ========================================= */}
 
       <header
         style={{
@@ -584,9 +536,7 @@ export default function DashboardPage() {
             }}
           >
             Masago
-            <span style={{ color: "#FF5A3C" }}>
-              .
-            </span>
+            <span style={{ color: "#FF5A3C" }}>.</span>
           </a>
 
           <div
@@ -633,9 +583,7 @@ export default function DashboardPage() {
           padding: "42px 5% 70px",
         }}
       >
-        {/* ========================================= */}
         {/* INTRO */}
-        {/* ========================================= */}
 
         <section
           style={{
@@ -699,9 +647,7 @@ export default function DashboardPage() {
           </a>
         </section>
 
-        {/* ========================================= */}
-        {/* STATISTICI - VARIANTA VECHE */}
-        {/* ========================================= */}
+        {/* STATISTICI */}
 
         <section
           style={{
@@ -763,11 +709,7 @@ export default function DashboardPage() {
                   {item.label}
                 </span>
 
-                <span
-                  style={{
-                    fontSize: "21px",
-                  }}
-                >
+                <span style={{ fontSize: "21px" }}>
                   {item.icon}
                 </span>
               </div>
@@ -786,9 +728,7 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        {/* ========================================= */}
-        {/* OFERTE - SINGURA PARTE NOUĂ */}
-        {/* ========================================= */}
+        {/* OFERTE */}
 
         <section
           style={{
@@ -950,9 +890,6 @@ export default function DashboardPage() {
                   cursor: creatingOffer
                     ? "not-allowed"
                     : "pointer",
-                  boxShadow: creatingOffer
-                    ? "none"
-                    : "0 8px 20px rgba(255,90,60,0.18)",
                 }}
               >
                 {creatingOffer
@@ -967,16 +904,13 @@ export default function DashboardPage() {
                   marginTop: "15px",
                   padding: "13px",
                   borderRadius: "10px",
-                  background:
-                    offerMessage.includes("✅")
-                      ? "#E9F8EF"
-                      : "#FFF0EC",
-                  color:
-                    offerMessage.includes("✅")
-                      ? "#177245"
-                      : "#A33A29",
+                  background: offerMessage.includes("✅")
+                    ? "#E9F8EF"
+                    : "#FFF0EC",
+                  color: offerMessage.includes("✅")
+                    ? "#177245"
+                    : "#A33A29",
                   fontWeight: "800",
-                  lineHeight: 1.5,
                   wordBreak: "break-word",
                 }}
               >
@@ -1046,9 +980,7 @@ export default function DashboardPage() {
                       }}
                     >
                       -
-                      {
-                        offer.discount_percent
-                      }
+                      {offer.discount_percent}
                       %
                     </strong>
 
@@ -1067,9 +999,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* ========================================= */}
-        {/* REZERVARI - VARIANTA PREMIUM DE DINAINTE */}
-        {/* ========================================= */}
+        {/* REZERVARI */}
 
         <section>
           <div
@@ -1208,8 +1138,6 @@ export default function DashboardPage() {
                       "0 8px 25px rgba(23,32,51,0.045)",
                   }}
                 >
-                  {/* COD REZERVARE + STATUS */}
-
                   <div
                     style={{
                       display: "flex",
@@ -1282,8 +1210,6 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* INFORMATII REZERVARE */}
-
                   <div
                     style={{
                       display: "grid",
@@ -1354,18 +1280,12 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* ================================= */}
-                  {/* ACCEPTA + RESPINGE */}
-                  {/* ================================= */}
-
-                  {reservation.status ===
-                    "pending" && (
+                  {reservation.status === "pending" && (
                     <div
                       style={{
                         marginTop: "22px",
                         paddingTop: "18px",
-                        borderTop:
-                          "1px solid #EEF0F2",
+                        borderTop: "1px solid #EEF0F2",
                         display: "grid",
                         gridTemplateColumns:
                           "repeat(2, minmax(0, 1fr))",
@@ -1380,8 +1300,7 @@ export default function DashboardPage() {
                           )
                         }
                         disabled={
-                          updatingId ===
-                          reservation.id
+                          updatingId === reservation.id
                         }
                         style={{
                           width: "100%",
@@ -1393,19 +1312,16 @@ export default function DashboardPage() {
                           fontWeight: "900",
                           fontSize: "14px",
                           cursor:
-                            updatingId ===
-                            reservation.id
+                            updatingId === reservation.id
                               ? "not-allowed"
                               : "pointer",
                           opacity:
-                            updatingId ===
-                            reservation.id
+                            updatingId === reservation.id
                               ? 0.65
                               : 1,
                         }}
                       >
-                        {updatingId ===
-                        reservation.id
+                        {updatingId === reservation.id
                           ? "Se actualizează..."
                           : "✅ Acceptă rezervarea"}
                       </button>
@@ -1418,35 +1334,30 @@ export default function DashboardPage() {
                           )
                         }
                         disabled={
-                          updatingId ===
-                          reservation.id
+                          updatingId === reservation.id
                         }
                         style={{
                           width: "100%",
-                          border:
-                            "1px solid #F2C7C3",
+                          border: "none",
                           borderRadius: "10px",
                           padding: "13px 15px",
-                          background: "#FFF7F6",
-                          color: "#B42318",
+                          background: "#C9362B",
+                          color: "white",
                           fontWeight: "900",
                           fontSize: "14px",
                           cursor:
-                            updatingId ===
-                            reservation.id
+                            updatingId === reservation.id
                               ? "not-allowed"
                               : "pointer",
                           opacity:
-                            updatingId ===
-                            reservation.id
+                            updatingId === reservation.id
                               ? 0.65
                               : 1,
                         }}
                       >
-                        {updatingId ===
-                        reservation.id
+                        {updatingId === reservation.id
                           ? "Se actualizează..."
-                          : "Respinge"}
+                          : "❌ Respinge rezervarea"}
                       </button>
                     </div>
                   )}
