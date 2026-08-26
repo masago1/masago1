@@ -18,6 +18,7 @@ export default function DashboardPage() {
 
   const [updatingId, setUpdatingId] = useState(null);
   const [creatingOffer, setCreatingOffer] = useState(false);
+  const [offerUpdatingId, setOfferUpdatingId] = useState(null);
 
   const [offerDate, setOfferDate] = useState("");
   const [startTime, setStartTime] = useState("18:00");
@@ -210,14 +211,12 @@ export default function DashboardPage() {
         `${supabaseUrl}/rest/v1/offers`,
         {
           method: "POST",
-
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
-
           body: JSON.stringify({
             restaurant_id: restaurantId,
             offer_date: offerDate,
@@ -254,8 +253,102 @@ export default function DashboardPage() {
     }
   }
 
+  async function toggleOffer(id, currentActive) {
+    const accessToken = localStorage.getItem("masago_access_token");
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    setOfferUpdatingId(id);
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers?id=eq.${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            active: !currentActive,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(text);
+        setOfferMessage("Nu am putut modifica oferta.");
+        return;
+      }
+
+      setOffers((current) =>
+        current.map((offer) =>
+          offer.id === id
+            ? {
+                ...offer,
+                active: !currentActive,
+              }
+            : offer
+        )
+      );
+    } finally {
+      setOfferUpdatingId(null);
+    }
+  }
+
+  async function deleteOffer(id) {
+    const confirmed = window.confirm(
+      "Sigur vrei să ștergi această ofertă?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const accessToken = localStorage.getItem("masago_access_token");
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    setOfferUpdatingId(id);
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers?id=eq.${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            Prefer: "return=minimal",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(text);
+        setOfferMessage("Nu am putut șterge oferta.");
+        return;
+      }
+
+      setOffers((current) =>
+        current.filter((offer) => offer.id !== id)
+      );
+    } finally {
+      setOfferUpdatingId(null);
+    }
+  }
+
   async function updateReservation(id, newStatus) {
     setUpdatingId(id);
+    setMessage("");
 
     const accessToken = localStorage.getItem("masago_access_token");
 
@@ -268,14 +361,12 @@ export default function DashboardPage() {
         `${supabaseUrl}/rest/v1/reservations?id=eq.${id}`,
         {
           method: "PATCH",
-
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
-
           body: JSON.stringify({
             status: newStatus,
           }),
@@ -341,6 +432,27 @@ export default function DashboardPage() {
     return "În așteptare";
   }
 
+  function statusStyle(status) {
+    if (status === "accepted") {
+      return {
+        background: "#E9F8EF",
+        color: "#177245",
+      };
+    }
+
+    if (status === "rejected") {
+      return {
+        background: "#FDECEC",
+        color: "#B42318",
+      };
+    }
+
+    return {
+      background: "#FFF4DD",
+      color: "#946200",
+    };
+  }
+
   const stats = useMemo(() => {
     return {
       today: reservations.filter(
@@ -400,13 +512,11 @@ export default function DashboardPage() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: "20px",
+            flexWrap: "wrap",
           }}
         >
-          <strong
-            style={{
-              fontSize: "28px",
-            }}
-          >
+          <strong style={{ fontSize: "28px" }}>
             Masago
             <span style={{ color: "#FF5A3C" }}>.</span>
           </strong>
@@ -481,7 +591,6 @@ export default function DashboardPage() {
         </p>
 
         {/* STATISTICI */}
-
         <div
           style={{
             display: "grid",
@@ -531,13 +640,8 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* AICI ESTE BUTONUL / FORMULARUL NOU */}
-
-        <section
-          style={{
-            marginBottom: "50px",
-          }}
-        >
+        {/* OFERTE */}
+        <section style={{ marginBottom: "50px" }}>
           <p
             style={{
               color: "#FF5A3C",
@@ -589,9 +693,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label style={formLabel}>
-                    De la
-                  </label>
+                  <label style={formLabel}>De la</label>
 
                   <input
                     type="time"
@@ -604,9 +706,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label style={formLabel}>
-                    Până la
-                  </label>
+                  <label style={formLabel}>Până la</label>
 
                   <input
                     type="time"
@@ -619,9 +719,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label style={formLabel}>
-                    Reducere %
-                  </label>
+                  <label style={formLabel}>Reducere %</label>
 
                   <input
                     type="number"
@@ -636,9 +734,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label style={formLabel}>
-                    Capacitate
-                  </label>
+                  <label style={formLabel}>Capacitate</label>
 
                   <input
                     type="number"
@@ -696,11 +792,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <h3
-            style={{
-              marginTop: "30px",
-            }}
-          >
+          <h3 style={{ marginTop: "30px" }}>
             Ofertele tale
           </h3>
 
@@ -732,40 +824,101 @@ export default function DashboardPage() {
                     border: "1px solid #E7E9ED",
                   }}
                 >
-                  <strong>
-                    {formatDate(offer.offer_date)}
-                  </strong>
-
-                  <span>
-                    {" "}
-                    • {formatTime(offer.start_time)}–
-                    {formatTime(offer.end_time)}
-                  </span>
-
-                  <strong
+                  <div
                     style={{
-                      color: "#FF5A3C",
-                      marginLeft: "15px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "15px",
+                      flexWrap: "wrap",
                     }}
                   >
-                    -{offer.discount_percent}%
-                  </strong>
+                    <div>
+                      <strong>
+                        {formatDate(offer.offer_date)}
+                      </strong>
 
-                  <span
-                    style={{
-                      marginLeft: "15px",
-                    }}
-                  >
-                    Capacitate: {offer.capacity}
-                  </span>
+                      <span>
+                        {" "}
+                        • {formatTime(offer.start_time)}–
+                        {formatTime(offer.end_time)}
+                      </span>
+
+                      <strong
+                        style={{
+                          color: "#FF5A3C",
+                          marginLeft: "15px",
+                        }}
+                      >
+                        -{offer.discount_percent}%
+                      </strong>
+
+                      <span
+                        style={{
+                          marginLeft: "15px",
+                        }}
+                      >
+                        Capacitate: {offer.capacity}
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                      }}
+                    >
+                      <button
+                        onClick={() =>
+                          toggleOffer(
+                            offer.id,
+                            offer.active
+                          )
+                        }
+                        disabled={
+                          offerUpdatingId === offer.id
+                        }
+                        style={{
+                          border: "1px solid #DDD",
+                          background: "white",
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                          fontWeight: "800",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {offer.active
+                          ? "Dezactivează"
+                          : "Activează"}
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          deleteOffer(offer.id)
+                        }
+                        disabled={
+                          offerUpdatingId === offer.id
+                        }
+                        style={{
+                          border: "1px solid #F1CCCC",
+                          background: "#FFF7F7",
+                          color: "#B42318",
+                          padding: "8px 10px",
+                          borderRadius: "8px",
+                          fontWeight: "800",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Șterge
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </section>
 
-        {/* REZERVARI */}
-
+        {/* REZERVĂRI */}
         <h2
           style={{
             fontSize: "30px",
@@ -796,111 +949,166 @@ export default function DashboardPage() {
             gap: "16px",
           }}
         >
-          {reservations.map((reservation) => (
-            <div
-              key={reservation.id}
-              style={{
-                background: "white",
-                borderRadius: "18px",
-                padding: "22px",
-                border: "1px solid #E7E9ED",
-              }}
-            >
+          {reservations.map((reservation) => {
+            const sStyle = statusStyle(
+              reservation.status
+            );
+
+            return (
               <div
+                key={reservation.id}
                 style={{
-                  background: "#172033",
-                  color: "white",
-                  display: "inline-block",
-                  padding: "8px 12px",
-                  borderRadius: "9px",
-                  fontWeight: "900",
-                  marginBottom: "15px",
+                  background: "white",
+                  borderRadius: "18px",
+                  padding: "22px",
+                  border: "1px solid #E7E9ED",
                 }}
               >
-                {reservation.reservation_code || "FĂRĂ COD"}
-              </div>
-
-              <div>
-                <strong>
-                  {reservation.customer_name}
-                </strong>
-
-                {" • "}
-
-                {formatDate(
-                  reservation.reservation_date
-                )}
-
-                {" • "}
-
-                {formatTime(
-                  reservation.reservation_time
-                )}
-
-                {" • "}
-
-                {reservation.guests} persoane
-              </div>
-
-              <p>
-                Status:{" "}
-                <strong>
-                  {statusLabel(reservation.status)}
-                </strong>
-              </p>
-
-              {reservation.status === "pending" && (
                 <div
                   style={{
                     display: "flex",
-                    gap: "10px",
+                    justifyContent: "space-between",
+                    gap: "15px",
+                    flexWrap: "wrap",
+                    marginBottom: "18px",
                   }}
                 >
-                  <button
-                    onClick={() =>
-                      updateReservation(
-                        reservation.id,
-                        "accepted"
-                      )
-                    }
-                    disabled={updatingId === reservation.id}
+                  <div
                     style={{
-                      flex: 1,
-                      border: "none",
-                      padding: "12px",
-                      borderRadius: "10px",
-                      background: "#16865C",
+                      background: "#172033",
                       color: "white",
+                      display: "inline-block",
+                      padding: "8px 12px",
+                      borderRadius: "9px",
                       fontWeight: "900",
                     }}
                   >
-                    ✓ Acceptă
-                  </button>
+                    {reservation.reservation_code || "FĂRĂ COD"}
+                  </div>
 
-                  <button
-                    onClick={() =>
-                      updateReservation(
-                        reservation.id,
-                        "rejected"
-                      )
-                    }
-                    disabled={updatingId === reservation.id}
+                  <span
                     style={{
-                      flex: 1,
-                      border: "1px solid #DDD",
-                      padding: "12px",
-                      borderRadius: "10px",
-                      background: "white",
-                      color: "#B42318",
+                      padding: "8px 11px",
+                      borderRadius: "999px",
                       fontWeight: "900",
+                      ...sStyle,
                     }}
                   >
-                    Respinge
-                  </button>
+                    {statusLabel(reservation.status)}
+                  </span>
                 </div>
-              )}
-            </div>
-          ))}
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(140px, 1fr))",
+                    gap: "15px",
+                  }}
+                >
+                  <div>
+                    <div style={smallLabel}>Client</div>
+                    <strong>
+                      {reservation.customer_name}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div style={smallLabel}>Telefon</div>
+                    <strong>
+                      {reservation.customer_phone}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div style={smallLabel}>Data</div>
+                    <strong>
+                      {formatDate(
+                        reservation.reservation_date
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div style={smallLabel}>Ora</div>
+                    <strong>
+                      {formatTime(
+                        reservation.reservation_time
+                      )}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <div style={smallLabel}>Persoane</div>
+                    <strong>
+                      {reservation.guests}
+                    </strong>
+                  </div>
+                </div>
+
+                {reservation.status === "pending" && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      marginTop: "20px",
+                      paddingTop: "18px",
+                      borderTop: "1px solid #EEF0F2",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <button
+                      onClick={() =>
+                        updateReservation(
+                          reservation.id,
+                          "accepted"
+                        )
+                      }
+                      disabled={
+                        updatingId === reservation.id
+                      }
+                      style={{
+                        flex: "1 1 180px",
+                        border: "none",
+                        padding: "12px",
+                        borderRadius: "10px",
+                        background: "#16865C",
+                        color: "white",
+                        fontWeight: "900",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✓ Acceptă rezervarea
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        updateReservation(
+                          reservation.id,
+                          "rejected"
+                        )
+                      }
+                      disabled={
+                        updatingId === reservation.id
+                      }
+                      style={{
+                        flex: "1 1 180px",
+                        border: "1px solid #DDD",
+                        padding: "12px",
+                        borderRadius: "10px",
+                        background: "white",
+                        color: "#B42318",
+                        fontWeight: "900",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Respinge rezervarea
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </main>
@@ -921,4 +1129,12 @@ const formInput = {
   border: "1px solid #DDE1E6",
   borderRadius: "10px",
   fontSize: "15px",
+};
+
+const smallLabel = {
+  fontSize: "11px",
+  color: "#8A92A0",
+  marginBottom: "5px",
+  fontWeight: "800",
+  textTransform: "uppercase",
 };
