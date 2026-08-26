@@ -4,12 +4,22 @@ import { useEffect, useMemo, useState } from "react";
 
 export default function DashboardPage() {
   const [reservations, setReservations] = useState([]);
+  const [offers, setOffers] = useState([]);
   const [restaurantName, setRestaurantName] = useState("Restaurant");
+  const [restaurantId, setRestaurantId] = useState(null);
   const [userEmail, setUserEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [message, setMessage] = useState("");
+
+  const [offerDate, setOfferDate] = useState("");
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("20:00");
+  const [discountPercent, setDiscountPercent] = useState("30");
+  const [capacity, setCapacity] = useState("10");
+  const [creatingOffer, setCreatingOffer] = useState(false);
+  const [offerMessage, setOfferMessage] = useState("");
 
   useEffect(() => {
     checkAuth();
@@ -40,10 +50,20 @@ export default function DashboardPage() {
     }
 
     try {
+      const restaurant = await loadRestaurant(
+        accessToken,
+        supabaseUrl,
+        supabaseKey
+      );
+
       await Promise.all([
-        loadRestaurant(accessToken, supabaseUrl, supabaseKey),
         loadReservations(accessToken, supabaseUrl, supabaseKey),
+        loadOffers(accessToken, supabaseUrl, supabaseKey),
       ]);
+
+      if (!restaurant) {
+        console.log("Restaurantul nu a fost găsit.");
+      }
     } finally {
       setAuthChecking(false);
     }
@@ -56,7 +76,7 @@ export default function DashboardPage() {
   ) {
     try {
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/restaurants?select=name&limit=1`,
+        `${supabaseUrl}/rest/v1/restaurants?select=id,name&limit=1`,
         {
           headers: {
             apikey: supabaseKey,
@@ -67,21 +87,30 @@ export default function DashboardPage() {
 
       if (response.status === 401) {
         handleLogout();
-        return;
+        return null;
       }
 
       const data = await response.json();
 
       if (!response.ok) {
         console.error("Restaurant error:", data);
-        return;
+        return null;
       }
 
-      if (data?.[0]?.name) {
-        setRestaurantName(data[0].name);
+      if (data?.[0]) {
+        setRestaurantId(data[0].id);
+
+        if (data[0].name) {
+          setRestaurantName(data[0].name);
+        }
+
+        return data[0];
       }
+
+      return null;
     } catch (error) {
       console.error(error);
+      return null;
     }
   }
 
@@ -120,6 +149,172 @@ export default function DashboardPage() {
       setMessage("A apărut o eroare la încărcarea rezervărilor.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadOffers(
+    accessToken,
+    supabaseUrl,
+    supabaseKey
+  ) {
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers?select=*&order=offer_date.desc`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Offers error:", data);
+        return;
+      }
+
+      setOffers(data || []);
+    } catch (error) {
+      console.error("Offers error:", error);
+    }
+  }
+
+  async function createOffer(event) {
+    event.preventDefault();
+    setOfferMessage("");
+
+    if (!restaurantId) {
+      setOfferMessage("Restaurantul nu este identificat.");
+      return;
+    }
+
+    if (!offerDate) {
+      setOfferMessage("Alege data ofertei.");
+      return;
+    }
+
+    if (!startTime || !endTime) {
+      setOfferMessage("Alege intervalul orar.");
+      return;
+    }
+
+    if (endTime <= startTime) {
+      setOfferMessage(
+        "Ora de final trebuie să fie după ora de început."
+      );
+      return;
+    }
+
+    const discount = Number(discountPercent);
+    const offerCapacity = Number(capacity);
+
+    if (
+      Number.isNaN(discount) ||
+      discount < 1 ||
+      discount > 100
+    ) {
+      setOfferMessage(
+        "Reducerea trebuie să fie între 1% și 100%."
+      );
+      return;
+    }
+
+    if (
+      Number.isNaN(offerCapacity) ||
+      offerCapacity < 1
+    ) {
+      setOfferMessage(
+        "Capacitatea trebuie să fie cel puțin 1."
+      );
+      return;
+    }
+
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const accessToken =
+      localStorage.getItem("masago_access_token");
+
+    if (!accessToken) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setCreatingOffer(true);
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers`,
+        {
+          method: "POST",
+
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+
+          body: JSON.stringify({
+            restaurant_id: restaurantId,
+            offer_date: offerDate,
+            start_time: startTime,
+            end_time: endTime,
+            discount_percent: discount,
+            capacity: offerCapacity,
+            active: true,
+          }),
+        }
+      );
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+
+        console.error("Create offer error:", errorText);
+
+        setOfferMessage(
+          `Eroare la crearea ofertei: ${errorText}`
+        );
+
+        return;
+      }
+
+      setOfferMessage("✓ Oferta a fost creată cu succes!");
+
+      setOfferDate("");
+      setStartTime("18:00");
+      setEndTime("20:00");
+      setDiscountPercent("30");
+      setCapacity("10");
+
+      await loadOffers(
+        accessToken,
+        supabaseUrl,
+        supabaseKey
+      );
+    } catch (error) {
+      console.error(error);
+
+      setOfferMessage(
+        "A apărut o eroare la crearea ofertei."
+      );
+    } finally {
+      setCreatingOffer(false);
     }
   }
 
@@ -548,6 +743,319 @@ export default function DashboardPage() {
           ))}
         </section>
 
+        {/* OFERTE */}
+
+        <section
+          style={{
+            marginBottom: "40px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "15px",
+              marginBottom: "20px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "28px",
+                }}
+              >
+                Oferte
+              </h2>
+
+              <p
+                style={{
+                  margin: "6px 0 0",
+                  color: "#818997",
+                }}
+              >
+                Creează reduceri pentru intervalele în care vrei
+                mai mulți clienți.
+              </p>
+            </div>
+
+            <div
+              style={{
+                background: "#FF5A3C",
+                color: "white",
+                borderRadius: "999px",
+                padding: "9px 14px",
+                fontWeight: "800",
+                fontSize: "13px",
+              }}
+            >
+              {offers.length} oferte
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "white",
+              border: "1px solid #E7E9ED",
+              borderRadius: "20px",
+              padding: "24px",
+              boxShadow:
+                "0 8px 25px rgba(23,32,51,0.045)",
+            }}
+          >
+            <div
+              style={{
+                marginBottom: "20px",
+              }}
+            >
+              <div
+                style={{
+                  color: "#FF5A3C",
+                  fontSize: "12px",
+                  fontWeight: "900",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.8px",
+                  marginBottom: "6px",
+                }}
+              >
+                Ofertă nouă
+              </div>
+
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: "22px",
+                }}
+              >
+                Creează ofertă
+              </h3>
+            </div>
+
+            <form onSubmit={createOffer}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(160px, 1fr))",
+                  gap: "15px",
+                }}
+              >
+                <div>
+                  <label style={formLabel}>
+                    Data
+                  </label>
+
+                  <input
+                    type="date"
+                    min={getTodayISO()}
+                    value={offerDate}
+                    onChange={(event) =>
+                      setOfferDate(event.target.value)
+                    }
+                    style={formInput}
+                  />
+                </div>
+
+                <div>
+                  <label style={formLabel}>
+                    De la
+                  </label>
+
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(event) =>
+                      setStartTime(event.target.value)
+                    }
+                    style={formInput}
+                  />
+                </div>
+
+                <div>
+                  <label style={formLabel}>
+                    Până la
+                  </label>
+
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(event) =>
+                      setEndTime(event.target.value)
+                    }
+                    style={formInput}
+                  />
+                </div>
+
+                <div>
+                  <label style={formLabel}>
+                    Reducere %
+                  </label>
+
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={discountPercent}
+                    onChange={(event) =>
+                      setDiscountPercent(event.target.value)
+                    }
+                    style={formInput}
+                  />
+                </div>
+
+                <div>
+                  <label style={formLabel}>
+                    Capacitate
+                  </label>
+
+                  <input
+                    type="number"
+                    min="1"
+                    value={capacity}
+                    onChange={(event) =>
+                      setCapacity(event.target.value)
+                    }
+                    style={formInput}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={creatingOffer}
+                style={{
+                  width: "100%",
+                  border: "none",
+                  borderRadius: "11px",
+                  padding: "14px 18px",
+                  marginTop: "20px",
+                  background: creatingOffer
+                    ? "#AEB5C0"
+                    : "#FF5A3C",
+                  color: "white",
+                  fontSize: "15px",
+                  fontWeight: "900",
+                  cursor: creatingOffer
+                    ? "not-allowed"
+                    : "pointer",
+                  opacity: creatingOffer ? 0.7 : 1,
+                }}
+              >
+                {creatingOffer
+                  ? "Se creează..."
+                  : "+ Creează oferta"}
+              </button>
+            </form>
+
+            {offerMessage && (
+              <div
+                style={{
+                  marginTop: "15px",
+                  padding: "13px 15px",
+                  borderRadius: "11px",
+                  background: offerMessage.startsWith("✓")
+                    ? "#E9F8EF"
+                    : "#FFF0EC",
+                  color: offerMessage.startsWith("✓")
+                    ? "#177245"
+                    : "#A33A29",
+                  fontWeight: "800",
+                  fontSize: "14px",
+                  wordBreak: "break-word",
+                }}
+              >
+                {offerMessage}
+              </div>
+            )}
+          </div>
+
+          {offers.length > 0 && (
+            <div
+              style={{
+                display: "grid",
+                gap: "12px",
+                marginTop: "16px",
+              }}
+            >
+              {offers.map((offer) => (
+                <div
+                  key={offer.id}
+                  style={{
+                    background: "white",
+                    border: "1px solid #E7E9ED",
+                    borderRadius: "16px",
+                    padding: "18px 20px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "15px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#8A92A0",
+                        fontWeight: "800",
+                        textTransform: "uppercase",
+                        marginBottom: "5px",
+                      }}
+                    >
+                      {formatDate(offer.offer_date)}
+                    </div>
+
+                    <strong
+                      style={{
+                        fontSize: "17px",
+                      }}
+                    >
+                      {formatTime(offer.start_time)} -{" "}
+                      {formatTime(offer.end_time)}
+                    </strong>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span
+                      style={{
+                        background: "#FFF0EC",
+                        color: "#D7462D",
+                        borderRadius: "999px",
+                        padding: "8px 12px",
+                        fontWeight: "900",
+                      }}
+                    >
+                      -{offer.discount_percent}%
+                    </span>
+
+                    <span
+                      style={{
+                        background: "#F1F3F6",
+                        color: "#485267",
+                        borderRadius: "999px",
+                        padding: "8px 12px",
+                        fontWeight: "800",
+                        fontSize: "13px",
+                      }}
+                    >
+                      {offer.capacity} locuri
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* REZERVARI */}
 
         <section>
@@ -824,7 +1332,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* BUTOANE */}
+                  {/* BUTOANE - EXACT CA IN VARIANTA VECHE */}
 
                   {reservation.status ===
                     "pending" && (
@@ -929,4 +1437,26 @@ const smallLabel = {
   fontWeight: "800",
   textTransform: "uppercase",
   letterSpacing: "0.6px",
+};
+
+const formLabel = {
+  display: "block",
+  fontSize: "12px",
+  color: "#657084",
+  marginBottom: "7px",
+  fontWeight: "800",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+};
+
+const formInput = {
+  width: "100%",
+  boxSizing: "border-box",
+  border: "1px solid #DDE1E6",
+  borderRadius: "11px",
+  padding: "13px 14px",
+  background: "#FAFBFC",
+  color: "#172033",
+  fontSize: "15px",
+  outline: "none",
 };
