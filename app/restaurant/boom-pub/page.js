@@ -103,12 +103,15 @@ export default function BoomPubPage() {
 
       if (!response.ok) {
         const errorText = await response.text();
-
         console.error("Supabase error:", errorText);
-
         setMessage(`Eroare Supabase: ${errorText}`);
         return;
       }
+
+      localStorage.setItem(
+        "masago_last_reservation_code",
+        reservationCode
+      );
 
       setConfirmation(reservationSummary);
 
@@ -119,7 +122,6 @@ export default function BoomPubPage() {
       setPhone("");
     } catch (error) {
       console.error(error);
-
       setMessage(`Eroare: ${error.message}`);
     } finally {
       setLoading(false);
@@ -331,11 +333,10 @@ export default function BoomPubPage() {
               border: "1px solid #ebedf0",
               borderRadius: "20px",
               padding: "28px",
-              boxShadow: "0 10px 30px rgba(23,32,51,0.05)",
               marginBottom: "22px",
             }}
           >
-            <h2 style={{ marginTop: 0, fontSize: "26px" }}>
+            <h2 style={{ marginTop: 0 }}>
               Despre Boom Pub
             </h2>
 
@@ -348,35 +349,6 @@ export default function BoomPubPage() {
               Boom Pub este listat în Masago pentru rezervări
               cu reducere în intervalele disponibile.
             </p>
-
-            <div
-              style={{
-                display: "grid",
-                gap: "14px",
-                marginTop: "22px",
-              }}
-            >
-              <div>
-                <strong>📍 Locație</strong>
-                <div style={{ color: "#667085", marginTop: "4px" }}>
-                  Timișoara
-                </div>
-              </div>
-
-              <div>
-                <strong>🍽️ Tip</strong>
-                <div style={{ color: "#667085", marginTop: "4px" }}>
-                  Pub
-                </div>
-              </div>
-
-              <div>
-                <strong>⭐ Evaluare</strong>
-                <div style={{ color: "#667085", marginTop: "4px" }}>
-                  9.1
-                </div>
-              </div>
-            </div>
           </div>
 
           <div
@@ -392,24 +364,15 @@ export default function BoomPubPage() {
                 color: "#FF5A3C",
                 fontWeight: "900",
                 fontSize: "34px",
-                marginBottom: "8px",
               }}
             >
               -20%
             </div>
 
-            <h3
-              style={{
-                margin: "0 0 10px",
-                fontSize: "22px",
-              }}
-            >
-              Oferta Masago
-            </h3>
+            <h3>Oferta Masago</h3>
 
             <p
               style={{
-                margin: 0,
                 color: "#5f6777",
                 lineHeight: 1.6,
               }}
@@ -426,7 +389,6 @@ export default function BoomPubPage() {
             border: "1px solid #ebedf0",
             borderRadius: "22px",
             padding: "30px",
-            boxShadow: "0 18px 45px rgba(23,32,51,0.08)",
           }}
         >
           {confirmation ? (
@@ -449,34 +411,11 @@ export default function BoomPubPage() {
               </div>
 
               <div style={{ textAlign: "center" }}>
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#16865C",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
-                    fontSize: "13px",
-                    fontWeight: "900",
-                  }}
-                >
-                  Rezervare trimisă
-                </p>
-
-                <h2
-                  style={{
-                    fontSize: "30px",
-                    margin: "8px 0",
-                  }}
-                >
+                <h2>
                   Mulțumim, {confirmation.name}!
                 </h2>
 
-                <p
-                  style={{
-                    color: "#737C8D",
-                    lineHeight: 1.6,
-                  }}
-                >
+                <p style={{ color: "#737C8D" }}>
                   Solicitarea a fost trimisă către Boom Pub și
                   așteaptă confirmarea restaurantului.
                 </p>
@@ -496,8 +435,6 @@ export default function BoomPubPage() {
                   style={{
                     color: "#AEB7C6",
                     fontSize: "12px",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
                     fontWeight: "800",
                   }}
                 >
@@ -516,45 +453,22 @@ export default function BoomPubPage() {
                 </div>
               </div>
 
-              <div
+              <a
+                href="/verifica-rezervare"
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "10px",
-                  marginBottom: "25px",
+                  display: "block",
+                  textDecoration: "none",
+                  textAlign: "center",
+                  background: "#FF5A3C",
+                  color: "white",
+                  borderRadius: "12px",
+                  padding: "15px",
+                  fontWeight: "900",
+                  marginBottom: "12px",
                 }}
               >
-                <div style={confirmationBox}>
-                  <span style={confirmationLabel}>Data</span>
-                  <strong>{confirmation.date}</strong>
-                </div>
-
-                <div style={confirmationBox}>
-                  <span style={confirmationLabel}>Ora</span>
-                  <strong>{confirmation.time}</strong>
-                </div>
-
-                <div style={confirmationBox}>
-                  <span style={confirmationLabel}>Persoane</span>
-                  <strong>{confirmation.guests}</strong>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  background: "#FFF4DD",
-                  color: "#7A5800",
-                  padding: "14px",
-                  borderRadius: "11px",
-                  fontSize: "14px",
-                  lineHeight: 1.5,
-                  marginBottom: "18px",
-                }}
-              >
-                ⏳ Rezervarea este momentan{" "}
-                <strong>în așteptare</strong>. Restaurantul trebuie
-                să o confirme.
-              </div>
+                Vezi statusul rezervării
+              </a>
 
               <button
                 onClick={makeAnotherReservation}
@@ -574,42 +488,10 @@ export default function BoomPubPage() {
             </>
           ) : (
             <>
-              <p
-                style={{
-                  margin: 0,
-                  color: "#FF5A3C",
-                  fontWeight: "900",
-                  fontSize: "13px",
-                  textTransform: "uppercase",
-                  letterSpacing: "1px",
-                }}
-              >
-                Rezervare
-              </p>
-
-              <h2
-                style={{
-                  fontSize: "30px",
-                  margin: "7px 0 8px",
-                }}
-              >
-                Rezervă o masă
-              </h2>
-
-              <p
-                style={{
-                  color: "#737c8d",
-                  marginTop: 0,
-                  marginBottom: "28px",
-                }}
-              >
-                Completează detaliile și trimitem rezervarea către
-                restaurant.
-              </p>
+              <h2>Rezervă o masă</h2>
 
               <div style={fieldStyle}>
                 <label style={labelStyle}>Data rezervării</label>
-
                 <input
                   type="date"
                   value={date}
@@ -617,24 +499,10 @@ export default function BoomPubPage() {
                   onChange={(e) => setDate(e.target.value)}
                   style={inputStyle}
                 />
-
-                {date && (
-                  <div
-                    style={{
-                      marginTop: "7px",
-                      color: "#7a8393",
-                      fontSize: "14px",
-                    }}
-                  >
-                    Data selectată:{" "}
-                    <strong>{formatDateRomanian(date)}</strong>
-                  </div>
-                )}
               </div>
 
               <div style={fieldStyle}>
                 <label style={labelStyle}>Ora</label>
-
                 <select
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
@@ -656,7 +524,6 @@ export default function BoomPubPage() {
 
               <div style={fieldStyle}>
                 <label style={labelStyle}>Număr de persoane</label>
-
                 <select
                   value={guests}
                   onChange={(e) => setGuests(e.target.value)}
@@ -675,10 +542,8 @@ export default function BoomPubPage() {
 
               <div style={fieldStyle}>
                 <label style={labelStyle}>Nume</label>
-
                 <input
                   type="text"
-                  placeholder="Numele tău"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={inputStyle}
@@ -687,10 +552,8 @@ export default function BoomPubPage() {
 
               <div style={fieldStyle}>
                 <label style={labelStyle}>Număr de telefon</label>
-
                 <input
                   type="tel"
-                  placeholder="07xxxxxxxx"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   style={inputStyle}
@@ -702,86 +565,33 @@ export default function BoomPubPage() {
                 disabled={loading}
                 style={{
                   width: "100%",
-                  marginTop: "5px",
+                  padding: "16px",
                   border: "none",
                   borderRadius: "12px",
-                  padding: "16px",
-                  background: loading ? "#aeb4bf" : "#FF5A3C",
+                  background: loading
+                    ? "#aaa"
+                    : "#FF5A3C",
                   color: "white",
-                  fontSize: "17px",
                   fontWeight: "900",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  boxShadow: loading
-                    ? "none"
-                    : "0 10px 24px rgba(255,90,60,0.22)",
                 }}
               >
                 {loading ? "Se trimite..." : "Rezervă masa"}
               </button>
 
               {message && (
-                <div
+                <p
                   style={{
-                    marginTop: "20px",
-                    padding: "14px",
-                    borderRadius: "11px",
-                    background: "#FFF0EC",
                     color: "#A33A29",
                     fontWeight: "800",
-                    textAlign: "center",
-                    lineHeight: 1.5,
-                    wordBreak: "break-word",
                   }}
                 >
                   {message}
-                </div>
+                </p>
               )}
-
-              <p
-                style={{
-                  color: "#98A0AE",
-                  fontSize: "12px",
-                  textAlign: "center",
-                  marginTop: "18px",
-                  marginBottom: 0,
-                  lineHeight: 1.5,
-                }}
-              >
-                Trimiterea rezervării nu înseamnă confirmare automată.
-                Restaurantul poate confirma sau respinge solicitarea.
-              </p>
             </>
           )}
         </div>
       </section>
-
-      <footer
-        style={{
-          borderTop: "1px solid #ececec",
-          padding: "30px 6%",
-          textAlign: "center",
-          color: "#7A8393",
-        }}
-      >
-        <strong style={{ color: "#172033" }}>Masago.</strong> © 2026
-      </footer>
     </main>
   );
 }
-
-const confirmationBox = {
-  background: "#F6F7F9",
-  padding: "14px 8px",
-  borderRadius: "11px",
-  textAlign: "center",
-};
-
-const confirmationLabel = {
-  display: "block",
-  color: "#8A92A0",
-  fontSize: "11px",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-  marginBottom: "5px",
-  fontWeight: "800",
-};
