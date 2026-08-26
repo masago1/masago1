@@ -6,60 +6,35 @@ export default function DashboardPage() {
   const [reservations, setReservations] = useState([]);
   const [offers, setOffers] = useState([]);
 
-  const [restaurantName, setRestaurantName] =
-    useState("Restaurant");
-
-  const [restaurantId, setRestaurantId] =
-    useState(null);
-
+  const [restaurantName, setRestaurantName] = useState("Restaurant");
+  const [restaurantId, setRestaurantId] = useState(null);
   const [userEmail, setUserEmail] = useState("");
 
   const [loading, setLoading] = useState(true);
-  const [offersLoading, setOffersLoading] =
-    useState(true);
+  const [offersLoading, setOffersLoading] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
 
-  const [authChecking, setAuthChecking] =
-    useState(true);
-
-  const [updatingId, setUpdatingId] =
-    useState(null);
-
-  const [offerUpdatingId, setOfferUpdatingId] =
-    useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
+  const [offerUpdatingId, setOfferUpdatingId] = useState(null);
 
   const [message, setMessage] = useState("");
-  const [offerMessage, setOfferMessage] =
-    useState("");
+  const [offerMessage, setOfferMessage] = useState("");
 
-  const [creatingOffer, setCreatingOffer] =
-    useState(false);
+  const [creatingOffer, setCreatingOffer] = useState(false);
 
-  // FORMULAR OFERTA
-  const [offerDate, setOfferDate] =
-    useState("");
-
-  const [startTime, setStartTime] =
-    useState("18:00");
-
-  const [endTime, setEndTime] =
-    useState("20:00");
-
-  const [discountPercent, setDiscountPercent] =
-    useState("20");
-
-  const [capacity, setCapacity] =
-    useState("10");
+  const [offerDate, setOfferDate] = useState("");
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("20:00");
+  const [discountPercent, setDiscountPercent] = useState("20");
+  const [capacity, setCapacity] = useState("10");
 
   useEffect(() => {
     checkAuth();
   }, []);
 
   async function checkAuth() {
-    const accessToken =
-      localStorage.getItem("masago_access_token");
-
-    const email =
-      localStorage.getItem("masago_user_email");
+    const accessToken = localStorage.getItem("masago_access_token");
+    const email = localStorage.getItem("masago_user_email");
 
     if (!accessToken) {
       window.location.href = "/login";
@@ -68,31 +43,24 @@ export default function DashboardPage() {
 
     setUserEmail(email || "");
 
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
-
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      setMessage(
-        "Conexiunea cu Supabase nu este configurată."
-      );
-
+      setMessage("Conexiunea cu Supabase nu este configurată.");
       setAuthChecking(false);
       setLoading(false);
       setOffersLoading(false);
-
       return;
     }
 
     try {
-      const restaurant =
-        await loadRestaurant(
-          accessToken,
-          supabaseUrl,
-          supabaseKey
-        );
+      const restaurant = await loadRestaurant(
+        accessToken,
+        supabaseUrl,
+        supabaseKey
+      );
 
       if (!restaurant) {
         setMessage(
@@ -101,7 +69,6 @@ export default function DashboardPage() {
 
         setLoading(false);
         setOffersLoading(false);
-
         return;
       }
 
@@ -114,7 +81,6 @@ export default function DashboardPage() {
           supabaseUrl,
           supabaseKey
         ),
-
         loadOffers(
           accessToken,
           supabaseUrl,
@@ -150,11 +116,7 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error(
-          "Restaurant error:",
-          data
-        );
-
+        console.error("Restaurant error:", data);
         return null;
       }
 
@@ -193,22 +155,14 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error(
-          "Reservations error:",
-          data
-        );
-
-        setMessage(
-          "Nu am putut încărca rezervările."
-        );
-
+        console.error("Reservations error:", data);
+        setMessage("Nu am putut încărca rezervările.");
         return;
       }
 
       setReservations(data);
     } catch (error) {
       console.error(error);
-
       setMessage(
         "A apărut o eroare la încărcarea rezervărilor."
       );
@@ -241,22 +195,14 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error(
-          "Offers error:",
-          data
-        );
-
-        setOfferMessage(
-          "Nu am putut încărca ofertele."
-        );
-
+        console.error("Offers error:", data);
+        setOfferMessage("Nu am putut încărca ofertele.");
         return;
       }
 
       setOffers(data);
     } catch (error) {
       console.error(error);
-
       setOfferMessage(
         "A apărut o eroare la încărcarea ofertelor."
       );
@@ -265,29 +211,23 @@ export default function DashboardPage() {
     }
   }
 
-  async function createOffer(e) {
-    e.preventDefault();
+  async function createOffer(event) {
+    event.preventDefault();
 
     setOfferMessage("");
 
     if (!restaurantId) {
-      setOfferMessage(
-        "Restaurantul nu este identificat."
-      );
+      setOfferMessage("Restaurantul nu este identificat.");
       return;
     }
 
     if (!offerDate) {
-      setOfferMessage(
-        "Alege data ofertei."
-      );
+      setOfferMessage("Alege data ofertei.");
       return;
     }
 
     if (!startTime || !endTime) {
-      setOfferMessage(
-        "Alege intervalul orar."
-      );
+      setOfferMessage("Alege intervalul orar.");
       return;
     }
 
@@ -298,14 +238,11 @@ export default function DashboardPage() {
       return;
     }
 
-    const discount =
-      Number(discountPercent);
-
-    const offerCapacity =
-      Number(capacity);
+    const discount = Number(discountPercent);
+    const offerCapacity = Number(capacity);
 
     if (
-      !discount ||
+      Number.isNaN(discount) ||
       discount < 1 ||
       discount > 100
     ) {
@@ -316,7 +253,7 @@ export default function DashboardPage() {
     }
 
     if (
-      !offerCapacity ||
+      Number.isNaN(offerCapacity) ||
       offerCapacity < 1
     ) {
       setOfferMessage(
@@ -325,9 +262,7 @@ export default function DashboardPage() {
       return;
     }
 
-    const today = getTodayISO();
-
-    if (offerDate < today) {
+    if (offerDate < getTodayISO()) {
       setOfferMessage(
         "Nu poți crea o ofertă pentru o dată din trecut."
       );
@@ -359,8 +294,7 @@ export default function DashboardPage() {
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
 
@@ -369,8 +303,7 @@ export default function DashboardPage() {
             offer_date: offerDate,
             start_time: startTime,
             end_time: endTime,
-            discount_percent:
-              discount,
+            discount_percent: discount,
             capacity: offerCapacity,
             active: true,
           }),
@@ -383,8 +316,7 @@ export default function DashboardPage() {
       }
 
       if (!response.ok) {
-        const errorText =
-          await response.text();
+        const errorText = await response.text();
 
         console.error(
           "Create offer error:",
@@ -398,9 +330,7 @@ export default function DashboardPage() {
         return;
       }
 
-      setOfferMessage(
-        "✅ Oferta a fost creată."
-      );
+      setOfferMessage("✅ Oferta a fost creată.");
 
       setOfferDate("");
       setStartTime("18:00");
@@ -424,10 +354,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function toggleOffer(
-    id,
-    currentActive
-  ) {
+  async function toggleOffer(id, currentActive) {
     setOfferUpdatingId(id);
     setOfferMessage("");
 
@@ -454,8 +381,7 @@ export default function DashboardPage() {
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
 
@@ -471,8 +397,7 @@ export default function DashboardPage() {
       }
 
       if (!response.ok) {
-        const errorText =
-          await response.text();
+        const errorText = await response.text();
 
         console.error(errorText);
 
@@ -488,8 +413,7 @@ export default function DashboardPage() {
           offer.id === id
             ? {
                 ...offer,
-                active:
-                  !currentActive,
+                active: !currentActive,
               }
             : offer
         )
@@ -506,10 +430,9 @@ export default function DashboardPage() {
   }
 
   async function deleteOffer(id) {
-    const confirmed =
-      window.confirm(
-        "Sigur vrei să ștergi această ofertă?"
-      );
+    const confirmed = window.confirm(
+      "Sigur vrei să ștergi această ofertă?"
+    );
 
     if (!confirmed) {
       return;
@@ -552,8 +475,7 @@ export default function DashboardPage() {
       }
 
       if (!response.ok) {
-        const errorText =
-          await response.text();
+        const errorText = await response.text();
 
         console.error(errorText);
 
@@ -566,10 +488,11 @@ export default function DashboardPage() {
 
       setOffers((current) =>
         current.filter(
-          (offer) =>
-            offer.id !== id
+          (offer) => offer.id !== id
         )
       );
+
+      setOfferMessage("✅ Oferta a fost ștearsă.");
     } catch (error) {
       console.error(error);
 
@@ -611,8 +534,7 @@ export default function DashboardPage() {
           headers: {
             apikey: supabaseKey,
             Authorization: `Bearer ${accessToken}`,
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
 
@@ -628,8 +550,7 @@ export default function DashboardPage() {
       }
 
       if (!response.ok) {
-        const errorText =
-          await response.text();
+        const errorText = await response.text();
 
         console.error(errorText);
 
@@ -678,7 +599,9 @@ export default function DashboardPage() {
   }
 
   function formatDate(date) {
-    if (!date) return "-";
+    if (!date) {
+      return "-";
+    }
 
     const [year, month, day] =
       date.split("-");
@@ -687,7 +610,9 @@ export default function DashboardPage() {
   }
 
   function formatTime(time) {
-    if (!time) return "-";
+    if (!time) {
+      return "-";
+    }
 
     return String(time).slice(0, 5);
   }
@@ -695,18 +620,15 @@ export default function DashboardPage() {
   function getTodayISO() {
     const now = new Date();
 
-    const year =
-      now.getFullYear();
+    const year = now.getFullYear();
 
-    const month =
-      String(
-        now.getMonth() + 1
-      ).padStart(2, "0");
+    const month = String(
+      now.getMonth() + 1
+    ).padStart(2, "0");
 
-    const day =
-      String(
-        now.getDate()
-      ).padStart(2, "0");
+    const day = String(
+      now.getDate()
+    ).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
   }
@@ -745,39 +667,32 @@ export default function DashboardPage() {
   }
 
   const stats = useMemo(() => {
-    const today =
-      getTodayISO();
+    const today = getTodayISO();
 
     return {
-      today:
-        reservations.filter(
-          (reservation) =>
-            reservation.reservation_date ===
-            today
-        ).length,
+      today: reservations.filter(
+        (reservation) =>
+          reservation.reservation_date ===
+          today
+      ).length,
 
-      pending:
-        reservations.filter(
-          (reservation) =>
-            reservation.status ===
-            "pending"
-        ).length,
+      pending: reservations.filter(
+        (reservation) =>
+          reservation.status ===
+          "pending"
+      ).length,
 
-      accepted:
-        reservations.filter(
-          (reservation) =>
-            reservation.status ===
-            "accepted"
-        ).length,
+      accepted: reservations.filter(
+        (reservation) =>
+          reservation.status ===
+          "accepted"
+      ).length,
 
-      rejected:
-        reservations.filter(
-          (reservation) =>
-            reservation.status ===
-            "rejected"
-        ).length,
+      activeOffers: offers.filter(
+        (offer) => offer.active
+      ).length,
     };
-  }, [reservations]);
+  }, [reservations, offers]);
 
   if (authChecking) {
     return (
@@ -789,8 +704,7 @@ export default function DashboardPage() {
           alignItems: "center",
           background: "#F6F7F9",
           color: "#172033",
-          fontFamily:
-            "Arial, sans-serif",
+          fontFamily: "Arial, sans-serif",
         }}
       >
         Se verifică autentificarea...
@@ -803,8 +717,7 @@ export default function DashboardPage() {
       style={{
         minHeight: "100vh",
         background: "#F6F7F9",
-        fontFamily:
-          "Arial, sans-serif",
+        fontFamily: "Arial, sans-serif",
         color: "#172033",
       }}
     >
@@ -822,8 +735,7 @@ export default function DashboardPage() {
             maxWidth: "1250px",
             margin: "0 auto",
             display: "flex",
-            justifyContent:
-              "space-between",
+            justifyContent: "space-between",
             alignItems: "center",
             gap: "20px",
             flexWrap: "wrap",
@@ -898,46 +810,63 @@ export default function DashboardPage() {
 
         <section
           style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "end",
+            gap: "20px",
+            flexWrap: "wrap",
             marginBottom: "30px",
           }}
         >
-          <p
-            style={{
-              margin: 0,
-              color: "#FF5A3C",
-              textTransform:
-                "uppercase",
-              letterSpacing: "1px",
-              fontSize: "13px",
-              fontWeight: "900",
-            }}
-          >
-            Dashboard restaurant
-          </p>
+          <div>
+            <p
+              style={{
+                margin: 0,
+                color: "#FF5A3C",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                fontSize: "13px",
+                fontWeight: "900",
+              }}
+            >
+              Dashboard restaurant
+            </p>
 
-          <h1
-            style={{
-              margin:
-                "8px 0 8px",
-              fontSize: "42px",
-              letterSpacing:
-                "-1.5px",
-            }}
-          >
-            Bun venit,{" "}
-            {restaurantName}
-          </h1>
+            <h1
+              style={{
+                margin: "8px 0",
+                fontSize: "42px",
+                letterSpacing: "-1.5px",
+              }}
+            >
+              Bun venit, {restaurantName}
+            </h1>
 
-          <p
+            <p
+              style={{
+                margin: 0,
+                color: "#737C8D",
+                fontSize: "17px",
+              }}
+            >
+              Gestionează rezervările și ofertele restaurantului.
+            </p>
+          </div>
+
+          <a
+            href="/"
             style={{
-              margin: 0,
-              color: "#737C8D",
-              fontSize: "17px",
+              textDecoration: "none",
+              background: "white",
+              color: "#172033",
+              border: "1px solid #E2E5E9",
+              borderRadius: "10px",
+              padding: "12px 16px",
+              fontWeight: "800",
             }}
           >
-            Gestionează rezervările
-            și ofertele restaurantului.
-          </p>
+            ← Vezi aplicația
+          </a>
         </section>
 
         {/* STATISTICI */}
@@ -948,36 +877,28 @@ export default function DashboardPage() {
             gridTemplateColumns:
               "repeat(auto-fit, minmax(190px, 1fr))",
             gap: "16px",
-            marginBottom: "35px",
+            marginBottom: "40px",
           }}
         >
           {[
             {
-              label:
-                "Rezervări azi",
+              label: "Rezervări azi",
               value: stats.today,
               icon: "📅",
             },
             {
-              label:
-                "În așteptare",
+              label: "În așteptare",
               value: stats.pending,
               icon: "⏳",
             },
             {
-              label:
-                "Confirmate",
+              label: "Confirmate",
               value: stats.accepted,
               icon: "✅",
             },
             {
-              label:
-                "Oferte active",
-              value:
-                offers.filter(
-                  (offer) =>
-                    offer.active
-                ).length,
+              label: "Oferte active",
+              value: stats.activeOffers,
               icon: "🏷️",
             },
           ].map((item) => (
@@ -989,13 +910,15 @@ export default function DashboardPage() {
                   "1px solid #E7E9ED",
                 borderRadius: "18px",
                 padding: "22px",
+                boxShadow:
+                  "0 8px 25px rgba(23,32,51,0.04)",
               }}
             >
               <div
                 style={{
                   display: "flex",
-                  justifyContent:
-                    "space-between",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
                 <span
@@ -1008,7 +931,11 @@ export default function DashboardPage() {
                   {item.label}
                 </span>
 
-                <span>
+                <span
+                  style={{
+                    fontSize: "21px",
+                  }}
+                >
                   {item.icon}
                 </span>
               </div>
@@ -1026,7 +953,7 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        {/* OFERTE */}
+        {/* CREATE OFFER */}
 
         <section
           style={{
@@ -1043,8 +970,7 @@ export default function DashboardPage() {
                 margin: 0,
                 color: "#FF5A3C",
                 fontSize: "13px",
-                textTransform:
-                  "uppercase",
+                textTransform: "uppercase",
                 letterSpacing: "1px",
                 fontWeight: "900",
               }}
@@ -1055,8 +981,7 @@ export default function DashboardPage() {
             <h2
               style={{
                 fontSize: "30px",
-                margin:
-                  "7px 0 7px",
+                margin: "7px 0",
               }}
             >
               Creează o ofertă
@@ -1068,9 +993,7 @@ export default function DashboardPage() {
                 margin: 0,
               }}
             >
-              Alege data,
-              intervalul, reducerea și
-              capacitatea disponibilă.
+              Alege data, intervalul, reducerea și capacitatea disponibilă.
             </p>
           </div>
 
@@ -1084,21 +1007,17 @@ export default function DashboardPage() {
               marginBottom: "25px",
             }}
           >
-            <form
-              onSubmit={createOffer}
-            >
+            <form onSubmit={createOffer}>
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    "repeat(auto-fit, minmax(180px, 1fr))",
+                    "repeat(auto-fit, minmax(170px, 1fr))",
                   gap: "15px",
                 }}
               >
                 <div>
-                  <label
-                    style={formLabel}
-                  >
+                  <label style={formLabel}>
                     Data
                   </label>
 
@@ -1116,9 +1035,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label
-                    style={formLabel}
-                  >
+                  <label style={formLabel}>
                     De la
                   </label>
 
@@ -1135,9 +1052,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label
-                    style={formLabel}
-                  >
+                  <label style={formLabel}>
                     Până la
                   </label>
 
@@ -1154,9 +1069,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label
-                    style={formLabel}
-                  >
+                  <label style={formLabel}>
                     Reducere %
                   </label>
 
@@ -1164,9 +1077,7 @@ export default function DashboardPage() {
                     type="number"
                     min="1"
                     max="100"
-                    value={
-                      discountPercent
-                    }
+                    value={discountPercent}
                     onChange={(e) =>
                       setDiscountPercent(
                         e.target.value
@@ -1177,9 +1088,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label
-                    style={formLabel}
-                  >
+                  <label style={formLabel}>
                     Capacitate
                   </label>
 
@@ -1199,12 +1108,10 @@ export default function DashboardPage() {
 
               <button
                 type="submit"
-                disabled={
-                  creatingOffer
-                }
+                disabled={creatingOffer}
                 style={{
-                  marginTop: "18px",
                   width: "100%",
+                  marginTop: "18px",
                   border: "none",
                   borderRadius: "11px",
                   padding: "14px",
@@ -1246,6 +1153,7 @@ export default function DashboardPage() {
                       ? "#177245"
                       : "#A33A29",
                   fontWeight: "800",
+                  wordBreak: "break-word",
                 }}
               >
                 {offerMessage}
@@ -1253,19 +1161,52 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <h3
+          {/* LISTA OFERTE */}
+
+          <div
             style={{
-              fontSize: "22px",
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems: "center",
               marginBottom: "15px",
             }}
           >
-            Ofertele tale
-          </h3>
+            <h3
+              style={{
+                fontSize: "23px",
+                margin: 0,
+              }}
+            >
+              Ofertele tale
+            </h3>
+
+            <span
+              style={{
+                background: "#172033",
+                color: "white",
+                padding: "8px 12px",
+                borderRadius: "999px",
+                fontSize: "13px",
+                fontWeight: "800",
+              }}
+            >
+              {offers.length} total
+            </span>
+          </div>
 
           {offersLoading && (
-            <p>
+            <div
+              style={{
+                background: "white",
+                border:
+                  "1px solid #E7E9ED",
+                borderRadius: "16px",
+                padding: "25px",
+              }}
+            >
               Se încarcă ofertele...
-            </p>
+            </div>
           )}
 
           {!offersLoading &&
@@ -1276,12 +1217,11 @@ export default function DashboardPage() {
                   border:
                     "1px solid #E7E9ED",
                   borderRadius: "16px",
-                  padding: "25px",
+                  padding: "30px",
                   color: "#737C8D",
                 }}
               >
-                Nu ai creat încă
-                nicio ofertă.
+                Nu ai creat încă nicio ofertă.
               </div>
             )}
 
@@ -1311,11 +1251,7 @@ export default function DashboardPage() {
                   }}
                 >
                   <div>
-                    <div
-                      style={
-                        smallLabel
-                      }
-                    >
+                    <div style={smallLabel}>
                       Data
                     </div>
 
@@ -1327,11 +1263,7 @@ export default function DashboardPage() {
                   </div>
 
                   <div>
-                    <div
-                      style={
-                        smallLabel
-                      }
-                    >
+                    <div style={smallLabel}>
                       Interval
                     </div>
 
@@ -1347,34 +1279,21 @@ export default function DashboardPage() {
                   </div>
 
                   <div>
-                    <div
-                      style={
-                        smallLabel
-                      }
-                    >
+                    <div style={smallLabel}>
                       Reducere
                     </div>
 
                     <strong
                       style={{
-                        color:
-                          "#FF5A3C",
+                        color: "#FF5A3C",
                       }}
                     >
-                      -
-                      {
-                        offer.discount_percent
-                      }
-                      %
+                      -{offer.discount_percent}%
                     </strong>
                   </div>
 
                   <div>
-                    <div
-                      style={
-                        smallLabel
-                      }
-                    >
+                    <div style={smallLabel}>
                       Capacitate
                     </div>
 
@@ -1384,11 +1303,7 @@ export default function DashboardPage() {
                   </div>
 
                   <div>
-                    <div
-                      style={
-                        smallLabel
-                      }
-                    >
+                    <div style={smallLabel}>
                       Status
                     </div>
 
@@ -1427,16 +1342,12 @@ export default function DashboardPage() {
                       offer.id
                     }
                     style={{
-                      flex:
-                        "1 1 180px",
+                      flex: "1 1 180px",
                       border:
                         "1px solid #DDE1E6",
-                      background:
-                        "white",
-                      color:
-                        "#172033",
-                      borderRadius:
-                        "10px",
+                      background: "white",
+                      color: "#172033",
+                      borderRadius: "10px",
                       padding: "11px",
                       fontWeight: "800",
                       cursor: "pointer",
@@ -1458,16 +1369,12 @@ export default function DashboardPage() {
                       offer.id
                     }
                     style={{
-                      flex:
-                        "1 1 120px",
+                      flex: "1 1 120px",
                       border:
                         "1px solid #F1CCCC",
-                      background:
-                        "#FFF7F7",
-                      color:
-                        "#B42318",
-                      borderRadius:
-                        "10px",
+                      background: "#FFF7F7",
+                      color: "#B42318",
+                      borderRadius: "10px",
                       padding: "11px",
                       fontWeight: "800",
                       cursor: "pointer",
@@ -1484,20 +1391,55 @@ export default function DashboardPage() {
         {/* REZERVARI */}
 
         <section>
-          <h2
+          <div
             style={{
-              fontSize: "30px",
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems: "center",
+              gap: "15px",
+              flexWrap: "wrap",
               marginBottom: "20px",
             }}
           >
-            Rezervări
-          </h2>
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "30px",
+                }}
+              >
+                Rezervări
+              </h2>
+
+              <p
+                style={{
+                  margin: "6px 0 0",
+                  color: "#818997",
+                }}
+              >
+                Cele mai noi rezervări apar primele.
+              </p>
+            </div>
+
+            <span
+              style={{
+                background: "#172033",
+                color: "white",
+                borderRadius: "999px",
+                padding: "9px 14px",
+                fontWeight: "800",
+                fontSize: "13px",
+              }}
+            >
+              {reservations.length} total
+            </span>
+          </div>
 
           {message && (
             <div
               style={{
-                background:
-                  "#FFF0EC",
+                background: "#FFF0EC",
                 color: "#A33A29",
                 padding: "14px",
                 borderRadius: "10px",
@@ -1509,10 +1451,15 @@ export default function DashboardPage() {
           )}
 
           {loading && (
-            <p>
-              Se încarcă
-              rezervările...
-            </p>
+            <div
+              style={{
+                background: "white",
+                padding: "25px",
+                borderRadius: "16px",
+              }}
+            >
+              Se încarcă rezervările...
+            </div>
           )}
 
           <div
@@ -1530,9 +1477,7 @@ export default function DashboardPage() {
 
                 return (
                   <article
-                    key={
-                      reservation.id
-                    }
+                    key={reservation.id}
                     style={{
                       background:
                         "white",
@@ -1545,22 +1490,20 @@ export default function DashboardPage() {
                   >
                     <div
                       style={{
-                        display:
-                          "flex",
+                        display: "flex",
                         justifyContent:
                           "space-between",
+                        alignItems:
+                          "center",
                         gap: "15px",
-                        flexWrap:
-                          "wrap",
+                        flexWrap: "wrap",
                         marginBottom:
                           "20px",
                       }}
                     >
                       <div>
                         <div
-                          style={
-                            smallLabel
-                          }
+                          style={smallLabel}
                         >
                           Cod rezervare
                         </div>
@@ -1569,8 +1512,7 @@ export default function DashboardPage() {
                           style={{
                             background:
                               "#172033",
-                            color:
-                              "white",
+                            color: "white",
                             padding:
                               "9px 12px",
                             borderRadius:
@@ -1588,9 +1530,7 @@ export default function DashboardPage() {
 
                       <div>
                         <div
-                          style={
-                            smallLabel
-                          }
+                          style={smallLabel}
                         >
                           Status
                         </div>
@@ -1617,51 +1557,36 @@ export default function DashboardPage() {
 
                     <div
                       style={{
-                        display:
-                          "grid",
+                        display: "grid",
                         gridTemplateColumns:
                           "repeat(auto-fit, minmax(140px, 1fr))",
                         gap: "18px",
                       }}
                     >
                       <div>
-                        <div
-                          style={
-                            smallLabel
-                          }
-                        >
+                        <div style={smallLabel}>
                           Client
                         </div>
 
                         <strong>
-                          {
-                            reservation.customer_name
-                          }
+                          {reservation.customer_name ||
+                            "-"}
                         </strong>
                       </div>
 
                       <div>
-                        <div
-                          style={
-                            smallLabel
-                          }
-                        >
+                        <div style={smallLabel}>
                           Telefon
                         </div>
 
                         <strong>
-                          {
-                            reservation.customer_phone
-                          }
+                          {reservation.customer_phone ||
+                            "-"}
                         </strong>
                       </div>
 
                       <div>
-                        <div
-                          style={
-                            smallLabel
-                          }
-                        >
+                        <div style={smallLabel}>
                           Data
                         </div>
 
@@ -1673,11 +1598,7 @@ export default function DashboardPage() {
                       </div>
 
                       <div>
-                        <div
-                          style={
-                            smallLabel
-                          }
-                        >
+                        <div style={smallLabel}>
                           Ora
                         </div>
 
@@ -1689,18 +1610,13 @@ export default function DashboardPage() {
                       </div>
 
                       <div>
-                        <div
-                          style={
-                            smallLabel
-                          }
-                        >
+                        <div style={smallLabel}>
                           Persoane
                         </div>
 
                         <strong>
-                          {
-                            reservation.guests
-                          }
+                          {reservation.guests ??
+                            "-"}
                         </strong>
                       </div>
                     </div>
@@ -1749,10 +1665,13 @@ export default function DashboardPage() {
                             fontWeight:
                               "900",
                             cursor:
-                              "pointer",
+                              updatingId ===
+                              reservation.id
+                                ? "not-allowed"
+                                : "pointer",
                           }}
                         >
-                          ✓ Acceptă
+                          ✓ Acceptă rezervarea
                         </button>
 
                         <button
@@ -1782,7 +1701,10 @@ export default function DashboardPage() {
                             fontWeight:
                               "900",
                             cursor:
-                              "pointer",
+                              updatingId ===
+                              reservation.id
+                                ? "not-allowed"
+                                : "pointer",
                           }}
                         >
                           Respinge
