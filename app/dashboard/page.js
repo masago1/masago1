@@ -26,10 +26,10 @@ export default function DashboardPage() {
     setUserEmail(email || "");
     setAuthChecking(false);
 
-    loadReservations();
+    loadReservations(accessToken);
   }
 
-  async function loadReservations() {
+  async function loadReservations(accessToken) {
     try {
       const supabaseUrl =
         process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -42,11 +42,17 @@ export default function DashboardPage() {
         {
           headers: {
             apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
           },
         }
       );
 
       const data = await response.json();
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
 
       if (!response.ok) {
         console.error(data);
@@ -74,12 +80,21 @@ export default function DashboardPage() {
       const supabaseKey =
         process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
+      const accessToken =
+        localStorage.getItem("masago_access_token");
+
+      if (!accessToken) {
+        window.location.href = "/login";
+        return;
+      }
+
       const response = await fetch(
         `${supabaseUrl}/rest/v1/reservations?id=eq.${id}`,
         {
           method: "PATCH",
           headers: {
             apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
             Prefer: "return=minimal",
           },
@@ -88,6 +103,11 @@ export default function DashboardPage() {
           }),
         }
       );
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -123,7 +143,6 @@ export default function DashboardPage() {
     if (!date) return "";
 
     const [year, month, day] = date.split("-");
-
     return `${day}/${month}/${year}`;
   }
 
@@ -317,9 +336,7 @@ export default function DashboardPage() {
                     <div style={{ fontSize: "13px", color: "#888" }}>
                       Client
                     </div>
-                    <strong>
-                      {reservation.customer_name}
-                    </strong>
+                    <strong>{reservation.customer_name}</strong>
                   </div>
 
                   <div>
@@ -333,9 +350,7 @@ export default function DashboardPage() {
                     <div style={{ fontSize: "13px", color: "#888" }}>
                       Data
                     </div>
-                    {formatDate(
-                      reservation.reservation_date
-                    )}
+                    {formatDate(reservation.reservation_date)}
                   </div>
 
                   <div>
@@ -368,9 +383,7 @@ export default function DashboardPage() {
                         ...statusStyle,
                       }}
                     >
-                      {getStatusLabel(
-                        reservation.status
-                      )}
+                      {getStatusLabel(reservation.status)}
                     </span>
                   </div>
                 </div>
@@ -389,9 +402,7 @@ export default function DashboardPage() {
                         "accepted"
                       )
                     }
-                    disabled={
-                      updatingId === reservation.id
-                    }
+                    disabled={updatingId === reservation.id}
                     style={{
                       flex: 1,
                       border: "none",
@@ -413,9 +424,7 @@ export default function DashboardPage() {
                         "rejected"
                       )
                     }
-                    disabled={
-                      updatingId === reservation.id
-                    }
+                    disabled={updatingId === reservation.id}
                     style={{
                       flex: 1,
                       border: "none",
