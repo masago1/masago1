@@ -56,8 +56,7 @@ export default function Home() {
             letterSpacing: "-1px",
           }}
         >
-          Masago
-          <span style={{ color: "#FF5A3C" }}>.</span>
+          Masago<span style={{ color: "#FF5A3C" }}>.</span>
         </a>
 
         <div
@@ -68,7 +67,7 @@ export default function Home() {
           }}
         >
           <a
-            href="/login"
+            href="#contact"
             style={{
               textDecoration: "none",
               color: "#172033",
@@ -155,8 +154,8 @@ export default function Home() {
               lineHeight: 1.6,
             }}
           >
-            Rezervă la restaurante din Timișoara și profită de
-            reduceri disponibile în anumite intervale.
+            Rezervă la restaurante din Timișoara și profită de reduceri
+            disponibile în anumite intervale.
           </p>
 
           <div
@@ -236,8 +235,7 @@ export default function Home() {
             maxWidth: "1180px",
             margin: "auto",
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             gap: "18px",
           }}
         >
@@ -329,8 +327,7 @@ export default function Home() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(290px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
             gap: "26px",
           }}
         >
@@ -356,11 +353,7 @@ export default function Home() {
                   justifyContent: "center",
                 }}
               >
-                <span
-                  style={{
-                    fontSize: "90px",
-                  }}
-                >
+                <span style={{ fontSize: "90px" }}>
                   {restaurant.emoji}
                 </span>
 
@@ -396,11 +389,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  padding: "22px",
-                }}
-              >
+              <div style={{ padding: "22px" }}>
                 <h3
                   style={{
                     margin: 0,
@@ -449,11 +438,7 @@ export default function Home() {
                     Ofertă disponibilă
                   </span>
 
-                  <strong
-                    style={{
-                      color: "#FF5A3C",
-                    }}
-                  >
+                  <strong style={{ color: "#FF5A3C" }}>
                     la nota de plată
                   </strong>
                 </div>
@@ -537,8 +522,7 @@ export default function Home() {
             style={{
               marginTop: "50px",
               display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(220px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
               gap: "20px",
             }}
           >
@@ -547,7 +531,7 @@ export default function Home() {
                 number: "01",
                 icon: "🔎",
                 title: "Alege restaurantul",
-                text: "Descoperă restaurante și oferte potrivite pentru tine.",
+                text: "Descoperă restaurante și ofertele disponibile.",
               },
               {
                 number: "02",
@@ -596,11 +580,7 @@ export default function Home() {
                   {item.icon}
                 </div>
 
-                <h3
-                  style={{
-                    margin: "0 0 10px",
-                  }}
-                >
+                <h3 style={{ margin: "0 0 10px" }}>
                   {item.title}
                 </h3>
 
@@ -619,10 +599,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* RESTAURANT CTA */}
+      {/* RESTAURANT CONTACT */}
       <section
+        id="contact"
         style={{
           padding: "75px 6%",
+          background: "#FAFAF8",
         }}
       >
         <div
@@ -630,7 +612,7 @@ export default function Home() {
             maxWidth: "1180px",
             margin: "auto",
             background:
-              "linear-gradient(135deg, #FF5A3C, #ff745d)",
+              "linear-gradient(135deg, #FF5A3C 0%, #FF684F 100%)",
             color: "white",
             padding: "55px",
             borderRadius: "25px",
@@ -639,6 +621,7 @@ export default function Home() {
             alignItems: "center",
             gap: "30px",
             flexWrap: "wrap",
+            boxShadow: "0 18px 45px rgba(255,90,60,0.16)",
           }}
         >
           <div
@@ -646,10 +629,28 @@ export default function Home() {
               maxWidth: "650px",
             }}
           >
+            <div
+              style={{
+                width: "52px",
+                height: "52px",
+                borderRadius: "50%",
+                background: "white",
+                color: "#FF5A3C",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "23px",
+                marginBottom: "20px",
+              }}
+            >
+              ☎
+            </div>
+
             <h2
               style={{
                 fontSize: "36px",
                 margin: "0 0 12px",
+                letterSpacing: "-1px",
               }}
             >
               Ai un restaurant?
@@ -658,28 +659,30 @@ export default function Home() {
             <p
               style={{
                 margin: 0,
-                color: "#fff1ed",
+                color: "#FFF1ED",
                 fontSize: "18px",
                 lineHeight: 1.6,
               }}
             >
-              Folosește intervalele cu ocupare redusă pentru a atrage
-              clienți noi și a transforma mesele libere în rezervări.
+              Contactează-ne pentru a afla mai multe despre Masago și
+              posibilitatea unei colaborări.
             </p>
           </div>
 
           <a
-            href="/login"
+            href="mailto:contact@masago.ro"
             style={{
               background: "white",
               color: "#172033",
               textDecoration: "none",
-              padding: "15px 22px",
+              padding: "16px 24px",
               borderRadius: "11px",
               fontWeight: "900",
+              fontSize: "16px",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.10)",
             }}
           >
-            Acces restaurant →
+            Contactează-ne →
           </a>
         </div>
       </section>
@@ -692,7 +695,9 @@ export default function Home() {
           textAlign: "center",
         }}
       >
-        <strong style={{ color: "#172033" }}>Masago.</strong>{" "}
+        <strong style={{ color: "#172033" }}>
+          Masago.
+        </strong>{" "}
         © 2026
       </footer>
     </main>
