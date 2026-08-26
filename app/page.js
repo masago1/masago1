@@ -7,6 +7,7 @@ export default function Home() {
       discount: "-30%",
       location: "Timișoara",
       emoji: "🍲",
+      href: "/restaurant",
     },
     {
       name: "Pasta Fresca",
@@ -15,6 +16,7 @@ export default function Home() {
       discount: "-20%",
       location: "Timișoara",
       emoji: "🍝",
+      href: "/restaurant",
     },
     {
       name: "Urban Grill",
@@ -22,85 +24,101 @@ export default function Home() {
       rating: "8.8",
       discount: "-25%",
       location: "Timișoara",
-      emoji: "🥩",
+      emoji: "🍔",
+      href: "/restaurant",
+    },
+    {
+      name: "Boom Pub",
+      type: "Pub",
+      rating: "9.1",
+      discount: "-20%",
+      location: "Timișoara",
+      emoji: "🍻",
+      href: "/restaurant/boom-pub",
     },
   ];
 
   return (
     <main
       style={{
-        margin: 0,
         fontFamily: "Arial, sans-serif",
+        margin: 0,
         background: "#f7f7f7",
         minHeight: "100vh",
-        color: "#1f2937",
+        color: "#172033",
       }}
     >
-      {/* NAVBAR */}
+      {/* HEADER */}
       <header
         style={{
           background: "white",
-          padding: "18px 6%",
+          padding: "20px 6%",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          borderBottom: "1px solid #eeeeee",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
+          borderBottom: "1px solid #eee",
         }}
       >
         <div
           style={{
             fontSize: "28px",
-            fontWeight: "800",
+            fontWeight: "bold",
           }}
         >
-          Masago<span style={{ color: "#ff5a3c" }}>.</span>
+          Masago
+          <span style={{ color: "#ff5a43" }}>.</span>
         </div>
 
-        <div style={{ display: "flex", gap: "12px" }}>
-          <button
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "center",
+          }}
+        >
+          <a
+            href="/login"
             style={{
-              background: "white",
+              textDecoration: "none",
+              color: "#222",
               border: "1px solid #ddd",
+              padding: "11px 18px",
               borderRadius: "10px",
-              padding: "10px 16px",
-              cursor: "pointer",
+              fontWeight: "bold",
             }}
           >
             Restaurant
-          </button>
+          </a>
 
-          <button
+          <a
+            href="/login"
             style={{
-              background: "#ff5a3c",
+              textDecoration: "none",
+              background: "#ff5a43",
               color: "white",
-              border: "none",
+              padding: "12px 20px",
               borderRadius: "10px",
-              padding: "10px 18px",
               fontWeight: "bold",
-              cursor: "pointer",
             }}
           >
             Intră în cont
-          </button>
+          </a>
         </div>
       </header>
 
       {/* HERO */}
       <section
         style={{
-          background: "linear-gradient(135deg, #ff5a3c, #ff845f)",
+          background: "#ff684f",
+          padding: "70px 6%",
           color: "white",
-          padding: "80px 6%",
           textAlign: "center",
         }}
       >
         <h1
           style={{
-            fontSize: "48px",
-            margin: "0 0 16px",
+            fontSize: "46px",
+            margin: "0 0 15px 0",
           }}
         >
           Mănâncă bine. Plătește mai puțin.
@@ -108,9 +126,8 @@ export default function Home() {
 
         <p
           style={{
-            fontSize: "20px",
+            fontSize: "18px",
             marginBottom: "35px",
-            opacity: 0.95,
           }}
         >
           Descoperă restaurante din apropiere cu reduceri exclusive.
@@ -118,13 +135,13 @@ export default function Home() {
 
         <div
           style={{
-            maxWidth: "850px",
+            maxWidth: "800px",
             margin: "auto",
             background: "white",
-            padding: "10px",
-            borderRadius: "16px",
             display: "flex",
-            gap: "10px",
+            borderRadius: "14px",
+            overflow: "hidden",
+            padding: "8px",
           }}
         >
           <input
@@ -132,21 +149,29 @@ export default function Home() {
             style={{
               flex: 1,
               border: "none",
-              padding: "16px",
-              fontSize: "16px",
               outline: "none",
+              padding: "15px",
+              fontSize: "16px",
+            }}
+          />
+
+          <div
+            style={{
+              width: "1px",
+              background: "#eee",
             }}
           />
 
           <input
-            placeholder="Timișoara"
+            value="Timișoara"
+            readOnly
             style={{
-              width: "200px",
+              width: "180px",
               border: "none",
-              borderLeft: "1px solid #eee",
-              padding: "16px",
-              fontSize: "16px",
               outline: "none",
+              padding: "15px",
+              fontSize: "16px",
+              color: "#777",
             }}
           />
 
@@ -156,9 +181,8 @@ export default function Home() {
               color: "white",
               border: "none",
               padding: "0 28px",
-              borderRadius: "12px",
+              borderRadius: "10px",
               fontWeight: "bold",
-              fontSize: "16px",
               cursor: "pointer",
             }}
           >
@@ -167,10 +191,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* RESTAURANTS */}
+      {/* RESTAURANTE */}
       <section
         style={{
-          padding: "60px 6%",
+          padding: "55px 6%",
           maxWidth: "1300px",
           margin: "auto",
         }}
@@ -179,42 +203,46 @@ export default function Home() {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "end",
+            alignItems: "flex-end",
             marginBottom: "25px",
           }}
         >
           <div>
             <h2
               style={{
-                fontSize: "32px",
-                marginBottom: "8px",
+                fontSize: "30px",
+                marginBottom: "5px",
               }}
             >
               Oferte în Timișoara
             </h2>
 
-            <p style={{ color: "#777", margin: 0 }}>
+            <p
+              style={{
+                color: "#777",
+                margin: 0,
+              }}
+            >
               Rezervă o masă și beneficiază de reducere.
             </p>
           </div>
 
-          <button
+          <span
             style={{
-              background: "transparent",
-              border: "none",
               fontWeight: "bold",
-              cursor: "pointer",
+              fontSize: "14px",
             }}
           >
             Vezi toate →
-          </button>
+          </span>
         </div>
 
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-            gap: "25px",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(250px, 1fr))",
+            gap: "22px",
           }}
         >
           {restaurants.map((restaurant) => (
@@ -224,92 +252,118 @@ export default function Home() {
                 background: "white",
                 borderRadius: "18px",
                 overflow: "hidden",
-                boxShadow: "0 6px 25px rgba(0,0,0,0.08)",
+                boxShadow:
+                  "0 5px 20px rgba(0,0,0,0.07)",
               }}
             >
+              {/* POZA / EMOJI */}
               <div
                 style={{
-                  height: "190px",
-                  background: "#ececec",
+                  height: "180px",
+                  background: "#eeeeee",
                   display: "flex",
-                  alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "80px",
+                  alignItems: "center",
                   position: "relative",
                 }}
               >
-                {restaurant.emoji}
+                <div
+                  style={{
+                    fontSize: "75px",
+                  }}
+                >
+                  {restaurant.emoji}
+                </div>
 
                 <div
                   style={{
                     position: "absolute",
-                    top: "15px",
-                    left: "15px",
-                    background: "#ff5a3c",
+                    top: "14px",
+                    left: "14px",
+                    background: "#ff5a43",
                     color: "white",
-                    padding: "8px 12px",
-                    borderRadius: "8px",
+                    fontSize: "32px",
                     fontWeight: "bold",
+                    padding: "8px 13px",
+                    borderRadius: "8px",
                   }}
                 >
                   {restaurant.discount}
                 </div>
               </div>
 
-              <div style={{ padding: "20px" }}>
+              {/* DETALII */}
+              <div
+                style={{
+                  padding: "20px",
+                }}
+              >
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    gap: "10px",
                   }}
                 >
-                  <h3 style={{ margin: 0, fontSize: "21px" }}>
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: "21px",
+                    }}
+                  >
                     {restaurant.name}
                   </h3>
 
-                  <strong>⭐ {restaurant.rating}</strong>
+                  <strong>
+                    ⭐ {restaurant.rating}
+                  </strong>
                 </div>
 
                 <p
                   style={{
                     color: "#777",
-                    margin: "10px 0",
+                    marginTop: "8px",
                   }}
                 >
                   {restaurant.type} • {restaurant.location}
                 </p>
 
-                <p style={{ fontWeight: "bold", color: "#ff5a3c" }}>
+                <p
+                  style={{
+                    fontWeight: "bold",
+                    color: "#ff5a43",
+                  }}
+                >
                   Reducere la nota de plată
                 </p>
 
                 <a
-  href="/restaurant"
-  style={{
-    display: "block",
-    width: "100%",
-    background: "#222",
-    color: "white",
-    borderRadius: "10px",
-    padding: "13px",
-    fontWeight: "bold",
-    cursor: "pointer",
-    marginTop: "5px",
-    textAlign: "center",
-    textDecoration: "none",
-    boxSizing: "border-box",
-  }}
->
-  Vezi disponibilitatea
-</a>
+                  href={restaurant.href}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    boxSizing: "border-box",
+                    background: "#222",
+                    color: "white",
+                    borderRadius: "10px",
+                    padding: "13px",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    marginTop: "12px",
+                    textAlign: "center",
+                    textDecoration: "none",
+                  }}
+                >
+                  Vezi disponibilitatea
+                </a>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
+      {/* CUM FUNCTIONEAZA */}
       <section
         style={{
           background: "white",
@@ -317,20 +371,30 @@ export default function Home() {
           textAlign: "center",
         }}
       >
-        <h2 style={{ fontSize: "32px" }}>Cum funcționează?</h2>
+        <h2
+          style={{
+            fontSize: "30px",
+            marginBottom: "45px",
+          }}
+        >
+          Cum funcționează?
+        </h2>
 
         <div
           style={{
-            maxWidth: "900px",
-            margin: "40px auto 0",
+            maxWidth: "1000px",
+            margin: "auto",
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-            gap: "35px",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: "40px",
           }}
         >
           <div>
             <div style={{ fontSize: "45px" }}>🔎</div>
+
             <h3>1. Alege restaurantul</h3>
+
             <p style={{ color: "#777" }}>
               Descoperă restaurante și oferte din oraș.
             </p>
@@ -338,7 +402,9 @@ export default function Home() {
 
           <div>
             <div style={{ fontSize: "45px" }}>📅</div>
+
             <h3>2. Rezervă</h3>
+
             <p style={{ color: "#777" }}>
               Alege data, ora și numărul de persoane.
             </p>
@@ -346,58 +412,15 @@ export default function Home() {
 
           <div>
             <div style={{ fontSize: "45px" }}>💸</div>
+
             <h3>3. Primești reducerea</h3>
+
             <p style={{ color: "#777" }}>
               Restaurantul aplică reducerea direct pe nota de plată.
             </p>
           </div>
         </div>
       </section>
-
-      {/* RESTAURANT CTA */}
-      <section
-        style={{
-          margin: "60px 6%",
-          padding: "50px",
-          background: "#202020",
-          color: "white",
-          borderRadius: "22px",
-          textAlign: "center",
-        }}
-      >
-        <h2 style={{ fontSize: "32px" }}>
-          Ai un restaurant?
-        </h2>
-
-        <p style={{ color: "#ccc", fontSize: "18px" }}>
-          Umple mesele libere și atrage clienți noi.
-        </p>
-
-        <button
-          style={{
-            marginTop: "15px",
-            background: "#ff5a3c",
-            color: "white",
-            border: "none",
-            borderRadius: "10px",
-            padding: "14px 25px",
-            fontWeight: "bold",
-            cursor: "pointer",
-          }}
-        >
-          Înscrie restaurantul
-        </button>
-      </section>
-
-      <footer
-        style={{
-          padding: "30px",
-          textAlign: "center",
-          color: "#777",
-        }}
-      >
-        © 2026 Masago
-      </footer>
     </main>
   );
 }
