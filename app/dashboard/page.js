@@ -11,28 +11,25 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
 
   const [loading, setLoading] = useState(true);
-  const [offersLoading, setOffersLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
-
-  const [updatingId, setUpdatingId] = useState(null);
-  const [offerUpdatingId, setOfferUpdatingId] = useState(null);
 
   const [message, setMessage] = useState("");
   const [offerMessage, setOfferMessage] = useState("");
 
+  const [updatingId, setUpdatingId] = useState(null);
   const [creatingOffer, setCreatingOffer] = useState(false);
 
   const [offerDate, setOfferDate] = useState("");
   const [startTime, setStartTime] = useState("18:00");
   const [endTime, setEndTime] = useState("20:00");
-  const [discountPercent, setDiscountPercent] = useState("20");
+  const [discountPercent, setDiscountPercent] = useState("30");
   const [capacity, setCapacity] = useState("10");
 
   useEffect(() => {
-    checkAuth();
+    startDashboard();
   }, []);
 
-  async function checkAuth() {
+  async function startDashboard() {
     const accessToken = localStorage.getItem("masago_access_token");
     const email = localStorage.getItem("masago_user_email");
 
@@ -51,54 +48,11 @@ export default function DashboardPage() {
       setMessage("Conexiunea cu Supabase nu este configurată.");
       setAuthChecking(false);
       setLoading(false);
-      setOffersLoading(false);
       return;
     }
 
     try {
-      const restaurant = await loadRestaurant(
-        accessToken,
-        supabaseUrl,
-        supabaseKey
-      );
-
-      if (!restaurant) {
-        setMessage(
-          "Nu am găsit restaurantul asociat acestui cont."
-        );
-
-        setLoading(false);
-        setOffersLoading(false);
-        return;
-      }
-
-      setRestaurantId(restaurant.id);
-      setRestaurantName(restaurant.name);
-
-      await Promise.all([
-        loadReservations(
-          accessToken,
-          supabaseUrl,
-          supabaseKey
-        ),
-        loadOffers(
-          accessToken,
-          supabaseUrl,
-          supabaseKey
-        ),
-      ]);
-    } finally {
-      setAuthChecking(false);
-    }
-  }
-
-  async function loadRestaurant(
-    accessToken,
-    supabaseUrl,
-    supabaseKey
-  ) {
-    try {
-      const response = await fetch(
+      const restaurantResponse = await fetch(
         `${supabaseUrl}/rest/v1/restaurants?select=id,name&limit=1`,
         {
           headers: {
@@ -108,112 +62,104 @@ export default function DashboardPage() {
         }
       );
 
-      if (response.status === 401) {
-        handleLogout();
-        return null;
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Restaurant error:", data);
-        return null;
-      }
-
-      if (!data || data.length === 0) {
-        return null;
-      }
-
-      return data[0];
-    } catch (error) {
-      console.error(error);
-      return null;
-    }
-  }
-
-  async function loadReservations(
-    accessToken,
-    supabaseUrl,
-    supabaseKey
-  ) {
-    try {
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/reservations?select=*&order=id.desc`,
-        {
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-
-      if (response.status === 401) {
-        handleLogout();
+      if (restaurantResponse.status === 401) {
+        logout();
         return;
       }
 
-      const data = await response.json();
+      const restaurantData = await restaurantResponse.json();
 
-      if (!response.ok) {
-        console.error("Reservations error:", data);
-        setMessage("Nu am putut încărca rezervările.");
+      if (
+        !restaurantResponse.ok ||
+        !restaurantData ||
+        restaurantData.length === 0
+      ) {
+        setMessage("Nu am găsit restaurantul asociat contului.");
         return;
       }
 
-      setReservations(data);
+      const restaurant = restaurantData[0];
+
+      setRestaurantId(restaurant.id);
+      setRestaurantName(restaurant.name);
+
+      await Promise.all([
+        loadReservations(accessToken),
+        loadOffers(accessToken),
+      ]);
     } catch (error) {
       console.error(error);
-      setMessage(
-        "A apărut o eroare la încărcarea rezervărilor."
-      );
+      setMessage("A apărut o eroare la încărcarea dashboard-ului.");
     } finally {
+      setAuthChecking(false);
       setLoading(false);
     }
   }
 
-  async function loadOffers(
-    accessToken,
-    supabaseUrl,
-    supabaseKey
-  ) {
-    try {
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/offers?select=*&order=offer_date.asc,start_time.asc`,
-        {
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
+  async function loadReservations(accessToken) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-      if (response.status === 401) {
-        handleLogout();
-        return;
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/reservations?select=*&order=id.desc`,
+      {
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${accessToken}`,
+        },
       }
+    );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Offers error:", data);
-        setOfferMessage("Nu am putut încărca ofertele.");
-        return;
-      }
-
-      setOffers(data);
-    } catch (error) {
-      console.error(error);
-      setOfferMessage(
-        "A apărut o eroare la încărcarea ofertelor."
-      );
-    } finally {
-      setOffersLoading(false);
+    if (response.status === 401) {
+      logout();
+      return;
     }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(data);
+      setMessage("Nu am putut încărca rezervările.");
+      return;
+    }
+
+    setReservations(data);
+  }
+
+  async function loadOffers(accessToken) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/offers?select=*&order=offer_date.asc,start_time.asc`,
+      {
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (response.status === 401) {
+      logout();
+      return;
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(data);
+      setOfferMessage("Nu am putut încărca ofertele.");
+      return;
+    }
+
+    setOffers(data);
   }
 
   async function createOffer(event) {
     event.preventDefault();
-
     setOfferMessage("");
 
     if (!restaurantId) {
@@ -227,7 +173,7 @@ export default function DashboardPage() {
     }
 
     if (!startTime || !endTime) {
-      setOfferMessage("Alege intervalul orar.");
+      setOfferMessage("Completează intervalul orar.");
       return;
     }
 
@@ -241,47 +187,21 @@ export default function DashboardPage() {
     const discount = Number(discountPercent);
     const offerCapacity = Number(capacity);
 
-    if (
-      Number.isNaN(discount) ||
-      discount < 1 ||
-      discount > 100
-    ) {
-      setOfferMessage(
-        "Reducerea trebuie să fie între 1% și 100%."
-      );
+    if (discount < 1 || discount > 100) {
+      setOfferMessage("Reducerea trebuie să fie între 1% și 100%.");
       return;
     }
 
-    if (
-      Number.isNaN(offerCapacity) ||
-      offerCapacity < 1
-    ) {
-      setOfferMessage(
-        "Capacitatea trebuie să fie cel puțin 1."
-      );
+    if (offerCapacity < 1) {
+      setOfferMessage("Capacitatea trebuie să fie cel puțin 1.");
       return;
     }
 
-    if (offerDate < getTodayISO()) {
-      setOfferMessage(
-        "Nu poți crea o ofertă pentru o dată din trecut."
-      );
-      return;
-    }
+    const accessToken = localStorage.getItem("masago_access_token");
 
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
-
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-    const accessToken =
-      localStorage.getItem("masago_access_token");
-
-    if (!accessToken) {
-      window.location.href = "/login";
-      return;
-    }
 
     setCreatingOffer(true);
 
@@ -310,220 +230,38 @@ export default function DashboardPage() {
         }
       );
 
-      if (response.status === 401) {
-        handleLogout();
-        return;
-      }
-
       if (!response.ok) {
         const errorText = await response.text();
-
-        console.error(
-          "Create offer error:",
-          errorText
-        );
-
-        setOfferMessage(
-          `Eroare la crearea ofertei: ${errorText}`
-        );
-
+        console.error(errorText);
+        setOfferMessage(`Eroare ofertă: ${errorText}`);
         return;
       }
 
-      setOfferMessage("✅ Oferta a fost creată.");
+      setOfferMessage("✅ Oferta a fost creată!");
 
       setOfferDate("");
       setStartTime("18:00");
       setEndTime("20:00");
-      setDiscountPercent("20");
+      setDiscountPercent("30");
       setCapacity("10");
 
-      await loadOffers(
-        accessToken,
-        supabaseUrl,
-        supabaseKey
-      );
+      await loadOffers(accessToken);
     } catch (error) {
       console.error(error);
-
-      setOfferMessage(
-        "A apărut o eroare la crearea ofertei."
-      );
+      setOfferMessage("A apărut o eroare la crearea ofertei.");
     } finally {
       setCreatingOffer(false);
     }
   }
 
-  async function toggleOffer(id, currentActive) {
-    setOfferUpdatingId(id);
-    setOfferMessage("");
-
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    const supabaseKey =
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-    const accessToken =
-      localStorage.getItem("masago_access_token");
-
-    if (!accessToken) {
-      window.location.href = "/login";
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/offers?id=eq.${id}`,
-        {
-          method: "PATCH",
-
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-            Prefer: "return=minimal",
-          },
-
-          body: JSON.stringify({
-            active: !currentActive,
-          }),
-        }
-      );
-
-      if (response.status === 401) {
-        handleLogout();
-        return;
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        console.error(errorText);
-
-        setOfferMessage(
-          "Nu am putut modifica oferta."
-        );
-
-        return;
-      }
-
-      setOffers((current) =>
-        current.map((offer) =>
-          offer.id === id
-            ? {
-                ...offer,
-                active: !currentActive,
-              }
-            : offer
-        )
-      );
-    } catch (error) {
-      console.error(error);
-
-      setOfferMessage(
-        "A apărut o eroare la modificarea ofertei."
-      );
-    } finally {
-      setOfferUpdatingId(null);
-    }
-  }
-
-  async function deleteOffer(id) {
-    const confirmed = window.confirm(
-      "Sigur vrei să ștergi această ofertă?"
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setOfferUpdatingId(id);
-    setOfferMessage("");
-
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    const supabaseKey =
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-    const accessToken =
-      localStorage.getItem("masago_access_token");
-
-    if (!accessToken) {
-      window.location.href = "/login";
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/offers?id=eq.${id}`,
-        {
-          method: "DELETE",
-
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${accessToken}`,
-            Prefer: "return=minimal",
-          },
-        }
-      );
-
-      if (response.status === 401) {
-        handleLogout();
-        return;
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-
-        console.error(errorText);
-
-        setOfferMessage(
-          "Nu am putut șterge oferta."
-        );
-
-        return;
-      }
-
-      setOffers((current) =>
-        current.filter(
-          (offer) => offer.id !== id
-        )
-      );
-
-      setOfferMessage("✅ Oferta a fost ștearsă.");
-    } catch (error) {
-      console.error(error);
-
-      setOfferMessage(
-        "A apărut o eroare la ștergerea ofertei."
-      );
-    } finally {
-      setOfferUpdatingId(null);
-    }
-  }
-
-  async function updateReservation(
-    id,
-    newStatus
-  ) {
+  async function updateReservation(id, newStatus) {
     setUpdatingId(id);
-    setMessage("");
 
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const accessToken = localStorage.getItem("masago_access_token");
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey =
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-    const accessToken =
-      localStorage.getItem("masago_access_token");
-
-    if (!accessToken) {
-      window.location.href = "/login";
-      return;
-    }
 
     try {
       const response = await fetch(
@@ -544,20 +282,10 @@ export default function DashboardPage() {
         }
       );
 
-      if (response.status === 401) {
-        handleLogout();
-        return;
-      }
-
       if (!response.ok) {
-        const errorText = await response.text();
-
-        console.error(errorText);
-
-        setMessage(
-          "Nu am putut actualiza rezervarea."
-        );
-
+        const text = await response.text();
+        console.error(text);
+        setMessage("Nu am putut actualiza rezervarea.");
         return;
       }
 
@@ -571,124 +299,63 @@ export default function DashboardPage() {
             : reservation
         )
       );
-    } catch (error) {
-      console.error(error);
-
-      setMessage(
-        "A apărut o eroare la actualizare."
-      );
     } finally {
       setUpdatingId(null);
     }
   }
 
-  function handleLogout() {
-    localStorage.removeItem(
-      "masago_access_token"
-    );
-
-    localStorage.removeItem(
-      "masago_refresh_token"
-    );
-
-    localStorage.removeItem(
-      "masago_user_email"
-    );
+  function logout() {
+    localStorage.removeItem("masago_access_token");
+    localStorage.removeItem("masago_refresh_token");
+    localStorage.removeItem("masago_user_email");
 
     window.location.href = "/login";
   }
 
   function formatDate(date) {
-    if (!date) {
-      return "-";
-    }
+    if (!date) return "-";
 
-    const [year, month, day] =
-      date.split("-");
-
+    const [year, month, day] = date.split("-");
     return `${day}/${month}/${year}`;
   }
 
   function formatTime(time) {
-    if (!time) {
-      return "-";
-    }
-
+    if (!time) return "-";
     return String(time).slice(0, 5);
   }
 
-  function getTodayISO() {
+  function todayISO() {
     const now = new Date();
 
     const year = now.getFullYear();
-
-    const month = String(
-      now.getMonth() + 1
-    ).padStart(2, "0");
-
-    const day = String(
-      now.getDate()
-    ).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
   }
 
-  function getStatusLabel(status) {
-    if (status === "accepted") {
-      return "Confirmată";
-    }
-
-    if (status === "rejected") {
-      return "Respinsă";
-    }
+  function statusLabel(status) {
+    if (status === "accepted") return "Confirmată";
+    if (status === "rejected") return "Respinsă";
 
     return "În așteptare";
   }
 
-  function getStatusStyle(status) {
-    if (status === "accepted") {
-      return {
-        background: "#E9F8EF",
-        color: "#177245",
-      };
-    }
-
-    if (status === "rejected") {
-      return {
-        background: "#FDECEC",
-        color: "#B42318",
-      };
-    }
-
-    return {
-      background: "#FFF4DD",
-      color: "#946200",
-    };
-  }
-
   const stats = useMemo(() => {
-    const today = getTodayISO();
-
     return {
       today: reservations.filter(
-        (reservation) =>
-          reservation.reservation_date ===
-          today
+        (r) => r.reservation_date === todayISO()
       ).length,
 
       pending: reservations.filter(
-        (reservation) =>
-          reservation.status ===
-          "pending"
+        (r) => r.status === "pending"
       ).length,
 
       accepted: reservations.filter(
-        (reservation) =>
-          reservation.status ===
-          "accepted"
+        (r) => r.status === "accepted"
       ).length,
 
-      activeOffers: offers.filter(
+      offers: offers.filter(
         (offer) => offer.active
       ).length,
     };
@@ -700,11 +367,9 @@ export default function DashboardPage() {
         style={{
           minHeight: "100vh",
           display: "flex",
-          justifyContent: "center",
           alignItems: "center",
-          background: "#F6F7F9",
-          color: "#172033",
-          fontFamily: "Arial, sans-serif",
+          justifyContent: "center",
+          fontFamily: "Arial",
         }}
       >
         Se verifică autentificarea...
@@ -717,12 +382,10 @@ export default function DashboardPage() {
       style={{
         minHeight: "100vh",
         background: "#F6F7F9",
-        fontFamily: "Arial, sans-serif",
         color: "#172033",
+        fontFamily: "Arial, sans-serif",
       }}
     >
-      {/* HEADER */}
-
       <header
         style={{
           background: "#172033",
@@ -733,60 +396,43 @@ export default function DashboardPage() {
         <div
           style={{
             maxWidth: "1250px",
-            margin: "0 auto",
+            margin: "auto",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            gap: "20px",
-            flexWrap: "wrap",
           }}
         >
-          <a
-            href="/"
+          <strong
             style={{
-              color: "white",
-              textDecoration: "none",
-              fontWeight: "900",
               fontSize: "28px",
-              letterSpacing: "-1px",
             }}
           >
             Masago
-            <span
-              style={{
-                color: "#FF5A3C",
-              }}
-            >
-              .
-            </span>
-          </a>
+            <span style={{ color: "#FF5A3C" }}>.</span>
+          </strong>
 
           <div
             style={{
               display: "flex",
+              gap: "15px",
               alignItems: "center",
-              gap: "12px",
-              flexWrap: "wrap",
             }}
           >
-            {userEmail && (
-              <span
-                style={{
-                  color: "#BCC5D3",
-                  fontSize: "14px",
-                }}
-              >
-                {userEmail}
-              </span>
-            )}
+            <span
+              style={{
+                color: "#BCC5D3",
+                fontSize: "14px",
+              }}
+            >
+              {userEmail}
+            </span>
 
             <button
-              onClick={handleLogout}
+              onClick={logout}
               style={{
-                border:
-                  "1px solid #3A465D",
                 background: "#202C43",
                 color: "white",
+                border: "1px solid #3A465D",
                 borderRadius: "10px",
                 padding: "10px 15px",
                 fontWeight: "800",
@@ -802,209 +448,121 @@ export default function DashboardPage() {
       <div
         style={{
           maxWidth: "1250px",
-          margin: "0 auto",
-          padding: "42px 5% 70px",
+          margin: "auto",
+          padding: "45px 5% 80px",
         }}
       >
-        {/* INTRO */}
-
-        <section
+        <p
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "end",
-            gap: "20px",
-            flexWrap: "wrap",
-            marginBottom: "30px",
+            color: "#FF5A3C",
+            fontWeight: "900",
+            margin: 0,
           }}
         >
-          <div>
-            <p
-              style={{
-                margin: 0,
-                color: "#FF5A3C",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-                fontSize: "13px",
-                fontWeight: "900",
-              }}
-            >
-              Dashboard restaurant
-            </p>
+          DASHBOARD RESTAURANT
+        </p>
 
-            <h1
-              style={{
-                margin: "8px 0",
-                fontSize: "42px",
-                letterSpacing: "-1.5px",
-              }}
-            >
-              Bun venit, {restaurantName}
-            </h1>
+        <h1
+          style={{
+            fontSize: "42px",
+            margin: "8px 0",
+          }}
+        >
+          Bun venit, {restaurantName}
+        </h1>
 
-            <p
-              style={{
-                margin: 0,
-                color: "#737C8D",
-                fontSize: "17px",
-              }}
-            >
-              Gestionează rezervările și ofertele restaurantului.
-            </p>
-          </div>
-
-          <a
-            href="/"
-            style={{
-              textDecoration: "none",
-              background: "white",
-              color: "#172033",
-              border: "1px solid #E2E5E9",
-              borderRadius: "10px",
-              padding: "12px 16px",
-              fontWeight: "800",
-            }}
-          >
-            ← Vezi aplicația
-          </a>
-        </section>
+        <p
+          style={{
+            color: "#737C8D",
+            fontSize: "17px",
+          }}
+        >
+          Gestionează rezervările și ofertele restaurantului.
+        </p>
 
         {/* STATISTICI */}
 
-        <section
+        <div
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(190px, 1fr))",
-            gap: "16px",
-            marginBottom: "40px",
+              "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "15px",
+            margin: "32px 0 45px",
           }}
         >
           {[
-            {
-              label: "Rezervări azi",
-              value: stats.today,
-              icon: "📅",
-            },
-            {
-              label: "În așteptare",
-              value: stats.pending,
-              icon: "⏳",
-            },
-            {
-              label: "Confirmate",
-              value: stats.accepted,
-              icon: "✅",
-            },
-            {
-              label: "Oferte active",
-              value: stats.activeOffers,
-              icon: "🏷️",
-            },
-          ].map((item) => (
+            ["Rezervări azi", stats.today, "📅"],
+            ["În așteptare", stats.pending, "⏳"],
+            ["Confirmate", stats.accepted, "✅"],
+            ["Oferte active", stats.offers, "🏷️"],
+          ].map(([label, value, icon]) => (
             <div
-              key={item.label}
+              key={label}
               style={{
                 background: "white",
-                border:
-                  "1px solid #E7E9ED",
-                borderRadius: "18px",
                 padding: "22px",
-                boxShadow:
-                  "0 8px 25px rgba(23,32,51,0.04)",
+                borderRadius: "18px",
+                border: "1px solid #E7E9ED",
               }}
             >
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center",
+                  color: "#737C8D",
+                  fontWeight: "700",
                 }}
               >
-                <span
-                  style={{
-                    color: "#737C8D",
-                    fontWeight: "700",
-                    fontSize: "14px",
-                  }}
-                >
-                  {item.label}
-                </span>
-
-                <span
-                  style={{
-                    fontSize: "21px",
-                  }}
-                >
-                  {item.icon}
-                </span>
+                {label}
+                <span>{icon}</span>
               </div>
 
               <div
                 style={{
-                  marginTop: "12px",
                   fontSize: "36px",
                   fontWeight: "900",
+                  marginTop: "12px",
                 }}
               >
-                {item.value}
+                {value}
               </div>
             </div>
           ))}
-        </section>
+        </div>
 
-        {/* CREATE OFFER */}
+        {/* AICI ESTE BUTONUL / FORMULARUL NOU */}
 
         <section
           style={{
             marginBottom: "50px",
           }}
         >
-          <div
+          <p
             style={{
-              marginBottom: "20px",
+              color: "#FF5A3C",
+              fontWeight: "900",
+              marginBottom: "5px",
             }}
           >
-            <p
-              style={{
-                margin: 0,
-                color: "#FF5A3C",
-                fontSize: "13px",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-                fontWeight: "900",
-              }}
-            >
-              Oferte Masago
-            </p>
+            OFERTE MASAGO
+          </p>
 
-            <h2
-              style={{
-                fontSize: "30px",
-                margin: "7px 0",
-              }}
-            >
-              Creează o ofertă
-            </h2>
-
-            <p
-              style={{
-                color: "#737C8D",
-                margin: 0,
-              }}
-            >
-              Alege data, intervalul, reducerea și capacitatea disponibilă.
-            </p>
-          </div>
+          <h2
+            style={{
+              fontSize: "30px",
+              marginTop: 0,
+            }}
+          >
+            Creează o ofertă
+          </h2>
 
           <div
             style={{
               background: "white",
-              border:
-                "1px solid #E7E9ED",
-              borderRadius: "20px",
               padding: "25px",
-              marginBottom: "25px",
+              borderRadius: "20px",
+              border: "1px solid #E7E9ED",
             }}
           >
             <form onSubmit={createOffer}>
@@ -1012,25 +570,21 @@ export default function DashboardPage() {
                 style={{
                   display: "grid",
                   gridTemplateColumns:
-                    "repeat(auto-fit, minmax(170px, 1fr))",
+                    "repeat(auto-fit, minmax(160px, 1fr))",
                   gap: "15px",
                 }}
               >
                 <div>
-                  <label style={formLabel}>
-                    Data
-                  </label>
+                  <label style={formLabel}>Data</label>
 
                   <input
                     type="date"
-                    min={getTodayISO()}
+                    min={todayISO()}
                     value={offerDate}
                     onChange={(e) =>
-                      setOfferDate(
-                        e.target.value
-                      )
+                      setOfferDate(e.target.value)
                     }
-                    style={formField}
+                    style={formInput}
                   />
                 </div>
 
@@ -1043,11 +597,9 @@ export default function DashboardPage() {
                     type="time"
                     value={startTime}
                     onChange={(e) =>
-                      setStartTime(
-                        e.target.value
-                      )
+                      setStartTime(e.target.value)
                     }
-                    style={formField}
+                    style={formInput}
                   />
                 </div>
 
@@ -1060,11 +612,9 @@ export default function DashboardPage() {
                     type="time"
                     value={endTime}
                     onChange={(e) =>
-                      setEndTime(
-                        e.target.value
-                      )
+                      setEndTime(e.target.value)
                     }
-                    style={formField}
+                    style={formInput}
                   />
                 </div>
 
@@ -1079,11 +629,9 @@ export default function DashboardPage() {
                     max="100"
                     value={discountPercent}
                     onChange={(e) =>
-                      setDiscountPercent(
-                        e.target.value
-                      )
+                      setDiscountPercent(e.target.value)
                     }
-                    style={formField}
+                    style={formInput}
                   />
                 </div>
 
@@ -1097,11 +645,9 @@ export default function DashboardPage() {
                     min="1"
                     value={capacity}
                     onChange={(e) =>
-                      setCapacity(
-                        e.target.value
-                      )
+                      setCapacity(e.target.value)
                     }
-                    style={formField}
+                    style={formInput}
                   />
                 </div>
               </div>
@@ -1111,21 +657,17 @@ export default function DashboardPage() {
                 disabled={creatingOffer}
                 style={{
                   width: "100%",
-                  marginTop: "18px",
+                  marginTop: "20px",
+                  padding: "15px",
                   border: "none",
-                  borderRadius: "11px",
-                  padding: "14px",
-                  background:
-                    creatingOffer
-                      ? "#AEB4BF"
-                      : "#FF5A3C",
+                  borderRadius: "12px",
+                  background: creatingOffer
+                    ? "#AAA"
+                    : "#FF5A3C",
                   color: "white",
                   fontWeight: "900",
                   fontSize: "16px",
-                  cursor:
-                    creatingOffer
-                      ? "not-allowed"
-                      : "pointer",
+                  cursor: "pointer",
                 }}
               >
                 {creatingOffer
@@ -1140,20 +682,13 @@ export default function DashboardPage() {
                   marginTop: "15px",
                   padding: "13px",
                   borderRadius: "10px",
-                  background:
-                    offerMessage.includes(
-                      "✅"
-                    )
-                      ? "#E9F8EF"
-                      : "#FFF0EC",
-                  color:
-                    offerMessage.includes(
-                      "✅"
-                    )
-                      ? "#177245"
-                      : "#A33A29",
+                  background: offerMessage.includes("✅")
+                    ? "#E9F8EF"
+                    : "#FFF0EC",
+                  color: offerMessage.includes("✅")
+                    ? "#177245"
+                    : "#A33A29",
                   fontWeight: "800",
-                  wordBreak: "break-word",
                 }}
               >
                 {offerMessage}
@@ -1161,562 +696,212 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* LISTA OFERTE */}
-
-          <div
+          <h3
             style={{
-              display: "flex",
-              justifyContent:
-                "space-between",
-              alignItems: "center",
-              marginBottom: "15px",
+              marginTop: "30px",
             }}
           >
-            <h3
-              style={{
-                fontSize: "23px",
-                margin: 0,
-              }}
-            >
-              Ofertele tale
-            </h3>
+            Ofertele tale
+          </h3>
 
-            <span
-              style={{
-                background: "#172033",
-                color: "white",
-                padding: "8px 12px",
-                borderRadius: "999px",
-                fontSize: "13px",
-                fontWeight: "800",
-              }}
-            >
-              {offers.length} total
-            </span>
-          </div>
-
-          {offersLoading && (
+          {offers.length === 0 ? (
             <div
               style={{
                 background: "white",
-                border:
-                  "1px solid #E7E9ED",
-                borderRadius: "16px",
                 padding: "25px",
+                borderRadius: "15px",
+                color: "#737C8D",
               }}
             >
-              Se încarcă ofertele...
+              Nu ai creat încă nicio ofertă.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gap: "12px",
+              }}
+            >
+              {offers.map((offer) => (
+                <div
+                  key={offer.id}
+                  style={{
+                    background: "white",
+                    padding: "20px",
+                    borderRadius: "15px",
+                    border: "1px solid #E7E9ED",
+                  }}
+                >
+                  <strong>
+                    {formatDate(offer.offer_date)}
+                  </strong>
+
+                  <span>
+                    {" "}
+                    • {formatTime(offer.start_time)}–
+                    {formatTime(offer.end_time)}
+                  </span>
+
+                  <strong
+                    style={{
+                      color: "#FF5A3C",
+                      marginLeft: "15px",
+                    }}
+                  >
+                    -{offer.discount_percent}%
+                  </strong>
+
+                  <span
+                    style={{
+                      marginLeft: "15px",
+                    }}
+                  >
+                    Capacitate: {offer.capacity}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
-
-          {!offersLoading &&
-            offers.length === 0 && (
-              <div
-                style={{
-                  background: "white",
-                  border:
-                    "1px solid #E7E9ED",
-                  borderRadius: "16px",
-                  padding: "30px",
-                  color: "#737C8D",
-                }}
-              >
-                Nu ai creat încă nicio ofertă.
-              </div>
-            )}
-
-          <div
-            style={{
-              display: "grid",
-              gap: "14px",
-            }}
-          >
-            {offers.map((offer) => (
-              <article
-                key={offer.id}
-                style={{
-                  background: "white",
-                  border:
-                    "1px solid #E7E9ED",
-                  borderRadius: "18px",
-                  padding: "20px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit, minmax(130px, 1fr))",
-                    gap: "15px",
-                  }}
-                >
-                  <div>
-                    <div style={smallLabel}>
-                      Data
-                    </div>
-
-                    <strong>
-                      {formatDate(
-                        offer.offer_date
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <div style={smallLabel}>
-                      Interval
-                    </div>
-
-                    <strong>
-                      {formatTime(
-                        offer.start_time
-                      )}{" "}
-                      –{" "}
-                      {formatTime(
-                        offer.end_time
-                      )}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <div style={smallLabel}>
-                      Reducere
-                    </div>
-
-                    <strong
-                      style={{
-                        color: "#FF5A3C",
-                      }}
-                    >
-                      -{offer.discount_percent}%
-                    </strong>
-                  </div>
-
-                  <div>
-                    <div style={smallLabel}>
-                      Capacitate
-                    </div>
-
-                    <strong>
-                      {offer.capacity}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <div style={smallLabel}>
-                      Status
-                    </div>
-
-                    <strong
-                      style={{
-                        color:
-                          offer.active
-                            ? "#16865C"
-                            : "#8A92A0",
-                      }}
-                    >
-                      {offer.active
-                        ? "Activă"
-                        : "Inactivă"}
-                    </strong>
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "10px",
-                    flexWrap: "wrap",
-                    marginTop: "18px",
-                  }}
-                >
-                  <button
-                    onClick={() =>
-                      toggleOffer(
-                        offer.id,
-                        offer.active
-                      )
-                    }
-                    disabled={
-                      offerUpdatingId ===
-                      offer.id
-                    }
-                    style={{
-                      flex: "1 1 180px",
-                      border:
-                        "1px solid #DDE1E6",
-                      background: "white",
-                      color: "#172033",
-                      borderRadius: "10px",
-                      padding: "11px",
-                      fontWeight: "800",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {offer.active
-                      ? "Dezactivează"
-                      : "Activează"}
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      deleteOffer(
-                        offer.id
-                      )
-                    }
-                    disabled={
-                      offerUpdatingId ===
-                      offer.id
-                    }
-                    style={{
-                      flex: "1 1 120px",
-                      border:
-                        "1px solid #F1CCCC",
-                      background: "#FFF7F7",
-                      color: "#B42318",
-                      borderRadius: "10px",
-                      padding: "11px",
-                      fontWeight: "800",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Șterge
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
         </section>
 
         {/* REZERVARI */}
 
-        <section>
+        <h2
+          style={{
+            fontSize: "30px",
+          }}
+        >
+          Rezervări
+        </h2>
+
+        {message && (
           <div
             style={{
-              display: "flex",
-              justifyContent:
-                "space-between",
-              alignItems: "center",
-              gap: "15px",
-              flexWrap: "wrap",
-              marginBottom: "20px",
+              background: "#FFF0EC",
+              padding: "14px",
+              borderRadius: "10px",
+              color: "#A33A29",
+              marginBottom: "15px",
             }}
           >
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: "30px",
-                }}
-              >
-                Rezervări
-              </h2>
-
-              <p
-                style={{
-                  margin: "6px 0 0",
-                  color: "#818997",
-                }}
-              >
-                Cele mai noi rezervări apar primele.
-              </p>
-            </div>
-
-            <span
-              style={{
-                background: "#172033",
-                color: "white",
-                borderRadius: "999px",
-                padding: "9px 14px",
-                fontWeight: "800",
-                fontSize: "13px",
-              }}
-            >
-              {reservations.length} total
-            </span>
+            {message}
           </div>
+        )}
 
-          {message && (
-            <div
-              style={{
-                background: "#FFF0EC",
-                color: "#A33A29",
-                padding: "14px",
-                borderRadius: "10px",
-                marginBottom: "15px",
-              }}
-            >
-              {message}
-            </div>
-          )}
+        {loading && <p>Se încarcă...</p>}
 
-          {loading && (
+        <div
+          style={{
+            display: "grid",
+            gap: "16px",
+          }}
+        >
+          {reservations.map((reservation) => (
             <div
+              key={reservation.id}
               style={{
                 background: "white",
-                padding: "25px",
-                borderRadius: "16px",
+                borderRadius: "18px",
+                padding: "22px",
+                border: "1px solid #E7E9ED",
               }}
             >
-              Se încarcă rezervările...
-            </div>
-          )}
+              <div
+                style={{
+                  background: "#172033",
+                  color: "white",
+                  display: "inline-block",
+                  padding: "8px 12px",
+                  borderRadius: "9px",
+                  fontWeight: "900",
+                  marginBottom: "15px",
+                }}
+              >
+                {reservation.reservation_code || "FĂRĂ COD"}
+              </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: "18px",
-            }}
-          >
-            {reservations.map(
-              (reservation) => {
-                const statusStyle =
-                  getStatusStyle(
-                    reservation.status
-                  );
+              <div>
+                <strong>
+                  {reservation.customer_name}
+                </strong>
 
-                return (
-                  <article
-                    key={reservation.id}
+                {" • "}
+
+                {formatDate(
+                  reservation.reservation_date
+                )}
+
+                {" • "}
+
+                {formatTime(
+                  reservation.reservation_time
+                )}
+
+                {" • "}
+
+                {reservation.guests} persoane
+              </div>
+
+              <p>
+                Status:{" "}
+                <strong>
+                  {statusLabel(reservation.status)}
+                </strong>
+              </p>
+
+              {reservation.status === "pending" && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                  }}
+                >
+                  <button
+                    onClick={() =>
+                      updateReservation(
+                        reservation.id,
+                        "accepted"
+                      )
+                    }
+                    disabled={updatingId === reservation.id}
                     style={{
-                      background:
-                        "white",
-                      border:
-                        "1px solid #E7E9ED",
-                      borderRadius:
-                        "20px",
-                      padding: "24px",
+                      flex: 1,
+                      border: "none",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      background: "#16865C",
+                      color: "white",
+                      fontWeight: "900",
                     }}
                   >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent:
-                          "space-between",
-                        alignItems:
-                          "center",
-                        gap: "15px",
-                        flexWrap: "wrap",
-                        marginBottom:
-                          "20px",
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={smallLabel}
-                        >
-                          Cod rezervare
-                        </div>
+                    ✓ Acceptă
+                  </button>
 
-                        <div
-                          style={{
-                            background:
-                              "#172033",
-                            color: "white",
-                            padding:
-                              "9px 12px",
-                            borderRadius:
-                              "9px",
-                            fontWeight:
-                              "900",
-                            letterSpacing:
-                              "1px",
-                          }}
-                        >
-                          {reservation.reservation_code ||
-                            "FĂRĂ COD"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div
-                          style={smallLabel}
-                        >
-                          Status
-                        </div>
-
-                        <span
-                          style={{
-                            display:
-                              "inline-block",
-                            padding:
-                              "9px 12px",
-                            borderRadius:
-                              "999px",
-                            fontWeight:
-                              "900",
-                            ...statusStyle,
-                          }}
-                        >
-                          {getStatusLabel(
-                            reservation.status
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "repeat(auto-fit, minmax(140px, 1fr))",
-                        gap: "18px",
-                      }}
-                    >
-                      <div>
-                        <div style={smallLabel}>
-                          Client
-                        </div>
-
-                        <strong>
-                          {reservation.customer_name ||
-                            "-"}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <div style={smallLabel}>
-                          Telefon
-                        </div>
-
-                        <strong>
-                          {reservation.customer_phone ||
-                            "-"}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <div style={smallLabel}>
-                          Data
-                        </div>
-
-                        <strong>
-                          {formatDate(
-                            reservation.reservation_date
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <div style={smallLabel}>
-                          Ora
-                        </div>
-
-                        <strong>
-                          {formatTime(
-                            reservation.reservation_time
-                          )}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <div style={smallLabel}>
-                          Persoane
-                        </div>
-
-                        <strong>
-                          {reservation.guests ??
-                            "-"}
-                        </strong>
-                      </div>
-                    </div>
-
-                    {reservation.status ===
-                      "pending" && (
-                      <div
-                        style={{
-                          marginTop:
-                            "20px",
-                          paddingTop:
-                            "18px",
-                          borderTop:
-                            "1px solid #EEF0F2",
-                          display:
-                            "flex",
-                          gap: "10px",
-                          flexWrap:
-                            "wrap",
-                        }}
-                      >
-                        <button
-                          onClick={() =>
-                            updateReservation(
-                              reservation.id,
-                              "accepted"
-                            )
-                          }
-                          disabled={
-                            updatingId ===
-                            reservation.id
-                          }
-                          style={{
-                            flex:
-                              "1 1 180px",
-                            border:
-                              "none",
-                            borderRadius:
-                              "10px",
-                            padding:
-                              "12px",
-                            background:
-                              "#16865C",
-                            color:
-                              "white",
-                            fontWeight:
-                              "900",
-                            cursor:
-                              updatingId ===
-                              reservation.id
-                                ? "not-allowed"
-                                : "pointer",
-                          }}
-                        >
-                          ✓ Acceptă rezervarea
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            updateReservation(
-                              reservation.id,
-                              "rejected"
-                            )
-                          }
-                          disabled={
-                            updatingId ===
-                            reservation.id
-                          }
-                          style={{
-                            flex:
-                              "1 1 180px",
-                            border:
-                              "1px solid #E1E4E8",
-                            borderRadius:
-                              "10px",
-                            padding:
-                              "12px",
-                            background:
-                              "white",
-                            color:
-                              "#B42318",
-                            fontWeight:
-                              "900",
-                            cursor:
-                              updatingId ===
-                              reservation.id
-                                ? "not-allowed"
-                                : "pointer",
-                          }}
-                        >
-                          Respinge
-                        </button>
-                      </div>
-                    )}
-                  </article>
-                );
-              }
-            )}
-          </div>
-        </section>
+                  <button
+                    onClick={() =>
+                      updateReservation(
+                        reservation.id,
+                        "rejected"
+                      )
+                    }
+                    disabled={updatingId === reservation.id}
+                    style={{
+                      flex: 1,
+                      border: "1px solid #DDD",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      background: "white",
+                      color: "#B42318",
+                      fontWeight: "900",
+                    }}
+                  >
+                    Respinge
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </main>
   );
@@ -1727,25 +912,13 @@ const formLabel = {
   marginBottom: "7px",
   fontSize: "13px",
   fontWeight: "800",
-  color: "#485267",
 };
 
-const formField = {
+const formInput = {
   width: "100%",
   boxSizing: "border-box",
   padding: "13px",
-  borderRadius: "10px",
   border: "1px solid #DDE1E6",
+  borderRadius: "10px",
   fontSize: "15px",
-  background: "white",
-  color: "#172033",
-};
-
-const smallLabel = {
-  fontSize: "11px",
-  color: "#8A92A0",
-  marginBottom: "6px",
-  fontWeight: "800",
-  textTransform: "uppercase",
-  letterSpacing: "0.6px",
 };
