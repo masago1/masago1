@@ -8,24 +8,7 @@ export default function Home() {
       location: "Timișoara",
       emoji: "🍲",
       href: "/restaurant",
-    },
-    {
-      name: "Pasta Fresca",
-      type: "Italian",
-      rating: "9.0",
-      discount: "-20%",
-      location: "Timișoara",
-      emoji: "🍝",
-      href: "/restaurant",
-    },
-    {
-      name: "Urban Grill",
-      type: "Grill",
-      rating: "8.8",
-      discount: "-25%",
-      location: "Timișoara",
-      emoji: "🍔",
-      href: "/restaurant",
+      description: "Bucătărie românească și preparate tradiționale.",
     },
     {
       name: "Boom Pub",
@@ -35,6 +18,7 @@ export default function Home() {
       location: "Timișoara",
       emoji: "🍻",
       href: "/restaurant/boom-pub",
+      description: "Atmosferă relaxată, băuturi și preparate de pub.",
     },
   ];
 
@@ -42,37 +26,44 @@ export default function Home() {
     <main
       style={{
         fontFamily: "Arial, sans-serif",
-        margin: 0,
-        background: "#f7f7f7",
+        background: "#FAFAF8",
         minHeight: "100vh",
         color: "#172033",
       }}
     >
-      {/* HEADER */}
+      {/* NAVBAR */}
       <header
         style={{
-          background: "white",
-          padding: "20px 6%",
+          background: "rgba(255,255,255,0.96)",
+          borderBottom: "1px solid #ececec",
+          padding: "18px 6%",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          borderBottom: "1px solid #eee",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          backdropFilter: "blur(10px)",
         }}
       >
-        <div
+        <a
+          href="/"
           style={{
-            fontSize: "28px",
-            fontWeight: "bold",
+            textDecoration: "none",
+            color: "#172033",
+            fontSize: "30px",
+            fontWeight: "900",
+            letterSpacing: "-1px",
           }}
         >
           Masago
-          <span style={{ color: "#ff5a43" }}>.</span>
-        </div>
+          <span style={{ color: "#FF5A3C" }}>.</span>
+        </a>
 
         <div
           style={{
             display: "flex",
-            gap: "12px",
+            gap: "10px",
             alignItems: "center",
           }}
         >
@@ -80,25 +71,26 @@ export default function Home() {
             href="/login"
             style={{
               textDecoration: "none",
-              color: "#222",
-              border: "1px solid #ddd",
-              padding: "11px 18px",
+              color: "#172033",
+              border: "1px solid #dcdfe5",
+              background: "white",
+              padding: "11px 17px",
               borderRadius: "10px",
-              fontWeight: "bold",
+              fontWeight: "700",
             }}
           >
-            Restaurant
+            Pentru restaurante
           </a>
 
           <a
             href="/login"
             style={{
               textDecoration: "none",
-              background: "#ff5a43",
               color: "white",
-              padding: "12px 20px",
+              background: "#172033",
+              padding: "12px 18px",
               borderRadius: "10px",
-              fontWeight: "bold",
+              fontWeight: "700",
             }}
           >
             Intră în cont
@@ -109,109 +101,205 @@ export default function Home() {
       {/* HERO */}
       <section
         style={{
-          background: "#ff684f",
-          padding: "70px 6%",
+          padding: "90px 6% 80px",
+          background:
+            "linear-gradient(135deg, #172033 0%, #202c43 65%, #2a3751 100%)",
           color: "white",
-          textAlign: "center",
+          overflow: "hidden",
         }}
       >
-        <h1
-          style={{
-            fontSize: "46px",
-            margin: "0 0 15px 0",
-          }}
-        >
-          Mănâncă bine. Plătește mai puțin.
-        </h1>
-
-        <p
-          style={{
-            fontSize: "18px",
-            marginBottom: "35px",
-          }}
-        >
-          Descoperă restaurante din apropiere cu reduceri exclusive.
-        </p>
-
         <div
           style={{
-            maxWidth: "800px",
-            margin: "auto",
-            background: "white",
-            display: "flex",
-            borderRadius: "14px",
-            overflow: "hidden",
-            padding: "8px",
+            maxWidth: "1180px",
+            margin: "0 auto",
           }}
         >
-          <input
-            placeholder="Ce vrei să mănânci?"
+          <div
             style={{
-              flex: 1,
-              border: "none",
-              outline: "none",
-              padding: "15px",
-              fontSize: "16px",
+              display: "inline-block",
+              background: "rgba(255,90,60,0.16)",
+              border: "1px solid rgba(255,90,60,0.35)",
+              color: "#FF8A73",
+              padding: "8px 13px",
+              borderRadius: "999px",
+              fontWeight: "700",
+              fontSize: "14px",
+              marginBottom: "22px",
             }}
-          />
+          >
+            Restaurante bune. Oferte mai bune.
+          </div>
+
+          <h1
+            style={{
+              fontSize: "clamp(44px, 7vw, 74px)",
+              lineHeight: "0.98",
+              letterSpacing: "-3px",
+              margin: 0,
+              maxWidth: "850px",
+            }}
+          >
+            Descoperă mese bune,
+            <br />
+            <span style={{ color: "#FF5A3C" }}>
+              la momentul potrivit.
+            </span>
+          </h1>
+
+          <p
+            style={{
+              marginTop: "25px",
+              fontSize: "20px",
+              color: "#d7dce6",
+              maxWidth: "700px",
+              lineHeight: 1.6,
+            }}
+          >
+            Rezervă la restaurante din Timișoara și profită de
+            reduceri disponibile în anumite intervale.
+          </p>
 
           <div
             style={{
-              width: "1px",
-              background: "#eee",
-            }}
-          />
-
-          <input
-            value="Timișoara"
-            readOnly
-            style={{
-              width: "180px",
-              border: "none",
-              outline: "none",
-              padding: "15px",
-              fontSize: "16px",
-              color: "#777",
-            }}
-          />
-
-          <button
-            style={{
-              background: "#222",
-              color: "white",
-              border: "none",
-              padding: "0 28px",
-              borderRadius: "10px",
-              fontWeight: "bold",
-              cursor: "pointer",
+              marginTop: "38px",
+              maxWidth: "850px",
+              background: "white",
+              padding: "9px",
+              borderRadius: "16px",
+              display: "flex",
+              gap: "8px",
+              boxShadow: "0 18px 60px rgba(0,0,0,0.22)",
             }}
           >
-            Caută
-          </button>
+            <input
+              placeholder="Ce vrei să mănânci?"
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                padding: "16px",
+                fontSize: "16px",
+                color: "#172033",
+                minWidth: 0,
+              }}
+            />
+
+            <div
+              style={{
+                width: "1px",
+                background: "#ececec",
+              }}
+            />
+
+            <input
+              value="Timișoara"
+              readOnly
+              style={{
+                width: "170px",
+                border: "none",
+                outline: "none",
+                padding: "16px",
+                fontSize: "16px",
+                color: "#667085",
+                background: "white",
+              }}
+            />
+
+            <button
+              style={{
+                background: "#FF5A3C",
+                color: "white",
+                border: "none",
+                borderRadius: "11px",
+                padding: "0 26px",
+                fontWeight: "800",
+                fontSize: "16px",
+                cursor: "pointer",
+              }}
+            >
+              Caută
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* RESTAURANTE */}
+      {/* TRUST BAR */}
       <section
         style={{
-          padding: "55px 6%",
-          maxWidth: "1300px",
-          margin: "auto",
+          background: "white",
+          borderBottom: "1px solid #ececec",
+          padding: "22px 6%",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "auto",
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "18px",
+          }}
+        >
+          {[
+            ["⚡", "Rezervare rapidă"],
+            ["💸", "Reduceri la nota de plată"],
+            ["📍", "Restaurante locale"],
+            ["✅", "Confirmare de la restaurant"],
+          ].map(([icon, text]) => (
+            <div
+              key={text}
+              style={{
+                display: "flex",
+                gap: "10px",
+                alignItems: "center",
+                fontWeight: "700",
+                color: "#485267",
+              }}
+            >
+              <span style={{ fontSize: "21px" }}>{icon}</span>
+              <span>{text}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* RESTAURANTS */}
+      <section
+        style={{
+          maxWidth: "1180px",
+          margin: "0 auto",
+          padding: "70px 6%",
         }}
       >
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-end",
-            marginBottom: "25px",
+            alignItems: "end",
+            gap: "20px",
+            marginBottom: "30px",
           }}
         >
           <div>
+            <p
+              style={{
+                margin: 0,
+                color: "#FF5A3C",
+                fontWeight: "800",
+                fontSize: "14px",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+              }}
+            >
+              Descoperă
+            </p>
+
             <h2
               style={{
-                fontSize: "30px",
-                marginBottom: "5px",
+                margin: "8px 0 8px",
+                fontSize: "38px",
+                letterSpacing: "-1px",
               }}
             >
               Oferte în Timișoara
@@ -219,18 +307,19 @@ export default function Home() {
 
             <p
               style={{
-                color: "#777",
                 margin: 0,
+                color: "#727b8d",
+                fontSize: "17px",
               }}
             >
-              Rezervă o masă și beneficiază de reducere.
+              Alege restaurantul, intervalul și rezervă în câteva secunde.
             </p>
           </div>
 
           <span
             style={{
-              fontWeight: "bold",
-              fontSize: "14px",
+              color: "#172033",
+              fontWeight: "800",
             }}
           >
             Vezi toate →
@@ -241,89 +330,91 @@ export default function Home() {
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(250px, 1fr))",
-            gap: "22px",
+              "repeat(auto-fit, minmax(290px, 1fr))",
+            gap: "26px",
           }}
         >
           {restaurants.map((restaurant) => (
-            <div
+            <article
               key={restaurant.name}
               style={{
                 background: "white",
-                borderRadius: "18px",
+                borderRadius: "22px",
                 overflow: "hidden",
-                boxShadow:
-                  "0 5px 20px rgba(0,0,0,0.07)",
+                border: "1px solid #ebedf0",
+                boxShadow: "0 12px 35px rgba(23,32,51,0.07)",
               }}
             >
-              {/* POZA / EMOJI */}
               <div
                 style={{
-                  height: "180px",
-                  background: "#eeeeee",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
+                  height: "220px",
+                  background:
+                    "linear-gradient(135deg, #f1f2f4, #e8eaed)",
                   position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <div
+                <span
                   style={{
-                    fontSize: "75px",
+                    fontSize: "90px",
                   }}
                 >
                   {restaurant.emoji}
+                </span>
+
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "16px",
+                    left: "16px",
+                    background: "#FF5A3C",
+                    color: "white",
+                    fontWeight: "900",
+                    fontSize: "20px",
+                    padding: "9px 12px",
+                    borderRadius: "10px",
+                    boxShadow: "0 8px 20px rgba(255,90,60,0.28)",
+                  }}
+                >
+                  {restaurant.discount}
                 </div>
 
                 <div
                   style={{
                     position: "absolute",
-                    top: "14px",
-                    left: "14px",
-                    background: "#ff5a43",
-                    color: "white",
-                    fontSize: "32px",
-                    fontWeight: "bold",
-                    padding: "8px 13px",
-                    borderRadius: "8px",
+                    right: "16px",
+                    top: "16px",
+                    background: "rgba(255,255,255,0.94)",
+                    padding: "8px 10px",
+                    borderRadius: "10px",
+                    fontWeight: "800",
                   }}
                 >
-                  {restaurant.discount}
+                  ⭐ {restaurant.rating}
                 </div>
               </div>
 
-              {/* DETALII */}
               <div
                 style={{
-                  padding: "20px",
+                  padding: "22px",
                 }}
               >
-                <div
+                <h3
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "10px",
+                    margin: 0,
+                    fontSize: "24px",
+                    letterSpacing: "-0.5px",
                   }}
                 >
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: "21px",
-                    }}
-                  >
-                    {restaurant.name}
-                  </h3>
-
-                  <strong>
-                    ⭐ {restaurant.rating}
-                  </strong>
-                </div>
+                  {restaurant.name}
+                </h3>
 
                 <p
                   style={{
-                    color: "#777",
-                    marginTop: "8px",
+                    color: "#7a8393",
+                    margin: "8px 0 12px",
                   }}
                 >
                   {restaurant.type} • {restaurant.location}
@@ -331,96 +422,279 @@ export default function Home() {
 
                 <p
                   style={{
-                    fontWeight: "bold",
-                    color: "#ff5a43",
+                    color: "#485267",
+                    lineHeight: 1.5,
+                    minHeight: "48px",
                   }}
                 >
-                  Reducere la nota de plată
+                  {restaurant.description}
                 </p>
+
+                <div
+                  style={{
+                    margin: "18px 0",
+                    paddingTop: "16px",
+                    borderTop: "1px solid #eeeeee",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                  }}
+                >
+                  <span
+                    style={{
+                      color: "#667085",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Ofertă disponibilă
+                  </span>
+
+                  <strong
+                    style={{
+                      color: "#FF5A3C",
+                    }}
+                  >
+                    la nota de plată
+                  </strong>
+                </div>
 
                 <a
                   href={restaurant.href}
                   style={{
                     display: "block",
-                    width: "100%",
-                    boxSizing: "border-box",
-                    background: "#222",
+                    background: "#172033",
                     color: "white",
-                    borderRadius: "10px",
-                    padding: "13px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                    marginTop: "12px",
-                    textAlign: "center",
                     textDecoration: "none",
+                    textAlign: "center",
+                    padding: "14px",
+                    borderRadius: "11px",
+                    fontWeight: "800",
                   }}
                 >
                   Vezi disponibilitatea
                 </a>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </section>
 
-      {/* CUM FUNCTIONEAZA */}
+      {/* HOW IT WORKS */}
       <section
         style={{
-          background: "white",
-          padding: "60px 6%",
-          textAlign: "center",
+          background: "#172033",
+          color: "white",
+          padding: "80px 6%",
         }}
       >
-        <h2
-          style={{
-            fontSize: "30px",
-            marginBottom: "45px",
-          }}
-        >
-          Cum funcționează?
-        </h2>
-
         <div
           style={{
-            maxWidth: "1000px",
+            maxWidth: "1180px",
             margin: "auto",
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "40px",
           }}
         >
-          <div>
-            <div style={{ fontSize: "45px" }}>🔎</div>
+          <div
+            style={{
+              textAlign: "center",
+              maxWidth: "650px",
+              margin: "auto",
+            }}
+          >
+            <p
+              style={{
+                color: "#FF8A73",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                fontWeight: "800",
+                fontSize: "14px",
+              }}
+            >
+              Simplu și rapid
+            </p>
 
-            <h3>1. Alege restaurantul</h3>
+            <h2
+              style={{
+                fontSize: "38px",
+                margin: "8px 0 15px",
+              }}
+            >
+              Cum funcționează Masago?
+            </h2>
 
-            <p style={{ color: "#777" }}>
-              Descoperă restaurante și oferte din oraș.
+            <p
+              style={{
+                color: "#b8c0ce",
+                lineHeight: 1.6,
+                fontSize: "17px",
+              }}
+            >
+              De la descoperirea restaurantului până la masă rezervată,
+              în doar câțiva pași.
             </p>
           </div>
 
-          <div>
-            <div style={{ fontSize: "45px" }}>📅</div>
+          <div
+            style={{
+              marginTop: "50px",
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: "20px",
+            }}
+          >
+            {[
+              {
+                number: "01",
+                icon: "🔎",
+                title: "Alege restaurantul",
+                text: "Descoperă restaurante și oferte potrivite pentru tine.",
+              },
+              {
+                number: "02",
+                icon: "📅",
+                title: "Alege intervalul",
+                text: "Selectează data, ora și numărul de persoane.",
+              },
+              {
+                number: "03",
+                icon: "✅",
+                title: "Primește confirmarea",
+                text: "Restaurantul vede rezervarea și o poate confirma.",
+              },
+              {
+                number: "04",
+                icon: "💸",
+                title: "Primește reducerea",
+                text: "Oferta este aplicată conform condițiilor rezervării.",
+              },
+            ].map((item) => (
+              <div
+                key={item.number}
+                style={{
+                  background: "#202c43",
+                  padding: "26px",
+                  borderRadius: "18px",
+                  border: "1px solid #2c3952",
+                }}
+              >
+                <div
+                  style={{
+                    color: "#FF5A3C",
+                    fontWeight: "900",
+                    fontSize: "13px",
+                  }}
+                >
+                  {item.number}
+                </div>
 
-            <h3>2. Rezervă</h3>
+                <div
+                  style={{
+                    fontSize: "34px",
+                    margin: "18px 0",
+                  }}
+                >
+                  {item.icon}
+                </div>
 
-            <p style={{ color: "#777" }}>
-              Alege data, ora și numărul de persoane.
-            </p>
-          </div>
+                <h3
+                  style={{
+                    margin: "0 0 10px",
+                  }}
+                >
+                  {item.title}
+                </h3>
 
-          <div>
-            <div style={{ fontSize: "45px" }}>💸</div>
-
-            <h3>3. Primești reducerea</h3>
-
-            <p style={{ color: "#777" }}>
-              Restaurantul aplică reducerea direct pe nota de plată.
-            </p>
+                <p
+                  style={{
+                    color: "#b8c0ce",
+                    lineHeight: 1.6,
+                    margin: 0,
+                  }}
+                >
+                  {item.text}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
+
+      {/* RESTAURANT CTA */}
+      <section
+        style={{
+          padding: "75px 6%",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "auto",
+            background:
+              "linear-gradient(135deg, #FF5A3C, #ff745d)",
+            color: "white",
+            padding: "55px",
+            borderRadius: "25px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "30px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "650px",
+            }}
+          >
+            <h2
+              style={{
+                fontSize: "36px",
+                margin: "0 0 12px",
+              }}
+            >
+              Ai un restaurant?
+            </h2>
+
+            <p
+              style={{
+                margin: 0,
+                color: "#fff1ed",
+                fontSize: "18px",
+                lineHeight: 1.6,
+              }}
+            >
+              Folosește intervalele cu ocupare redusă pentru a atrage
+              clienți noi și a transforma mesele libere în rezervări.
+            </p>
+          </div>
+
+          <a
+            href="/login"
+            style={{
+              background: "white",
+              color: "#172033",
+              textDecoration: "none",
+              padding: "15px 22px",
+              borderRadius: "11px",
+              fontWeight: "900",
+            }}
+          >
+            Acces restaurant →
+          </a>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer
+        style={{
+          padding: "30px 6% 45px",
+          color: "#7a8393",
+          textAlign: "center",
+        }}
+      >
+        <strong style={{ color: "#172033" }}>Masago.</strong>{" "}
+        © 2026
+      </footer>
     </main>
   );
 }
