@@ -14,69 +14,99 @@ export default function BoomPubPage() {
   async function handleReservation() {
     setMessage("");
 
-    if (!date || !name || !phone) {
-      setMessage("Completează toate câmpurile.");
+    if (!date) {
+      setMessage("Alege data rezervării.");
+      return;
+    }
+
+    if (!time) {
+      setMessage("Alege ora rezervării.");
+      return;
+    }
+
+    if (!name.trim()) {
+      setMessage("Introdu numele.");
+      return;
+    }
+
+    if (!phone.trim()) {
+      setMessage("Introdu numărul de telefon.");
+      return;
+    }
+
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      setMessage("Conexiunea cu Supabase nu este configurată.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const supabaseKey =
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        setMessage("Conexiunea cu Supabase nu este configurată.");
-        setLoading(false);
-        return;
-      }
-
       const response = await fetch(
         `${supabaseUrl}/rest/v1/reservations`,
         {
           method: "POST",
           headers: {
             apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
             "Content-Type": "application/json",
-            Prefer: "return=representation",
+            Prefer: "return=minimal",
           },
           body: JSON.stringify({
             restaurant_name: "Boom Pub",
             reservation_date: date,
             reservation_time: time,
             guests: Number(guests),
-            customer_name: name,
-            customer_phone: phone,
+            customer_name: name.trim(),
+            customer_phone: phone.trim(),
             status: "pending",
           }),
         }
       );
 
-      const data = await response.json();
-
       if (!response.ok) {
-        console.error(data);
-        setMessage(
-          `Eroare Supabase: ${
-            data?.message || "Rezervarea nu a putut fi trimisă."
-          }`
-        );
+        const errorText = await response.text();
+        console.error("Supabase error:", errorText);
+        setMessage(`Eroare Supabase: ${errorText}`);
         return;
       }
 
-      setMessage("Rezervarea a fost trimisă cu succes! 🎉");
+      setMessage("✅ Rezervarea a fost trimisă cu succes!");
 
+      setDate("");
+      setTime("19:00");
+      setGuests("2");
       setName("");
       setPhone("");
     } catch (error) {
       console.error(error);
-      setMessage("A apărut o eroare la trimiterea rezervării.");
+      setMessage(`Eroare: ${error.message}`);
     } finally {
       setLoading(false);
     }
   }
+
+  const inputStyle = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "14px",
+    border: "1px solid #ddd",
+    borderRadius: "9px",
+    fontSize: "16px",
+    background: "white",
+  };
+
+  const labelStyle = {
+    display: "block",
+    fontWeight: "bold",
+    marginTop: "18px",
+    marginBottom: "7px",
+  };
 
   return (
     <main
@@ -85,6 +115,7 @@ export default function BoomPubPage() {
         background: "#f6f6f6",
         padding: "40px 20px",
         fontFamily: "Arial, sans-serif",
+        color: "#222",
       }}
     >
       <div
@@ -107,7 +138,12 @@ export default function BoomPubPage() {
           ← Înapoi la Masago
         </a>
 
-        <div style={{ marginTop: "28px", marginBottom: "30px" }}>
+        <div
+          style={{
+            marginTop: "28px",
+            marginBottom: "30px",
+          }}
+        >
           <h1
             style={{
               margin: 0,
@@ -123,41 +159,52 @@ export default function BoomPubPage() {
               marginTop: "8px",
             }}
           >
-            Rezervă o masă și beneficiază de oferta disponibilă.
+            Pub • Timișoara
           </p>
 
           <div
             style={{
               marginTop: "18px",
-              display: "inline-block",
-              background: "#ff5a43",
-              color: "white",
-              fontWeight: "bold",
-              fontSize: "24px",
-              padding: "10px 18px",
-              borderRadius: "10px",
+              background: "#fff0ec",
+              padding: "20px",
+              borderRadius: "15px",
             }}
           >
-            -20%
-          </div>
+            <div
+              style={{
+                display: "inline-block",
+                background: "#ff5a43",
+                color: "white",
+                fontWeight: "bold",
+                fontSize: "24px",
+                padding: "10px 18px",
+                borderRadius: "10px",
+              }}
+            >
+              -20%
+            </div>
 
-          <p
-            style={{
-              color: "#666",
-              fontSize: "14px",
-            }}
-          >
-            Reducerea se aplică la nota de plată conform condițiilor
-            restaurantului.
-          </p>
+            <p
+              style={{
+                color: "#666",
+                fontSize: "14px",
+                marginBottom: 0,
+              }}
+            >
+              Reducerea se aplică la nota de plată conform condițiilor
+              restaurantului.
+            </p>
+          </div>
         </div>
 
         <h2>Rezervă o masă</h2>
 
         <label style={labelStyle}>Data rezervării</label>
+
         <input
           type="date"
           value={date}
+          min={new Date().toISOString().split("T")[0]}
           onChange={(e) => setDate(e.target.value)}
           style={inputStyle}
         />
@@ -170,11 +217,15 @@ export default function BoomPubPage() {
               marginTop: "7px",
             }}
           >
-            Data selectată: {date.split("-").reverse().join("/")}
+            Data selectată:{" "}
+            <strong>
+              {date.split("-").reverse().join("/")}
+            </strong>
           </div>
         )}
 
         <label style={labelStyle}>Ora</label>
+
         <select
           value={time}
           onChange={(e) => setTime(e.target.value)}
@@ -194,6 +245,7 @@ export default function BoomPubPage() {
         </select>
 
         <label style={labelStyle}>Număr de persoane</label>
+
         <select
           value={guests}
           onChange={(e) => setGuests(e.target.value)}
@@ -210,6 +262,7 @@ export default function BoomPubPage() {
         </select>
 
         <label style={labelStyle}>Nume</label>
+
         <input
           type="text"
           placeholder="Numele tău"
@@ -219,6 +272,7 @@ export default function BoomPubPage() {
         />
 
         <label style={labelStyle}>Număr de telefon</label>
+
         <input
           type="tel"
           placeholder="07xxxxxxxx"
@@ -240,7 +294,7 @@ export default function BoomPubPage() {
             color: "white",
             fontSize: "16px",
             fontWeight: "bold",
-            cursor: loading ? "default" : "pointer",
+            cursor: loading ? "not-allowed" : "pointer",
           }}
         >
           {loading ? "Se trimite..." : "Rezervă masa"}
@@ -252,6 +306,7 @@ export default function BoomPubPage() {
               marginTop: "18px",
               textAlign: "center",
               fontWeight: "bold",
+              wordBreak: "break-word",
             }}
           >
             {message}
@@ -261,20 +316,3 @@ export default function BoomPubPage() {
     </main>
   );
 }
-
-const labelStyle = {
-  display: "block",
-  fontWeight: "bold",
-  marginTop: "18px",
-  marginBottom: "7px",
-};
-
-const inputStyle = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "14px",
-  border: "1px solid #ddd",
-  borderRadius: "9px",
-  fontSize: "16px",
-  background: "white",
-};
