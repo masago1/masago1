@@ -12,35 +12,25 @@ export default function DashboardPage() {
   const [restaurantId, setRestaurantId] =
     useState(null);
 
-  const [userEmail, setUserEmail] =
-    useState("");
+  const [userEmail, setUserEmail] = useState("");
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
+  const [authChecking, setAuthChecking] = useState(true);
 
-  const [authChecking, setAuthChecking] =
-    useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
 
-  const [updatingId, setUpdatingId] =
-    useState(null);
+  const [message, setMessage] = useState("");
 
-  const [message, setMessage] =
-    useState("");
+  /* =========================
+     CREATE OFFER
+  ========================= */
 
-  const [offerDate, setOfferDate] =
-    useState("");
-
-  const [startTime, setStartTime] =
-    useState("18:00");
-
-  const [endTime, setEndTime] =
-    useState("20:00");
-
+  const [offerDate, setOfferDate] = useState("");
+  const [startTime, setStartTime] = useState("18:00");
+  const [endTime, setEndTime] = useState("20:00");
   const [discountPercent, setDiscountPercent] =
     useState("30");
-
-  const [capacity, setCapacity] =
-    useState("10");
+  const [capacity, setCapacity] = useState("10");
 
   const [creatingOffer, setCreatingOffer] =
     useState(false);
@@ -48,20 +38,52 @@ export default function DashboardPage() {
   const [offerMessage, setOfferMessage] =
     useState("");
 
+  /* =========================
+     EDIT OFFER
+  ========================= */
+
+  const [editingOfferId, setEditingOfferId] =
+    useState(null);
+
+  const [editOfferDate, setEditOfferDate] =
+    useState("");
+
+  const [editStartTime, setEditStartTime] =
+    useState("18:00");
+
+  const [editEndTime, setEditEndTime] =
+    useState("20:00");
+
+  const [
+    editDiscountPercent,
+    setEditDiscountPercent,
+  ] = useState("30");
+
+  const [editCapacity, setEditCapacity] =
+    useState("10");
+
+  const [savingOfferId, setSavingOfferId] =
+    useState(null);
+
+  const [
+    deactivatingOfferId,
+    setDeactivatingOfferId,
+  ] = useState(null);
+
   useEffect(() => {
     checkAuth();
   }, []);
 
+  /* =========================
+     AUTH
+  ========================= */
+
   async function checkAuth() {
     const accessToken =
-      localStorage.getItem(
-        "masago_access_token"
-      );
+      localStorage.getItem("masago_access_token");
 
     const email =
-      localStorage.getItem(
-        "masago_user_email"
-      );
+      localStorage.getItem("masago_user_email");
 
     if (!accessToken) {
       window.location.href = "/login";
@@ -71,12 +93,10 @@ export default function DashboardPage() {
     setUserEmail(email || "");
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
       setMessage(
@@ -126,28 +146,18 @@ export default function DashboardPage() {
   ) {
     try {
       const email = (
-        localStorage.getItem(
-          "masago_user_email"
-        ) || ""
+        localStorage.getItem("masago_user_email") ||
+        ""
       )
         .trim()
         .toLowerCase();
 
-      let currentRestaurantName =
-        null;
+      let currentRestaurantName = null;
 
-      if (
-        email ===
-        "costindavid719@gmail.com"
-      ) {
-        currentRestaurantName =
-          "Casa Bunicii";
-      } else if (
-        email ===
-        "vrenst24@gmail.com"
-      ) {
-        currentRestaurantName =
-          "Boom Pub";
+      if (email === "costindavid719@gmail.com") {
+        currentRestaurantName = "Casa Bunicii";
+      } else if (email === "vrenst24@gmail.com") {
+        currentRestaurantName = "Boom Pub";
       }
 
       if (!currentRestaurantName) {
@@ -159,18 +169,14 @@ export default function DashboardPage() {
       }
 
       const encodedName =
-        encodeURIComponent(
-          currentRestaurantName
-        );
+        encodeURIComponent(currentRestaurantName);
 
       const response = await fetch(
         `${supabaseUrl}/rest/v1/restaurants?name=eq.${encodedName}&select=id,name&limit=1`,
         {
           headers: {
             apikey: supabaseKey,
-
-            Authorization:
-              `Bearer ${accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         }
       );
@@ -180,8 +186,7 @@ export default function DashboardPage() {
         return null;
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         console.error(
@@ -197,13 +202,8 @@ export default function DashboardPage() {
       }
 
       if (data?.[0]) {
-        setRestaurantId(
-          data[0].id
-        );
-
-        setRestaurantName(
-          data[0].name
-        );
+        setRestaurantId(data[0].id);
+        setRestaurantName(data[0].name);
 
         return data[0];
       }
@@ -224,6 +224,10 @@ export default function DashboardPage() {
     }
   }
 
+  /* =========================
+     RESERVATIONS
+  ========================= */
+
   async function loadReservations(
     accessToken,
     supabaseUrl,
@@ -235,9 +239,7 @@ export default function DashboardPage() {
         {
           headers: {
             apikey: supabaseKey,
-
-            Authorization:
-              `Bearer ${accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         }
       );
@@ -247,8 +249,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         console.error(
@@ -275,37 +276,26 @@ export default function DashboardPage() {
     }
   }
 
+  /* =========================
+     OFFERS
+  ========================= */
+
   async function loadOffers(
     accessToken,
     supabaseUrl,
     supabaseKey,
-    currentRestaurantId =
-      restaurantId,
-    currentRestaurantName =
-      restaurantName
+    currentRestaurantId = restaurantId,
+    currentRestaurantName = restaurantName
   ) {
     if (
       !currentRestaurantId ||
       !currentRestaurantName ||
-      currentRestaurantName ===
-        "Restaurant"
+      currentRestaurantName === "Restaurant"
     ) {
       return;
     }
 
     try {
-      /*
-        Folosim RPC-ul făcut în Supabase.
-
-        El returnează:
-        capacity
-        reserved_places
-        remaining_places
-
-        DOAR rezervările accepted
-        consumă capacitatea.
-      */
-
       const response = await fetch(
         `${supabaseUrl}/rest/v1/rpc/get_offer_availability`,
         {
@@ -313,12 +303,8 @@ export default function DashboardPage() {
 
           headers: {
             apikey: supabaseKey,
-
-            Authorization:
-              `Bearer ${accessToken}`,
-
-            "Content-Type":
-              "application/json",
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
           },
 
           body: JSON.stringify({
@@ -339,8 +325,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         console.error(
@@ -356,26 +341,18 @@ export default function DashboardPage() {
       }
 
       const normalized =
-        (data || []).map(
-          (offer) => ({
-            ...offer,
+        (data || []).map((offer) => ({
+          ...offer,
 
-            capacity:
-              Number(
-                offer.capacity
-              ) || 0,
+          capacity:
+            Number(offer.capacity) || 0,
 
-            reserved_places:
-              Number(
-                offer.reserved_places
-              ) || 0,
+          reserved_places:
+            Number(offer.reserved_places) || 0,
 
-            remaining_places:
-              Number(
-                offer.remaining_places
-              ) || 0,
-          })
-        );
+          remaining_places:
+            Number(offer.remaining_places) || 0,
+        }));
 
       setOffers(normalized);
     } catch (error) {
@@ -390,6 +367,10 @@ export default function DashboardPage() {
     }
   }
 
+  /* =========================
+     CREATE OFFER
+  ========================= */
+
   async function createOffer(event) {
     event.preventDefault();
 
@@ -399,7 +380,6 @@ export default function DashboardPage() {
       setOfferMessage(
         "Restaurantul nu este identificat."
       );
-
       return;
     }
 
@@ -407,7 +387,6 @@ export default function DashboardPage() {
       setOfferMessage(
         "Alege data ofertei."
       );
-
       return;
     }
 
@@ -415,7 +394,6 @@ export default function DashboardPage() {
       setOfferMessage(
         "Alege intervalul orar."
       );
-
       return;
     }
 
@@ -423,14 +401,11 @@ export default function DashboardPage() {
       setOfferMessage(
         "Ora de final trebuie să fie după ora de început."
       );
-
       return;
     }
 
     const discount =
-      Number(
-        discountPercent
-      );
+      Number(discountPercent);
 
     const offerCapacity =
       Number(capacity);
@@ -443,91 +418,59 @@ export default function DashboardPage() {
       setOfferMessage(
         "Reducerea trebuie să fie între 1% și 100%."
       );
-
       return;
     }
 
     if (
-      Number.isNaN(
-        offerCapacity
-      ) ||
+      Number.isNaN(offerCapacity) ||
       offerCapacity < 1
     ) {
       setOfferMessage(
         "Capacitatea trebuie să fie cel puțin 1."
       );
-
       return;
     }
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const accessToken =
-      localStorage.getItem(
-        "masago_access_token"
-      );
+      localStorage.getItem("masago_access_token");
 
     if (!accessToken) {
-      window.location.href =
-        "/login";
-
+      window.location.href = "/login";
       return;
     }
 
     setCreatingOffer(true);
 
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/offers`,
-          {
-            method: "POST",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers`,
+        {
+          method: "POST",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
-
-              "Content-Type":
-                "application/json",
-
-              Prefer:
-                "return=minimal",
-            },
-
-            body:
-              JSON.stringify({
-                restaurant_id:
-                  restaurantId,
-
-                offer_date:
-                  offerDate,
-
-                start_time:
-                  startTime,
-
-                end_time:
-                  endTime,
-
-                discount_percent:
-                  discount,
-
-                capacity:
-                  offerCapacity,
-
-                active:
-                  true,
-              }),
-          }
-        );
+          body: JSON.stringify({
+            restaurant_id: restaurantId,
+            offer_date: offerDate,
+            start_time: startTime,
+            end_time: endTime,
+            discount_percent: discount,
+            capacity: offerCapacity,
+            active: true,
+          }),
+        }
+      );
 
       if (response.status === 401) {
         handleLogout();
@@ -578,6 +521,415 @@ export default function DashboardPage() {
     }
   }
 
+  /* =========================
+     EDIT OFFER
+  ========================= */
+
+  function startEditingOffer(offer) {
+    setEditingOfferId(offer.id);
+
+    setEditOfferDate(
+      offer.offer_date || ""
+    );
+
+    setEditStartTime(
+      formatTime(offer.start_time)
+    );
+
+    setEditEndTime(
+      formatTime(offer.end_time)
+    );
+
+    setEditDiscountPercent(
+      String(
+        offer.discount_percent ?? ""
+      )
+    );
+
+    setEditCapacity(
+      String(
+        offer.capacity ?? ""
+      )
+    );
+
+    setOfferMessage("");
+  }
+
+  function cancelEditingOffer() {
+    setEditingOfferId(null);
+
+    setEditOfferDate("");
+    setEditStartTime("18:00");
+    setEditEndTime("20:00");
+    setEditDiscountPercent("30");
+    setEditCapacity("10");
+  }
+
+  async function saveOffer(offer) {
+    setOfferMessage("");
+
+    if (!offer?.id) {
+      setOfferMessage(
+        "Oferta nu a putut fi identificată."
+      );
+
+      return;
+    }
+
+    if (!editOfferDate) {
+      setOfferMessage(
+        "Alege data ofertei."
+      );
+
+      return;
+    }
+
+    if (
+      !editStartTime ||
+      !editEndTime
+    ) {
+      setOfferMessage(
+        "Alege intervalul orar."
+      );
+
+      return;
+    }
+
+    if (
+      editEndTime <=
+      editStartTime
+    ) {
+      setOfferMessage(
+        "Ora de final trebuie să fie după ora de început."
+      );
+
+      return;
+    }
+
+    const discount =
+      Number(
+        editDiscountPercent
+      );
+
+    const newCapacity =
+      Number(
+        editCapacity
+      );
+
+    if (
+      Number.isNaN(discount) ||
+      discount < 1 ||
+      discount > 100
+    ) {
+      setOfferMessage(
+        "Reducerea trebuie să fie între 1% și 100%."
+      );
+
+      return;
+    }
+
+    if (
+      Number.isNaN(newCapacity) ||
+      newCapacity < 1
+    ) {
+      setOfferMessage(
+        "Capacitatea trebuie să fie cel puțin 1."
+      );
+
+      return;
+    }
+
+    const alreadyReserved =
+      Number(
+        offer.reserved_places
+      ) || 0;
+
+    /*
+      Dacă sunt deja 6 locuri confirmate,
+      restaurantul nu poate schimba
+      capacitatea la 4.
+    */
+
+    if (
+      newCapacity <
+      alreadyReserved
+    ) {
+      setOfferMessage(
+        `Capacitatea nu poate fi mai mică de ${alreadyReserved}, deoarece există deja ${alreadyReserved} locuri confirmate pe această ofertă.`
+      );
+
+      return;
+    }
+
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const accessToken =
+      localStorage.getItem(
+        "masago_access_token"
+      );
+
+    if (!accessToken) {
+      window.location.href =
+        "/login";
+
+      return;
+    }
+
+    setSavingOfferId(
+      offer.id
+    );
+
+    try {
+      const response =
+        await fetch(
+          `${supabaseUrl}/rest/v1/offers?id=eq.${offer.id}&restaurant_id=eq.${restaurantId}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              apikey:
+                supabaseKey,
+
+              Authorization:
+                `Bearer ${accessToken}`,
+
+              "Content-Type":
+                "application/json",
+
+              Prefer:
+                "return=minimal",
+            },
+
+            body:
+              JSON.stringify({
+                offer_date:
+                  editOfferDate,
+
+                start_time:
+                  editStartTime,
+
+                end_time:
+                  editEndTime,
+
+                discount_percent:
+                  discount,
+
+                capacity:
+                  newCapacity,
+              }),
+          }
+        );
+
+      if (
+        response.status ===
+        401
+      ) {
+        handleLogout();
+        return;
+      }
+
+      if (!response.ok) {
+        const errorText =
+          await response.text();
+
+        console.error(
+          "Update offer error:",
+          errorText
+        );
+
+        setOfferMessage(
+          `Nu am putut salva oferta: ${errorText}`
+        );
+
+        return;
+      }
+
+      setOfferMessage(
+        "✓ Oferta a fost actualizată."
+      );
+
+      cancelEditingOffer();
+
+      await loadOffers(
+        accessToken,
+        supabaseUrl,
+        supabaseKey,
+        restaurantId,
+        restaurantName
+      );
+    } catch (error) {
+      console.error(
+        "Update offer error:",
+        error
+      );
+
+      setOfferMessage(
+        "A apărut o eroare la actualizarea ofertei."
+      );
+    } finally {
+      setSavingOfferId(null);
+    }
+  }
+
+  /* =========================
+     DEACTIVATE OFFER
+  ========================= */
+
+  async function deactivateOffer(
+    offer
+  ) {
+    setOfferMessage("");
+
+    if (!offer?.id) {
+      setOfferMessage(
+        "Oferta nu a putut fi identificată."
+      );
+
+      return;
+    }
+
+    const confirmedPlaces =
+      Number(
+        offer.reserved_places
+      ) || 0;
+
+    const confirmationText =
+      confirmedPlaces > 0
+        ? `Oferta are deja ${confirmedPlaces} locuri confirmate. Rezervările existente rămân valabile, dar oferta nu va mai putea fi rezervată de alți clienți. Vrei să continui?`
+        : "Oferta va dispărea din paginile clienților și nu va mai putea fi rezervată. Vrei să continui?";
+
+    const confirmed =
+      window.confirm(
+        confirmationText
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const accessToken =
+      localStorage.getItem(
+        "masago_access_token"
+      );
+
+    if (!accessToken) {
+      window.location.href =
+        "/login";
+
+      return;
+    }
+
+    setDeactivatingOfferId(
+      offer.id
+    );
+
+    try {
+      const response =
+        await fetch(
+          `${supabaseUrl}/rest/v1/offers?id=eq.${offer.id}&restaurant_id=eq.${restaurantId}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              apikey:
+                supabaseKey,
+
+              Authorization:
+                `Bearer ${accessToken}`,
+
+              "Content-Type":
+                "application/json",
+
+              Prefer:
+                "return=minimal",
+            },
+
+            body:
+              JSON.stringify({
+                active:
+                  false,
+              }),
+          }
+        );
+
+      if (
+        response.status ===
+        401
+      ) {
+        handleLogout();
+        return;
+      }
+
+      if (!response.ok) {
+        const errorText =
+          await response.text();
+
+        console.error(
+          "Deactivate offer error:",
+          errorText
+        );
+
+        setOfferMessage(
+          `Nu am putut dezactiva oferta: ${errorText}`
+        );
+
+        return;
+      }
+
+      if (
+        String(
+          editingOfferId
+        ) ===
+        String(
+          offer.id
+        )
+      ) {
+        cancelEditingOffer();
+      }
+
+      setOfferMessage(
+        "✓ Oferta a fost dezactivată."
+      );
+
+      await loadOffers(
+        accessToken,
+        supabaseUrl,
+        supabaseKey,
+        restaurantId,
+        restaurantName
+      );
+    } catch (error) {
+      console.error(
+        "Deactivate offer error:",
+        error
+      );
+
+      setOfferMessage(
+        "A apărut o eroare la dezactivarea ofertei."
+      );
+    } finally {
+      setDeactivatingOfferId(
+        null
+      );
+    }
+  }
+
+  /* =========================
+     UPDATE RESERVATION
+  ========================= */
+
   async function updateReservation(
     id,
     newStatus
@@ -586,12 +938,10 @@ export default function DashboardPage() {
     setMessage("");
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const accessToken =
       localStorage.getItem(
@@ -609,11 +959,9 @@ export default function DashboardPage() {
       /*
         ACCEPTARE
 
-        Nu facem PATCH direct.
-
         Funcția Supabase verifică
-        din nou capacitatea înainte
-        să accepte rezervarea.
+        din nou capacitatea exact
+        în momentul acceptării.
       */
 
       if (
@@ -624,7 +972,8 @@ export default function DashboardPage() {
           await fetch(
             `${supabaseUrl}/rest/v1/rpc/accept_reservation_with_capacity`,
             {
-              method: "POST",
+              method:
+                "POST",
 
               headers: {
                 apikey:
@@ -668,12 +1017,6 @@ export default function DashboardPage() {
               "Nu am putut accepta rezervarea."
           );
 
-          /*
-            Reîncărcăm ofertele
-            pentru a avea capacitatea
-            actuală.
-          */
-
           await loadOffers(
             accessToken,
             supabaseUrl,
@@ -689,11 +1032,9 @@ export default function DashboardPage() {
           (current) =>
             current.map(
               (reservation) =>
-                reservation.id ===
-                id
+                reservation.id === id
                   ? {
                       ...reservation,
-
                       status:
                         "accepted",
                     }
@@ -715,11 +1056,6 @@ export default function DashboardPage() {
             "✓ Rezervarea a fost acceptată."
           );
         }
-
-        /*
-          Acum rezervarea este accepted,
-          deci locurile trebuie să scadă.
-        */
 
         await loadOffers(
           accessToken,
@@ -766,7 +1102,8 @@ export default function DashboardPage() {
         );
 
       if (
-        response.status === 401
+        response.status ===
+        401
       ) {
         handleLogout();
         return;
@@ -794,7 +1131,6 @@ export default function DashboardPage() {
               reservation.id === id
                 ? {
                     ...reservation,
-
                     status:
                       newStatus,
                   }
@@ -828,6 +1164,10 @@ export default function DashboardPage() {
       setUpdatingId(null);
     }
   }
+
+  /* =========================
+     HELPERS
+  ========================= */
 
   function handleLogout() {
     localStorage.removeItem(
@@ -955,8 +1295,7 @@ export default function DashboardPage() {
     reservation
   ) {
     if (
-      !reservation
-        ?.offer_id
+      !reservation?.offer_id
     ) {
       return null;
     }
@@ -968,12 +1307,15 @@ export default function DashboardPage() {
             offer.id
           ) ===
           String(
-            reservation
-              .offer_id
+            reservation.offer_id
           )
       ) || null
     );
   }
+
+  /* =========================
+     STATS
+  ========================= */
 
   const stats =
     useMemo(() => {
@@ -1011,6 +1353,10 @@ export default function DashboardPage() {
           ).length,
       };
     }, [reservations]);
+
+  /* =========================
+     AUTH LOADING
+  ========================= */
 
   if (authChecking) {
     return (
@@ -1136,6 +1482,7 @@ export default function DashboardPage() {
             }}
           >
             Masago
+
             <span
               style={{
                 color:
@@ -1246,7 +1593,8 @@ export default function DashboardPage() {
           <div>
             <p
               style={{
-                margin: 0,
+                margin:
+                  0,
 
                 color:
                   "#FF5A3C",
@@ -1285,7 +1633,8 @@ export default function DashboardPage() {
 
             <p
               style={{
-                margin: 0,
+                margin:
+                  0,
 
                 color:
                   "#737C8D",
@@ -1295,7 +1644,8 @@ export default function DashboardPage() {
               }}
             >
               Gestionează rezervările,
-              ofertele și locurile disponibile.
+              ofertele și locurile
+              disponibile.
             </p>
           </div>
 
@@ -1506,7 +1856,8 @@ export default function DashboardPage() {
             <div>
               <h2
                 style={{
-                  margin: 0,
+                  margin:
+                    0,
 
                   fontSize:
                     "28px",
@@ -1524,7 +1875,9 @@ export default function DashboardPage() {
                     "#818997",
                 }}
               >
-                Creează reduceri și urmărește capacitatea disponibilă.
+                Creează, editează sau
+                dezactivează ofertele și
+                urmărește capacitatea.
               </p>
             </div>
 
@@ -1553,7 +1906,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* FORMULAR */}
+          {/* CREATE OFFER */}
 
           <div
             style={{
@@ -1634,25 +1987,19 @@ export default function DashboardPage() {
 
                   <input
                     type="date"
-
                     min={
                       getTodayISO()
                     }
-
                     value={
                       offerDate
                     }
-
                     onChange={(
                       event
                     ) =>
                       setOfferDate(
-                        event
-                          .target
-                          .value
+                        event.target.value
                       )
                     }
-
                     style={
                       formInput
                     }
@@ -1670,21 +2017,16 @@ export default function DashboardPage() {
 
                   <input
                     type="time"
-
                     value={
                       startTime
                     }
-
                     onChange={(
                       event
                     ) =>
                       setStartTime(
-                        event
-                          .target
-                          .value
+                        event.target.value
                       )
                     }
-
                     style={
                       formInput
                     }
@@ -1702,21 +2044,16 @@ export default function DashboardPage() {
 
                   <input
                     type="time"
-
                     value={
                       endTime
                     }
-
                     onChange={(
                       event
                     ) =>
                       setEndTime(
-                        event
-                          .target
-                          .value
+                        event.target.value
                       )
                     }
-
                     style={
                       formInput
                     }
@@ -1734,25 +2071,18 @@ export default function DashboardPage() {
 
                   <input
                     type="number"
-
                     min="1"
-
                     max="100"
-
                     value={
                       discountPercent
                     }
-
                     onChange={(
                       event
                     ) =>
                       setDiscountPercent(
-                        event
-                          .target
-                          .value
+                        event.target.value
                       )
                     }
-
                     style={
                       formInput
                     }
@@ -1770,23 +2100,17 @@ export default function DashboardPage() {
 
                   <input
                     type="number"
-
                     min="1"
-
                     value={
                       capacity
                     }
-
                     onChange={(
                       event
                     ) =>
                       setCapacity(
-                        event
-                          .target
-                          .value
+                        event.target.value
                       )
                     }
-
                     style={
                       formInput
                     }
@@ -1796,11 +2120,9 @@ export default function DashboardPage() {
 
               <button
                 type="submit"
-
                 disabled={
                   creatingOffer
                 }
-
                 style={{
                   width:
                     "100%",
@@ -1871,6 +2193,9 @@ export default function DashboardPage() {
 
                   fontWeight:
                     "800",
+
+                  wordBreak:
+                    "break-word",
                 }}
               >
                 {
@@ -1880,10 +2205,9 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* LISTA OFERTE */}
+          {/* OFFER LIST */}
 
-          {offers.length >
-            0 && (
+          {offers.length > 0 && (
             <div
               style={{
                 display:
@@ -1902,6 +2226,30 @@ export default function DashboardPage() {
                     offer.remaining_places <=
                     0;
 
+                  const isEditing =
+                    String(
+                      editingOfferId
+                    ) ===
+                    String(
+                      offer.id
+                    );
+
+                  const isSaving =
+                    String(
+                      savingOfferId
+                    ) ===
+                    String(
+                      offer.id
+                    );
+
+                  const isDeactivating =
+                    String(
+                      deactivatingOfferId
+                    ) ===
+                    String(
+                      offer.id
+                    );
+
                   return (
                     <div
                       key={
@@ -1912,7 +2260,9 @@ export default function DashboardPage() {
                           "white",
 
                         border:
-                          "1px solid #E7E9ED",
+                          isEditing
+                            ? "2px solid #FF5A3C"
+                            : "1px solid #E7E9ED",
 
                         borderRadius:
                           "16px",
@@ -1920,132 +2270,596 @@ export default function DashboardPage() {
                         padding:
                           "18px 20px",
 
-                        display:
-                          "flex",
-
-                        justifyContent:
-                          "space-between",
-
-                        alignItems:
-                          "center",
-
-                        gap:
-                          "15px",
-
-                        flexWrap:
-                          "wrap",
+                        boxShadow:
+                          isEditing
+                            ? "0 10px 30px rgba(255,90,60,0.08)"
+                            : "none",
                       }}
                     >
-                      <div>
+                      {!isEditing ? (
                         <div
                           style={{
-                            fontSize:
-                              "12px",
+                            display:
+                              "flex",
 
-                            color:
-                              "#8A92A0",
+                            justifyContent:
+                              "space-between",
 
-                            fontWeight:
-                              "800",
+                            alignItems:
+                              "center",
 
-                            textTransform:
-                              "uppercase",
+                            gap:
+                              "15px",
 
-                            marginBottom:
-                              "5px",
+                            flexWrap:
+                              "wrap",
                           }}
                         >
-                          {formatDate(
-                            offer.offer_date
-                          )}
+                          <div>
+                            <div
+                              style={{
+                                fontSize:
+                                  "12px",
+
+                                color:
+                                  "#8A92A0",
+
+                                fontWeight:
+                                  "800",
+
+                                textTransform:
+                                  "uppercase",
+
+                                marginBottom:
+                                  "5px",
+                              }}
+                            >
+                              {formatDate(
+                                offer.offer_date
+                              )}
+                            </div>
+
+                            <strong
+                              style={{
+                                fontSize:
+                                  "17px",
+                              }}
+                            >
+                              {formatTime(
+                                offer.start_time
+                              )}{" "}
+                              -{" "}
+                              {formatTime(
+                                offer.end_time
+                              )}
+                            </strong>
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+
+                              alignItems:
+                                "center",
+
+                              gap:
+                                "10px",
+
+                              flexWrap:
+                                "wrap",
+                            }}
+                          >
+                            <span
+                              style={{
+                                background:
+                                  "#FFF0EC",
+
+                                color:
+                                  "#D7462D",
+
+                                borderRadius:
+                                  "999px",
+
+                                padding:
+                                  "8px 12px",
+
+                                fontWeight:
+                                  "900",
+                              }}
+                            >
+                              -
+                              {
+                                offer.discount_percent
+                              }
+                              %
+                            </span>
+
+                            <span
+                              style={{
+                                background:
+                                  soldOut
+                                    ? "#FDECEC"
+                                    : "#E9F8EF",
+
+                                color:
+                                  soldOut
+                                    ? "#B42318"
+                                    : "#177245",
+
+                                borderRadius:
+                                  "999px",
+
+                                padding:
+                                  "8px 12px",
+
+                                fontWeight:
+                                  "900",
+
+                                fontSize:
+                                  "13px",
+                              }}
+                            >
+                              {soldOut
+                                ? "SOLD OUT"
+                                : `${offer.remaining_places} / ${offer.capacity} locuri disponibile`}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                startEditingOffer(
+                                  offer
+                                )
+                              }
+                              disabled={
+                                isDeactivating
+                              }
+                              style={{
+                                border:
+                                  "1px solid #DDE1E6",
+
+                                background:
+                                  "white",
+
+                                color:
+                                  "#172033",
+
+                                borderRadius:
+                                  "10px",
+
+                                padding:
+                                  "9px 12px",
+
+                                fontWeight:
+                                  "900",
+
+                                cursor:
+                                  "pointer",
+                              }}
+                            >
+                              ✏️ Editează
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                deactivateOffer(
+                                  offer
+                                )
+                              }
+                              disabled={
+                                isDeactivating
+                              }
+                              style={{
+                                border:
+                                  "1px solid #FFD1CA",
+
+                                background:
+                                  "#FFF5F2",
+
+                                color:
+                                  "#B42318",
+
+                                borderRadius:
+                                  "10px",
+
+                                padding:
+                                  "9px 12px",
+
+                                fontWeight:
+                                  "900",
+
+                                cursor:
+                                  isDeactivating
+                                    ? "not-allowed"
+                                    : "pointer",
+
+                                opacity:
+                                  isDeactivating
+                                    ? 0.65
+                                    : 1,
+                              }}
+                            >
+                              {isDeactivating
+                                ? "Se dezactivează..."
+                                : "Dezactivează"}
+                            </button>
+                          </div>
                         </div>
+                      ) : (
+                        <div>
+                          <div
+                            style={{
+                              display:
+                                "flex",
 
-                        <strong
-                          style={{
-                            fontSize:
-                              "17px",
-                          }}
-                        >
-                          {formatTime(
-                            offer.start_time
-                          )}{" "}
-                          -{" "}
-                          {formatTime(
-                            offer.end_time
-                          )}
-                        </strong>
-                      </div>
+                              justifyContent:
+                                "space-between",
 
-                      <div
-                        style={{
-                          display:
-                            "flex",
+                              alignItems:
+                                "center",
 
-                          alignItems:
-                            "center",
+                              gap:
+                                "15px",
 
-                          gap:
-                            "10px",
+                              flexWrap:
+                                "wrap",
 
-                          flexWrap:
-                            "wrap",
-                        }}
-                      >
-                        <span
-                          style={{
-                            background:
-                              "#FFF0EC",
+                              marginBottom:
+                                "16px",
+                            }}
+                          >
+                            <div>
+                              <div
+                                style={{
+                                  color:
+                                    "#FF5A3C",
 
-                            color:
-                              "#D7462D",
+                                  fontSize:
+                                    "12px",
 
-                            borderRadius:
-                              "999px",
+                                  fontWeight:
+                                    "900",
 
-                            padding:
-                              "8px 12px",
+                                  textTransform:
+                                    "uppercase",
 
-                            fontWeight:
-                              "900",
-                          }}
-                        >
-                          -
-                          {
-                            offer.discount_percent
-                          }
-                          %
-                        </span>
+                                  letterSpacing:
+                                    "0.6px",
 
-                        <span
-                          style={{
-                            background:
-                              soldOut
-                                ? "#FDECEC"
-                                : "#E9F8EF",
+                                  marginBottom:
+                                    "5px",
+                                }}
+                              >
+                                Editare ofertă
+                              </div>
 
-                            color:
-                              soldOut
-                                ? "#B42318"
-                                : "#177245",
+                              <strong>
+                                Modifică oferta
+                              </strong>
+                            </div>
 
-                            borderRadius:
-                              "999px",
+                            <div
+                              style={{
+                                color:
+                                  "#667085",
 
-                            padding:
-                              "8px 12px",
+                                fontSize:
+                                  "13px",
 
-                            fontWeight:
-                              "900",
+                                fontWeight:
+                                  "800",
+                              }}
+                            >
+                              {
+                                offer.reserved_places
+                              }{" "}
+                              locuri confirmate
+                            </div>
+                          </div>
 
-                            fontSize:
-                              "13px",
-                          }}
-                        >
-                          {soldOut
-                            ? "SOLD OUT"
-                            : `${offer.remaining_places} / ${offer.capacity} locuri disponibile`}
-                        </span>
-                      </div>
+                          <div
+                            style={{
+                              display:
+                                "grid",
+
+                              gridTemplateColumns:
+                                "repeat(auto-fit, minmax(150px, 1fr))",
+
+                              gap:
+                                "12px",
+                            }}
+                          >
+                            <div>
+                              <label
+                                style={
+                                  formLabel
+                                }
+                              >
+                                Data
+                              </label>
+
+                              <input
+                                type="date"
+
+                                min={
+                                  getTodayISO()
+                                }
+
+                                value={
+                                  editOfferDate
+                                }
+
+                                onChange={(
+                                  event
+                                ) =>
+                                  setEditOfferDate(
+                                    event.target.value
+                                  )
+                                }
+
+                                style={
+                                  formInput
+                                }
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                style={
+                                  formLabel
+                                }
+                              >
+                                De la
+                              </label>
+
+                              <input
+                                type="time"
+
+                                value={
+                                  editStartTime
+                                }
+
+                                onChange={(
+                                  event
+                                ) =>
+                                  setEditStartTime(
+                                    event.target.value
+                                  )
+                                }
+
+                                style={
+                                  formInput
+                                }
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                style={
+                                  formLabel
+                                }
+                              >
+                                Până la
+                              </label>
+
+                              <input
+                                type="time"
+
+                                value={
+                                  editEndTime
+                                }
+
+                                onChange={(
+                                  event
+                                ) =>
+                                  setEditEndTime(
+                                    event.target.value
+                                  )
+                                }
+
+                                style={
+                                  formInput
+                                }
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                style={
+                                  formLabel
+                                }
+                              >
+                                Reducere %
+                              </label>
+
+                              <input
+                                type="number"
+
+                                min="1"
+
+                                max="100"
+
+                                value={
+                                  editDiscountPercent
+                                }
+
+                                onChange={(
+                                  event
+                                ) =>
+                                  setEditDiscountPercent(
+                                    event.target.value
+                                  )
+                                }
+
+                                style={
+                                  formInput
+                                }
+                              />
+                            </div>
+
+                            <div>
+                              <label
+                                style={
+                                  formLabel
+                                }
+                              >
+                                Capacitate
+                              </label>
+
+                              <input
+                                type="number"
+
+                                min={
+                                  Math.max(
+                                    1,
+                                    Number(
+                                      offer.reserved_places
+                                    ) || 0
+                                  )
+                                }
+
+                                value={
+                                  editCapacity
+                                }
+
+                                onChange={(
+                                  event
+                                ) =>
+                                  setEditCapacity(
+                                    event.target.value
+                                  )
+                                }
+
+                                style={
+                                  formInput
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop:
+                                "12px",
+
+                              color:
+                                "#667085",
+
+                              fontSize:
+                                "13px",
+
+                              lineHeight:
+                                1.5,
+                            }}
+                          >
+                            Capacitatea nu
+                            poate fi redusă
+                            sub numărul de
+                            locuri deja
+                            confirmate.
+                          </div>
+
+                          <div
+                            style={{
+                              display:
+                                "flex",
+
+                              gap:
+                                "10px",
+
+                              flexWrap:
+                                "wrap",
+
+                              marginTop:
+                                "16px",
+                            }}
+                          >
+                            <button
+                              type="button"
+
+                              onClick={() =>
+                                saveOffer(
+                                  offer
+                                )
+                              }
+
+                              disabled={
+                                isSaving
+                              }
+
+                              style={{
+                                border:
+                                  "none",
+
+                                background:
+                                  isSaving
+                                    ? "#AEB5C0"
+                                    : "#16865C",
+
+                                color:
+                                  "white",
+
+                                borderRadius:
+                                  "10px",
+
+                                padding:
+                                  "11px 15px",
+
+                                fontWeight:
+                                  "900",
+
+                                cursor:
+                                  isSaving
+                                    ? "not-allowed"
+                                    : "pointer",
+                              }}
+                            >
+                              {isSaving
+                                ? "Se salvează..."
+                                : "✓ Salvează modificările"}
+                            </button>
+
+                            <button
+                              type="button"
+
+                              onClick={
+                                cancelEditingOffer
+                              }
+
+                              disabled={
+                                isSaving
+                              }
+
+                              style={{
+                                border:
+                                  "1px solid #DDE1E6",
+
+                                background:
+                                  "white",
+
+                                color:
+                                  "#172033",
+
+                                borderRadius:
+                                  "10px",
+
+                                padding:
+                                  "11px 15px",
+
+                                fontWeight:
+                                  "900",
+
+                                cursor:
+                                  "pointer",
+                              }}
+                            >
+                              Anulează
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 }
@@ -2054,7 +2868,7 @@ export default function DashboardPage() {
           )}
         </section>
 
-        {/* REZERVARI */}
+        {/* REZERVĂRI */}
 
         <section>
           <div
@@ -2068,6 +2882,12 @@ export default function DashboardPage() {
               alignItems:
                 "center",
 
+              gap:
+                "15px",
+
+              flexWrap:
+                "wrap",
+
               marginBottom:
                 "20px",
             }}
@@ -2075,7 +2895,8 @@ export default function DashboardPage() {
             <div>
               <h2
                 style={{
-                  margin: 0,
+                  margin:
+                    0,
 
                   fontSize:
                     "28px",
@@ -2093,7 +2914,8 @@ export default function DashboardPage() {
                     "#818997",
                 }}
               >
-                Cele mai noi rezervări apar primele.
+                Cele mai noi rezervări
+                apar primele.
               </p>
             </div>
 
@@ -2113,6 +2935,9 @@ export default function DashboardPage() {
 
                 fontWeight:
                   "800",
+
+                fontSize:
+                  "13px",
               }}
             >
               {
@@ -2132,6 +2957,13 @@ export default function DashboardPage() {
                     ? "#E9F8EF"
                     : "#FFF0EC",
 
+                border:
+                  message.startsWith(
+                    "✓"
+                  )
+                    ? "1px solid #C8EBD7"
+                    : "1px solid #FFD8CF",
+
                 color:
                   message.startsWith(
                     "✓"
@@ -2149,18 +2981,84 @@ export default function DashboardPage() {
                   "18px",
 
                 fontWeight:
-                  "800",
+                  "700",
               }}
             >
-              {message}
+              {
+                message
+              }
             </div>
           )}
 
           {loading && (
-            <div>
+            <div
+              style={{
+                background:
+                  "white",
+
+                border:
+                  "1px solid #E7E9ED",
+
+                borderRadius:
+                  "18px",
+
+                padding:
+                  "30px",
+              }}
+            >
               Se încarcă rezervările...
             </div>
           )}
+
+          {!loading &&
+            reservations.length ===
+              0 && (
+              <div
+                style={{
+                  background:
+                    "white",
+
+                  border:
+                    "1px solid #E7E9ED",
+
+                  borderRadius:
+                    "18px",
+
+                  padding:
+                    "45px 30px",
+
+                  textAlign:
+                    "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize:
+                      "40px",
+
+                    marginBottom:
+                      "12px",
+                  }}
+                >
+                  📭
+                </div>
+
+                <h3>
+                  Nu există rezervări
+                  momentan
+                </h3>
+
+                <p
+                  style={{
+                    color:
+                      "#818997",
+                  }}
+                >
+                  Rezervările noi vor
+                  apărea aici.
+                </p>
+              </div>
+            )}
 
           <div
             style={{
@@ -2233,6 +3131,9 @@ export default function DashboardPage() {
                         justifyContent:
                           "space-between",
 
+                        alignItems:
+                          "center",
+
                         gap:
                           "15px",
 
@@ -2269,8 +3170,14 @@ export default function DashboardPage() {
                             padding:
                               "10px 14px",
 
+                            fontSize:
+                              "15px",
+
                             fontWeight:
                               "900",
+
+                            letterSpacing:
+                              "1.2px",
                           }}
                         >
                           {reservation.reservation_code ||
@@ -2297,6 +3204,9 @@ export default function DashboardPage() {
 
                             borderRadius:
                               "999px",
+
+                            fontSize:
+                              "13px",
 
                             fontWeight:
                               "900",
@@ -2392,7 +3302,7 @@ export default function DashboardPage() {
                       )}
                     </div>
 
-                    {/* LOCURI DISPONIBILE */}
+                    {/* CAPACITATE */}
 
                     {linkedOffer && (
                       <div
@@ -2487,7 +3397,8 @@ export default function DashboardPage() {
                             {
                               requestedGuests
                             }{" "}
-                            locuri, dar oferta mai are doar{" "}
+                            locuri, dar oferta
+                            mai are doar{" "}
                             {
                               remaining
                             }
@@ -2497,7 +3408,7 @@ export default function DashboardPage() {
                       </div>
                     )}
 
-                    {/* BUTOANE */}
+                    {/* ACTIONS */}
 
                     {reservation.status ===
                       "pending" && (
@@ -2565,6 +3476,8 @@ export default function DashboardPage() {
                               "900",
 
                             cursor:
+                              updatingId ===
+                                reservation.id ||
                               notEnoughPlaces ||
                               (linkedOffer &&
                                 remaining <=
@@ -2625,7 +3538,10 @@ export default function DashboardPage() {
                               "900",
 
                             cursor:
-                              "pointer",
+                              updatingId ===
+                              reservation.id
+                                ? "not-allowed"
+                                : "pointer",
                           }}
                         >
                           Respinge
