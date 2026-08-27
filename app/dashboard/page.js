@@ -57,8 +57,20 @@ export default function DashboardPage() {
       );
 
       await Promise.all([
-        loadReservations(accessToken, supabaseUrl, supabaseKey),
-        loadOffers(accessToken, supabaseUrl, supabaseKey),
+        loadReservations(
+          accessToken,
+          supabaseUrl,
+          supabaseKey
+        ),
+
+        restaurant?.id
+          ? loadOffers(
+              accessToken,
+              supabaseUrl,
+              supabaseKey,
+              restaurant.id
+            )
+          : Promise.resolve(),
       ]);
 
       if (!restaurant) {
@@ -75,8 +87,38 @@ export default function DashboardPage() {
     supabaseKey
   ) {
     try {
+      const email = (
+        localStorage.getItem("masago_user_email") || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      let restaurantName = null;
+
+      if (email === "costindavid719@gmail.com") {
+        restaurantName = "Casa Bunicii";
+      } else if (email === "vrenst24@gmail.com") {
+        restaurantName = "Boom Pub";
+      }
+
+      if (!restaurantName) {
+        console.error(
+          "Emailul nu este asociat unui restaurant:",
+          email
+        );
+
+        setMessage(
+          "Acest cont nu este asociat unui restaurant."
+        );
+
+        return null;
+      }
+
+      const encodedName =
+        encodeURIComponent(restaurantName);
+
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/restaurants?select=id,name&limit=1`,
+        `${supabaseUrl}/rest/v1/restaurants?name=eq.${encodedName}&select=id,name&limit=1`,
         {
           headers: {
             apikey: supabaseKey,
@@ -94,6 +136,11 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         console.error("Restaurant error:", data);
+
+        setMessage(
+          "Nu am putut identifica restaurantul."
+        );
+
         return null;
       }
 
@@ -107,9 +154,21 @@ export default function DashboardPage() {
         return data[0];
       }
 
+      setMessage(
+        `Restaurantul "${restaurantName}" nu a fost găsit.`
+      );
+
       return null;
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Load restaurant error:",
+        error
+      );
+
+      setMessage(
+        "A apărut o eroare la identificarea restaurantului."
+      );
+
       return null;
     }
   }
@@ -139,14 +198,21 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         console.error("Reservations error:", data);
-        setMessage("Nu am putut încărca rezervările.");
+
+        setMessage(
+          "Nu am putut încărca rezervările."
+        );
+
         return;
       }
 
-      setReservations(data);
+      setReservations(data || []);
     } catch (error) {
       console.error(error);
-      setMessage("A apărut o eroare la încărcarea rezervărilor.");
+
+      setMessage(
+        "A apărut o eroare la încărcarea rezervărilor."
+      );
     } finally {
       setLoading(false);
     }
@@ -155,11 +221,14 @@ export default function DashboardPage() {
   async function loadOffers(
     accessToken,
     supabaseUrl,
-    supabaseKey
+    supabaseKey,
+    currentRestaurantId = restaurantId
   ) {
+    if (!currentRestaurantId) return;
+
     try {
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/offers?select=*&order=offer_date.desc`,
+        `${supabaseUrl}/rest/v1/offers?restaurant_id=eq.${currentRestaurantId}&select=*&order=offer_date.desc,start_time.desc`,
         {
           headers: {
             apikey: supabaseKey,
@@ -177,12 +246,19 @@ export default function DashboardPage() {
 
       if (!response.ok) {
         console.error("Offers error:", data);
+        setOfferMessage(
+          "Nu am putut încărca ofertele."
+        );
         return;
       }
 
       setOffers(data || []);
     } catch (error) {
       console.error("Offers error:", error);
+
+      setOfferMessage(
+        "Nu am putut încărca ofertele."
+      );
     }
   }
 
@@ -191,7 +267,9 @@ export default function DashboardPage() {
     setOfferMessage("");
 
     if (!restaurantId) {
-      setOfferMessage("Restaurantul nu este identificat.");
+      setOfferMessage(
+        "Restaurantul nu este identificat."
+      );
       return;
     }
 
@@ -201,7 +279,9 @@ export default function DashboardPage() {
     }
 
     if (!startTime || !endTime) {
-      setOfferMessage("Alege intervalul orar.");
+      setOfferMessage(
+        "Alege intervalul orar."
+      );
       return;
     }
 
@@ -283,9 +363,13 @@ export default function DashboardPage() {
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText =
+          await response.text();
 
-        console.error("Create offer error:", errorText);
+        console.error(
+          "Create offer error:",
+          errorText
+        );
 
         setOfferMessage(
           `Eroare la crearea ofertei: ${errorText}`
@@ -294,7 +378,9 @@ export default function DashboardPage() {
         return;
       }
 
-      setOfferMessage("✓ Oferta a fost creată cu succes!");
+      setOfferMessage(
+        "✓ Oferta a fost creată cu succes!"
+      );
 
       setOfferDate("");
       setStartTime("18:00");
@@ -305,7 +391,8 @@ export default function DashboardPage() {
       await loadOffers(
         accessToken,
         supabaseUrl,
-        supabaseKey
+        supabaseKey,
+        restaurantId
       );
     } catch (error) {
       console.error(error);
@@ -318,7 +405,10 @@ export default function DashboardPage() {
     }
   }
 
-  async function updateReservation(id, newStatus) {
+  async function updateReservation(
+    id,
+    newStatus
+  ) {
     setUpdatingId(id);
     setMessage("");
 
@@ -361,10 +451,15 @@ export default function DashboardPage() {
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
+        const errorText =
+          await response.text();
+
         console.error(errorText);
 
-        setMessage("Nu am putut actualiza rezervarea.");
+        setMessage(
+          "Nu am putut actualiza rezervarea."
+        );
+
         return;
       }
 
@@ -380,16 +475,27 @@ export default function DashboardPage() {
       );
     } catch (error) {
       console.error(error);
-      setMessage("A apărut o eroare la actualizare.");
+
+      setMessage(
+        "A apărut o eroare la actualizare."
+      );
     } finally {
       setUpdatingId(null);
     }
   }
 
   function handleLogout() {
-    localStorage.removeItem("masago_access_token");
-    localStorage.removeItem("masago_refresh_token");
-    localStorage.removeItem("masago_user_email");
+    localStorage.removeItem(
+      "masago_access_token"
+    );
+
+    localStorage.removeItem(
+      "masago_refresh_token"
+    );
+
+    localStorage.removeItem(
+      "masago_user_email"
+    );
 
     window.location.href = "/login";
   }
@@ -397,7 +503,8 @@ export default function DashboardPage() {
   function formatDate(date) {
     if (!date) return "-";
 
-    const [year, month, day] = date.split("-");
+    const [year, month, day] =
+      date.split("-");
 
     return `${day}/${month}/${year}`;
   }
@@ -463,7 +570,8 @@ export default function DashboardPage() {
     return {
       today: reservations.filter(
         (reservation) =>
-          reservation.reservation_date === today
+          reservation.reservation_date ===
+          today
       ).length,
 
       pending: reservations.filter(
@@ -643,8 +751,7 @@ export default function DashboardPage() {
                 fontSize: "17px",
               }}
             >
-              Gestionează rezervările și confirmă solicitările
-              clienților.
+              Gestionează rezervările și confirmă solicitările clienților.
             </p>
           </div>
 
@@ -725,7 +832,11 @@ export default function DashboardPage() {
                   {item.label}
                 </span>
 
-                <span style={{ fontSize: "21px" }}>
+                <span
+                  style={{
+                    fontSize: "21px",
+                  }}
+                >
                   {item.icon}
                 </span>
               </div>
@@ -776,8 +887,7 @@ export default function DashboardPage() {
                   color: "#818997",
                 }}
               >
-                Creează reduceri pentru intervalele în care vrei
-                mai mulți clienți.
+                Creează reduceri pentru intervalele în care vrei mai mulți clienți.
               </p>
             </div>
 
@@ -852,7 +962,9 @@ export default function DashboardPage() {
                     min={getTodayISO()}
                     value={offerDate}
                     onChange={(event) =>
-                      setOfferDate(event.target.value)
+                      setOfferDate(
+                        event.target.value
+                      )
                     }
                     style={formInput}
                   />
@@ -867,7 +979,9 @@ export default function DashboardPage() {
                     type="time"
                     value={startTime}
                     onChange={(event) =>
-                      setStartTime(event.target.value)
+                      setStartTime(
+                        event.target.value
+                      )
                     }
                     style={formInput}
                   />
@@ -882,7 +996,9 @@ export default function DashboardPage() {
                     type="time"
                     value={endTime}
                     onChange={(event) =>
-                      setEndTime(event.target.value)
+                      setEndTime(
+                        event.target.value
+                      )
                     }
                     style={formInput}
                   />
@@ -899,7 +1015,9 @@ export default function DashboardPage() {
                     max="100"
                     value={discountPercent}
                     onChange={(event) =>
-                      setDiscountPercent(event.target.value)
+                      setDiscountPercent(
+                        event.target.value
+                      )
                     }
                     style={formInput}
                   />
@@ -915,7 +1033,9 @@ export default function DashboardPage() {
                     min="1"
                     value={capacity}
                     onChange={(event) =>
-                      setCapacity(event.target.value)
+                      setCapacity(
+                        event.target.value
+                      )
                     }
                     style={formInput}
                   />
@@ -940,7 +1060,9 @@ export default function DashboardPage() {
                   cursor: creatingOffer
                     ? "not-allowed"
                     : "pointer",
-                  opacity: creatingOffer ? 0.7 : 1,
+                  opacity: creatingOffer
+                    ? 0.7
+                    : 1,
                 }}
               >
                 {creatingOffer
@@ -955,12 +1077,14 @@ export default function DashboardPage() {
                   marginTop: "15px",
                   padding: "13px 15px",
                   borderRadius: "11px",
-                  background: offerMessage.startsWith("✓")
-                    ? "#E9F8EF"
-                    : "#FFF0EC",
-                  color: offerMessage.startsWith("✓")
-                    ? "#177245"
-                    : "#A33A29",
+                  background:
+                    offerMessage.startsWith("✓")
+                      ? "#E9F8EF"
+                      : "#FFF0EC",
+                  color:
+                    offerMessage.startsWith("✓")
+                      ? "#177245"
+                      : "#A33A29",
                   fontWeight: "800",
                   fontSize: "14px",
                   wordBreak: "break-word",
@@ -984,11 +1108,13 @@ export default function DashboardPage() {
                   key={offer.id}
                   style={{
                     background: "white",
-                    border: "1px solid #E7E9ED",
+                    border:
+                      "1px solid #E7E9ED",
                     borderRadius: "16px",
                     padding: "18px 20px",
                     display: "flex",
-                    justifyContent: "space-between",
+                    justifyContent:
+                      "space-between",
                     alignItems: "center",
                     gap: "15px",
                     flexWrap: "wrap",
@@ -1000,11 +1126,14 @@ export default function DashboardPage() {
                         fontSize: "12px",
                         color: "#8A92A0",
                         fontWeight: "800",
-                        textTransform: "uppercase",
+                        textTransform:
+                          "uppercase",
                         marginBottom: "5px",
                       }}
                     >
-                      {formatDate(offer.offer_date)}
+                      {formatDate(
+                        offer.offer_date
+                      )}
                     </div>
 
                     <strong
@@ -1012,8 +1141,13 @@ export default function DashboardPage() {
                         fontSize: "17px",
                       }}
                     >
-                      {formatTime(offer.start_time)} -{" "}
-                      {formatTime(offer.end_time)}
+                      {formatTime(
+                        offer.start_time
+                      )}{" "}
+                      -{" "}
+                      {formatTime(
+                        offer.end_time
+                      )}
                     </strong>
                   </div>
 
@@ -1034,7 +1168,9 @@ export default function DashboardPage() {
                         fontWeight: "900",
                       }}
                     >
-                      -{offer.discount_percent}%
+                      -
+                      {offer.discount_percent}
+                      %
                     </span>
 
                     <span
@@ -1107,7 +1243,8 @@ export default function DashboardPage() {
             <div
               style={{
                 background: "#FFF0EC",
-                border: "1px solid #FFD8CF",
+                border:
+                  "1px solid #FFD8CF",
                 color: "#A33A29",
                 padding: "15px",
                 borderRadius: "12px",
@@ -1123,7 +1260,8 @@ export default function DashboardPage() {
             <div
               style={{
                 background: "white",
-                border: "1px solid #E7E9ED",
+                border:
+                  "1px solid #E7E9ED",
                 borderRadius: "18px",
                 padding: "30px",
               }}
@@ -1137,7 +1275,8 @@ export default function DashboardPage() {
               <div
                 style={{
                   background: "white",
-                  border: "1px solid #E7E9ED",
+                  border:
+                    "1px solid #E7E9ED",
                   borderRadius: "18px",
                   padding: "45px 30px",
                   textAlign: "center",
@@ -1156,7 +1295,11 @@ export default function DashboardPage() {
                   Nu există rezervări momentan
                 </h3>
 
-                <p style={{ color: "#818997" }}>
+                <p
+                  style={{
+                    color: "#818997",
+                  }}
+                >
                   Rezervările noi vor apărea aici.
                 </p>
               </div>
@@ -1168,261 +1311,302 @@ export default function DashboardPage() {
               gap: "18px",
             }}
           >
-            {reservations.map((reservation) => {
-              const statusStyle =
-                getStatusStyle(
-                  reservation.status
-                );
+            {reservations.map(
+              (reservation) => {
+                const statusStyle =
+                  getStatusStyle(
+                    reservation.status
+                  );
 
-              return (
-                <article
-                  key={reservation.id}
-                  style={{
-                    background: "white",
-                    border: "1px solid #E7E9ED",
-                    borderRadius: "20px",
-                    padding: "24px",
-                    boxShadow:
-                      "0 8px 25px rgba(23,32,51,0.045)",
-                  }}
-                >
-                  {/* COD + STATUS */}
-
-                  <div
+                return (
+                  <article
+                    key={reservation.id}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: "15px",
-                      flexWrap: "wrap",
-                      marginBottom: "22px",
+                      background: "white",
+                      border:
+                        "1px solid #E7E9ED",
+                      borderRadius: "20px",
+                      padding: "24px",
+                      boxShadow:
+                        "0 8px 25px rgba(23,32,51,0.045)",
                     }}
                   >
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#8A92A0",
-                          fontWeight: "800",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.8px",
-                          marginBottom: "6px",
-                        }}
-                      >
-                        Cod rezervare
-                      </div>
+                    {/* COD + STATUS */}
 
-                      <div
-                        style={{
-                          display: "inline-block",
-                          background: "#172033",
-                          color: "white",
-                          borderRadius: "10px",
-                          padding: "10px 14px",
-                          fontSize: "15px",
-                          fontWeight: "900",
-                          letterSpacing: "1.2px",
-                        }}
-                      >
-                        {reservation.reservation_code ||
-                          "FĂRĂ COD"}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#8A92A0",
-                          fontWeight: "800",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.8px",
-                          marginBottom: "6px",
-                        }}
-                      >
-                        Status
-                      </div>
-
-                      <span
-                        style={{
-                          display: "inline-block",
-                          padding: "9px 13px",
-                          borderRadius: "999px",
-                          fontSize: "13px",
-                          fontWeight: "900",
-                          ...statusStyle,
-                        }}
-                      >
-                        {getStatusLabel(
-                          reservation.status
-                        )}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* DATE REZERVARE */}
-
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(140px, 1fr))",
-                      gap: "20px",
-                    }}
-                  >
-                    <div>
-                      <div style={smallLabel}>
-                        Client
-                      </div>
-
-                      <strong
-                        style={{
-                          fontSize: "17px",
-                        }}
-                      >
-                        {reservation.customer_name ||
-                          "-"}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <div style={smallLabel}>
-                        Telefon
-                      </div>
-
-                      <strong>
-                        {reservation.customer_phone ||
-                          "-"}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <div style={smallLabel}>
-                        Data
-                      </div>
-
-                      <strong>
-                        {formatDate(
-                          reservation.reservation_date
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <div style={smallLabel}>
-                        Ora
-                      </div>
-
-                      <strong>
-                        {formatTime(
-                          reservation.reservation_time
-                        )}
-                      </strong>
-                    </div>
-
-                    <div>
-                      <div style={smallLabel}>
-                        Persoane
-                      </div>
-
-                      <strong>
-                        {reservation.guests ??
-                          "-"}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* BUTOANE - EXACT CA IN VARIANTA VECHE */}
-
-                  {reservation.status ===
-                    "pending" && (
                     <div
                       style={{
-                        marginTop: "22px",
-                        paddingTop: "20px",
-                        borderTop:
-                          "1px solid #EEF0F2",
                         display: "flex",
-                        gap: "10px",
+                        justifyContent:
+                          "space-between",
+                        alignItems: "center",
+                        gap: "15px",
                         flexWrap: "wrap",
+                        marginBottom: "22px",
                       }}
                     >
-                      <button
-                        onClick={() =>
-                          updateReservation(
-                            reservation.id,
-                            "accepted"
-                          )
-                        }
-                        disabled={
-                          updatingId ===
-                          reservation.id
-                        }
-                        style={{
-                          flex: "1 1 200px",
-                          border: "none",
-                          borderRadius: "11px",
-                          padding: "13px 15px",
-                          background: "#16865C",
-                          color: "white",
-                          fontWeight: "900",
-                          cursor:
-                            updatingId ===
-                            reservation.id
-                              ? "not-allowed"
-                              : "pointer",
-                          opacity:
-                            updatingId ===
-                            reservation.id
-                              ? 0.6
-                              : 1,
-                        }}
-                      >
-                        {updatingId ===
-                        reservation.id
-                          ? "Se actualizează..."
-                          : "✓ Acceptă rezervarea"}
-                      </button>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#8A92A0",
+                            fontWeight: "800",
+                            textTransform:
+                              "uppercase",
+                            letterSpacing:
+                              "0.8px",
+                            marginBottom:
+                              "6px",
+                          }}
+                        >
+                          Cod rezervare
+                        </div>
 
-                      <button
-                        onClick={() =>
-                          updateReservation(
-                            reservation.id,
-                            "rejected"
-                          )
-                        }
-                        disabled={
-                          updatingId ===
-                          reservation.id
-                        }
+                        <div
+                          style={{
+                            display:
+                              "inline-block",
+                            background:
+                              "#172033",
+                            color: "white",
+                            borderRadius:
+                              "10px",
+                            padding:
+                              "10px 14px",
+                            fontSize: "15px",
+                            fontWeight:
+                              "900",
+                            letterSpacing:
+                              "1.2px",
+                          }}
+                        >
+                          {reservation.reservation_code ||
+                            "FĂRĂ COD"}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#8A92A0",
+                            fontWeight: "800",
+                            textTransform:
+                              "uppercase",
+                            letterSpacing:
+                              "0.8px",
+                            marginBottom:
+                              "6px",
+                          }}
+                        >
+                          Status
+                        </div>
+
+                        <span
+                          style={{
+                            display:
+                              "inline-block",
+                            padding:
+                              "9px 13px",
+                            borderRadius:
+                              "999px",
+                            fontSize: "13px",
+                            fontWeight:
+                              "900",
+                            ...statusStyle,
+                          }}
+                        >
+                          {getStatusLabel(
+                            reservation.status
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* DATE REZERVARE */}
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(140px, 1fr))",
+                        gap: "20px",
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={smallLabel}
+                        >
+                          Client
+                        </div>
+
+                        <strong
+                          style={{
+                            fontSize: "17px",
+                          }}
+                        >
+                          {reservation.customer_name ||
+                            "-"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <div
+                          style={smallLabel}
+                        >
+                          Telefon
+                        </div>
+
+                        <strong>
+                          {reservation.customer_phone ||
+                            "-"}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <div
+                          style={smallLabel}
+                        >
+                          Data
+                        </div>
+
+                        <strong>
+                          {formatDate(
+                            reservation.reservation_date
+                          )}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <div
+                          style={smallLabel}
+                        >
+                          Ora
+                        </div>
+
+                        <strong>
+                          {formatTime(
+                            reservation.reservation_time
+                          )}
+                        </strong>
+                      </div>
+
+                      <div>
+                        <div
+                          style={smallLabel}
+                        >
+                          Persoane
+                        </div>
+
+                        <strong>
+                          {reservation.guests ??
+                            "-"}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* BUTOANE */}
+
+                    {reservation.status ===
+                      "pending" && (
+                      <div
                         style={{
-                          flex: "1 1 200px",
-                          border:
-                            "1px solid #E1E4E8",
-                          borderRadius: "11px",
-                          padding: "13px 15px",
-                          background: "white",
-                          color: "#B42318",
-                          fontWeight: "900",
-                          cursor:
-                            updatingId ===
-                            reservation.id
-                              ? "not-allowed"
-                              : "pointer",
-                          opacity:
-                            updatingId ===
-                            reservation.id
-                              ? 0.6
-                              : 1,
+                          marginTop: "22px",
+                          paddingTop: "20px",
+                          borderTop:
+                            "1px solid #EEF0F2",
+                          display: "flex",
+                          gap: "10px",
+                          flexWrap: "wrap",
                         }}
                       >
-                        Respinge
-                      </button>
-                    </div>
-                  )}
-                </article>
-              );
-            })}
+                        <button
+                          onClick={() =>
+                            updateReservation(
+                              reservation.id,
+                              "accepted"
+                            )
+                          }
+                          disabled={
+                            updatingId ===
+                            reservation.id
+                          }
+                          style={{
+                            flex:
+                              "1 1 200px",
+                            border: "none",
+                            borderRadius:
+                              "11px",
+                            padding:
+                              "13px 15px",
+                            background:
+                              "#16865C",
+                            color: "white",
+                            fontWeight:
+                              "900",
+                            cursor:
+                              updatingId ===
+                              reservation.id
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity:
+                              updatingId ===
+                              reservation.id
+                                ? 0.6
+                                : 1,
+                          }}
+                        >
+                          {updatingId ===
+                          reservation.id
+                            ? "Se actualizează..."
+                            : "✓ Acceptă rezervarea"}
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            updateReservation(
+                              reservation.id,
+                              "rejected"
+                            )
+                          }
+                          disabled={
+                            updatingId ===
+                            reservation.id
+                          }
+                          style={{
+                            flex:
+                              "1 1 200px",
+                            border:
+                              "1px solid #E1E4E8",
+                            borderRadius:
+                              "11px",
+                            padding:
+                              "13px 15px",
+                            background:
+                              "white",
+                            color:
+                              "#B42318",
+                            fontWeight:
+                              "900",
+                            cursor:
+                              updatingId ===
+                              reservation.id
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity:
+                              updatingId ===
+                              reservation.id
+                                ? 0.6
+                                : 1,
+                          }}
+                        >
+                          Respinge
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                );
+              }
+            )}
           </div>
         </section>
       </div>
