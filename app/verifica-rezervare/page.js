@@ -12,28 +12,20 @@ export default function VerificaRezervarePage() {
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    const savedCode =
-      localStorage.getItem(
-        "masago_last_reservation_code"
-      );
+    const savedCode = localStorage.getItem(
+      "masago_last_reservation_code"
+    );
 
     if (savedCode) {
       setCode(savedCode);
-
-      checkReservationByCode(
-        savedCode
-      );
+      checkReservationByCode(savedCode);
     }
   }, []);
 
   function formatDate(date) {
     if (!date) return "";
 
-    const [
-      year,
-      month,
-      day,
-    ] = date.split("-");
+    const [year, month, day] = date.split("-");
 
     return `${day}/${month}/${year}`;
   }
@@ -47,76 +39,40 @@ export default function VerificaRezervarePage() {
   function getStatusData(status) {
     if (status === "accepted") {
       return {
-        title:
-          "Rezervare confirmată",
-
-        text:
-          "Restaurantul a confirmat rezervarea ta.",
-
-        icon:
-          "✓",
-
-        background:
-          "#E9F8EF",
-
-        color:
-          "#16865C",
+        title: "Rezervare confirmată",
+        text: "Restaurantul a confirmat rezervarea ta.",
+        icon: "✓",
+        background: "#E9F8EF",
+        color: "#16865C",
       };
     }
 
     if (status === "rejected") {
       return {
-        title:
-          "Rezervare respinsă",
-
-        text:
-          "Restaurantul nu a putut confirma această rezervare.",
-
-        icon:
-          "✕",
-
-        background:
-          "#FDECEC",
-
-        color:
-          "#B42318",
+        title: "Rezervare respinsă",
+        text: "Restaurantul nu a putut confirma această rezervare.",
+        icon: "✕",
+        background: "#FDECEC",
+        color: "#B42318",
       };
     }
 
     if (status === "cancelled") {
       return {
-        title:
-          "Rezervare anulată",
-
-        text:
-          "Această rezervare a fost anulată.",
-
-        icon:
-          "✕",
-
-        background:
-          "#F2F4F7",
-
-        color:
-          "#667085",
+        title: "Rezervare anulată",
+        text: "Această rezervare a fost anulată.",
+        icon: "✕",
+        background: "#F2F4F7",
+        color: "#667085",
       };
     }
 
     return {
-      title:
-        "În așteptare",
-
-      text:
-        "Restaurantul nu a răspuns încă solicitării tale.",
-
-      icon:
-        "⏳",
-
-      background:
-        "#FFF4DD",
-
-      color:
-        "#8A6500",
+      title: "În așteptare",
+      text: "Restaurantul nu a răspuns încă solicitării tale.",
+      icon: "⏳",
+      background: "#FFF4DD",
+      color: "#8A6500",
     };
   }
 
@@ -131,82 +87,52 @@ export default function VerificaRezervarePage() {
     }
 
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/offers?id=eq.${offerId}&select=id,offer_date,start_time,end_time,discount_percent,capacity&limit=1`,
-          {
-            headers: {
-              apikey:
-                supabaseKey,
-            },
-          }
-        );
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers?id=eq.${offerId}&select=id,offer_date,start_time,end_time,discount_percent,capacity&limit=1`,
+        {
+          headers: {
+            apikey: supabaseKey,
+          },
+        }
+      );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
-        console.error(
-          "Offer details error:",
-          data
-        );
-
+        console.error("Offer details error:", data);
         setOffer(null);
         return;
       }
 
-      if (
-        data &&
-        data.length > 0
-      ) {
-        setOffer(
-          data[0]
-        );
+      if (data && data.length > 0) {
+        setOffer(data[0]);
       } else {
         setOffer(null);
       }
     } catch (error) {
-      console.error(
-        "Offer details error:",
-        error
-      );
-
+      console.error("Offer details error:", error);
       setOffer(null);
     }
   }
 
-  async function checkReservationByCode(
-    reservationCode
-  ) {
-    const cleanCode =
-      reservationCode
-        .trim()
-        .toUpperCase();
+  async function checkReservationByCode(reservationCode) {
+    const cleanCode = reservationCode.trim().toUpperCase();
 
     if (!cleanCode) {
-      setMessage(
-        "Introdu codul rezervării."
-      );
-
+      setMessage("Introdu codul rezervării.");
       return;
     }
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-    if (
-      !supabaseUrl ||
-      !supabaseKey
-    ) {
+    if (!supabaseUrl || !supabaseKey) {
       setMessage(
         "Conexiunea cu Supabase nu este configurată."
       );
-
       return;
     }
 
@@ -216,36 +142,26 @@ export default function VerificaRezervarePage() {
     setOffer(null);
 
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/rpc/get_reservation_by_code`,
-          {
-            method:
-              "POST",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/get_reservation_by_code`,
+        {
+          method: "POST",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            "Content-Type": "application/json",
+          },
 
-              "Content-Type":
-                "application/json",
-            },
+          body: JSON.stringify({
+            p_code: cleanCode,
+          }),
+        }
+      );
 
-            body:
-              JSON.stringify({
-                p_code:
-                  cleanCode,
-              }),
-          }
-        );
-
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
-        console.error(
-          data
-        );
+        console.error(data);
 
         setMessage(
           "Nu am putut verifica rezervarea."
@@ -254,10 +170,7 @@ export default function VerificaRezervarePage() {
         return;
       }
 
-      if (
-        !data ||
-        data.length === 0
-      ) {
+      if (!data || data.length === 0) {
         setMessage(
           "Nu am găsit nicio rezervare cu acest cod."
         );
@@ -265,16 +178,11 @@ export default function VerificaRezervarePage() {
         return;
       }
 
-      const foundReservation =
-        data[0];
+      const foundReservation = data[0];
 
-      setReservation(
-        foundReservation
-      );
+      setReservation(foundReservation);
 
-      if (
-        foundReservation.offer_id
-      ) {
+      if (foundReservation.offer_id) {
         await loadOfferDetails(
           foundReservation.offer_id,
           supabaseUrl,
@@ -282,9 +190,7 @@ export default function VerificaRezervarePage() {
         );
       }
     } catch (error) {
-      console.error(
-        error
-      );
+      console.error(error);
 
       setMessage(
         "A apărut o eroare la verificare."
@@ -294,14 +200,10 @@ export default function VerificaRezervarePage() {
     }
   }
 
-  async function checkReservation(
-    e
-  ) {
+  async function checkReservation(e) {
     e.preventDefault();
 
-    await checkReservationByCode(
-      code
-    );
+    await checkReservationByCode(code);
   }
 
   async function cancelReservation() {
@@ -309,30 +211,23 @@ export default function VerificaRezervarePage() {
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        reservation.status ===
-          "accepted"
-          ? "Rezervarea este deja confirmată. Dacă o anulezi, locurile vor deveni din nou disponibile. Vrei să continui?"
-          : "Sigur vrei să anulezi această rezervare?"
-      );
+    const confirmed = window.confirm(
+      reservation.status === "accepted"
+        ? "Rezervarea este deja confirmată. Sigur vrei să o anulezi?"
+        : "Sigur vrei să anulezi această rezervare?"
+    );
 
     if (!confirmed) {
       return;
     }
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-    if (
-      !supabaseUrl ||
-      !supabaseKey
-    ) {
+    if (!supabaseUrl || !supabaseKey) {
       setMessage(
         "Conexiunea cu Supabase nu este configurată."
       );
@@ -344,31 +239,23 @@ export default function VerificaRezervarePage() {
     setMessage("");
 
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/rpc/cancel_reservation_by_code`,
-          {
-            method:
-              "POST",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/cancel_reservation_by_code`,
+        {
+          method: "POST",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            "Content-Type": "application/json",
+          },
 
-              "Content-Type":
-                "application/json",
-            },
+          body: JSON.stringify({
+            p_code: reservation.reservation_code,
+          }),
+        }
+      );
 
-            body:
-              JSON.stringify({
-                p_code:
-                  reservation.reservation_code,
-              }),
-          }
-        );
-
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         console.error(
@@ -385,21 +272,16 @@ export default function VerificaRezervarePage() {
         return;
       }
 
-      setReservation(
-        (current) => ({
-          ...current,
-          status:
-            "cancelled",
-        })
-      );
+      setReservation((current) => ({
+        ...current,
+        status: "cancelled",
+      }));
 
       setMessage(
         "✓ Rezervarea a fost anulată."
       );
     } catch (error) {
-      console.error(
-        error
-      );
+      console.error(error);
 
       setMessage(
         "A apărut o eroare la anularea rezervării."
@@ -409,93 +291,55 @@ export default function VerificaRezervarePage() {
     }
   }
 
-  const statusData =
-    reservation
-      ? getStatusData(
-          reservation.status
-        )
-      : null;
+  const statusData = reservation
+    ? getStatusData(reservation.status)
+    : null;
 
   const discount =
-    reservation
-      ?.discount_percent ||
-    offer
-      ?.discount_percent ||
+    reservation?.discount_percent ||
+    offer?.discount_percent ||
     null;
 
   const canCancel =
     reservation &&
-    (
-      reservation.status ===
-        "pending" ||
-      reservation.status ===
-        "accepted"
-    );
+    (reservation.status === "pending" ||
+      reservation.status === "accepted");
 
   return (
     <main
       style={{
-        minHeight:
-          "100vh",
-
-        background:
-          "#FAFAF8",
-
-        fontFamily:
-          "Arial, sans-serif",
-
-        color:
-          "#172033",
+        minHeight: "100vh",
+        background: "#FAFAF8",
+        fontFamily: "Arial, sans-serif",
+        color: "#172033",
       }}
     >
       {/* HEADER */}
 
       <header
         style={{
-          background:
-            "white",
-
-          borderBottom:
-            "1px solid #ececec",
-
-          padding:
-            "18px 6%",
-
-          display:
-            "flex",
-
-          justifyContent:
-            "space-between",
-
-          alignItems:
-            "center",
+          background: "white",
+          borderBottom: "1px solid #ececec",
+          padding: "18px 6%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
         <a
           href="/"
           style={{
-            textDecoration:
-              "none",
-
-            color:
-              "#172033",
-
-            fontSize:
-              "29px",
-
-            fontWeight:
-              "900",
-
-            letterSpacing:
-              "-1px",
+            textDecoration: "none",
+            color: "#172033",
+            fontSize: "29px",
+            fontWeight: "900",
+            letterSpacing: "-1px",
           }}
         >
           Masago
-
           <span
             style={{
-              color:
-                "#FF5A3C",
+              color: "#FF5A3C",
             }}
           >
             .
@@ -505,14 +349,9 @@ export default function VerificaRezervarePage() {
         <a
           href="/"
           style={{
-            textDecoration:
-              "none",
-
-            color:
-              "#485267",
-
-            fontWeight:
-              "700",
+            textDecoration: "none",
+            color: "#485267",
+            fontWeight: "700",
           }}
         >
           ← Înapoi
@@ -523,44 +362,28 @@ export default function VerificaRezervarePage() {
 
       <section
         style={{
-          padding:
-            "75px 6%",
+          padding: "75px 6%",
         }}
       >
         <div
           style={{
-            maxWidth:
-              "650px",
-
-            margin:
-              "0 auto",
+            maxWidth: "650px",
+            margin: "0 auto",
           }}
         >
           <div
             style={{
-              textAlign:
-                "center",
-
-              marginBottom:
-                "30px",
+              textAlign: "center",
+              marginBottom: "30px",
             }}
           >
             <p
               style={{
-                color:
-                  "#FF5A3C",
-
-                fontWeight:
-                  "900",
-
-                textTransform:
-                  "uppercase",
-
-                letterSpacing:
-                  "1px",
-
-                fontSize:
-                  "13px",
+                color: "#FF5A3C",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                fontSize: "13px",
               }}
             >
               Rezervarea mea
@@ -568,11 +391,8 @@ export default function VerificaRezervarePage() {
 
             <h1
               style={{
-                fontSize:
-                  "42px",
-
-                margin:
-                  "8px 0",
+                fontSize: "42px",
+                margin: "8px 0",
               }}
             >
               Statusul rezervării
@@ -580,54 +400,33 @@ export default function VerificaRezervarePage() {
 
             <p
               style={{
-                color:
-                  "#737C8D",
-
-                lineHeight:
-                  1.6,
+                color: "#737C8D",
+                lineHeight: 1.6,
               }}
             >
-              Verifică statusul și
-              detaliile rezervării
-              tale Masago.
+              Verifică statusul și detaliile rezervării tale
+              Masago.
             </p>
           </div>
 
           <div
             style={{
-              background:
-                "white",
-
-              border:
-                "1px solid #E7E9ED",
-
-              borderRadius:
-                "22px",
-
-              padding:
-                "30px",
-
+              background: "white",
+              border: "1px solid #E7E9ED",
+              borderRadius: "22px",
+              padding: "30px",
               boxShadow:
                 "0 12px 35px rgba(23,32,51,0.06)",
             }}
           >
             {/* SEARCH */}
 
-            <form
-              onSubmit={
-                checkReservation
-              }
-            >
+            <form onSubmit={checkReservation}>
               <label
                 style={{
-                  display:
-                    "block",
-
-                  fontWeight:
-                    "800",
-
-                  marginBottom:
-                    "8px",
+                  display: "block",
+                  fontWeight: "800",
+                  marginBottom: "8px",
                 }}
               >
                 Cod rezervare
@@ -635,90 +434,42 @@ export default function VerificaRezervarePage() {
 
               <input
                 type="text"
-
-                value={
-                  code
-                }
-
+                value={code}
                 onChange={(e) =>
-                  setCode(
-                    e.target.value.toUpperCase()
-                  )
+                  setCode(e.target.value.toUpperCase())
                 }
-
                 placeholder="MASAGO-ABC12345"
-
                 style={{
-                  width:
-                    "100%",
-
-                  boxSizing:
-                    "border-box",
-
-                  padding:
-                    "16px",
-
-                  borderRadius:
-                    "12px",
-
-                  border:
-                    "1px solid #DDE1E6",
-
-                  fontSize:
-                    "17px",
-
-                  fontWeight:
-                    "700",
-
-                  letterSpacing:
-                    "1px",
-
-                  outline:
-                    "none",
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "16px",
+                  borderRadius: "12px",
+                  border: "1px solid #DDE1E6",
+                  fontSize: "17px",
+                  fontWeight: "700",
+                  letterSpacing: "1px",
+                  outline: "none",
                 }}
               />
 
               <button
                 type="submit"
-
-                disabled={
-                  loading
-                }
-
+                disabled={loading}
                 style={{
-                  width:
-                    "100%",
-
-                  marginTop:
-                    "14px",
-
-                  padding:
-                    "16px",
-
-                  borderRadius:
-                    "12px",
-
-                  border:
-                    "none",
-
-                  background:
-                    loading
-                      ? "#aaa"
-                      : "#FF5A3C",
-
-                  color:
-                    "white",
-
-                  fontWeight:
-                    "900",
-
-                  fontSize:
-                    "16px",
-
-                  cursor:
-                    loading
-                      ? "not-allowed"
-                      : "pointer",
+                  width: "100%",
+                  marginTop: "14px",
+                  padding: "16px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: loading
+                    ? "#aaa"
+                    : "#FF5A3C",
+                  color: "white",
+                  fontWeight: "900",
+                  fontSize: "16px",
+                  cursor: loading
+                    ? "not-allowed"
+                    : "pointer",
                 }}
               >
                 {loading
@@ -734,660 +485,356 @@ export default function VerificaRezervarePage() {
             {message && (
               <div
                 style={{
-                  marginTop:
-                    "20px",
-
-                  padding:
-                    "14px",
-
-                  borderRadius:
-                    "11px",
-
-                  background:
-                    message.startsWith(
-                      "✓"
-                    )
-                      ? "#E9F8EF"
-                      : "#FFF0EC",
-
-                  color:
-                    message.startsWith(
-                      "✓"
-                    )
-                      ? "#16865C"
-                      : "#A33A29",
-
-                  fontWeight:
-                    "800",
-
-                  textAlign:
-                    "center",
+                  marginTop: "20px",
+                  padding: "14px",
+                  borderRadius: "11px",
+                  background: message.startsWith("✓")
+                    ? "#E9F8EF"
+                    : "#FFF0EC",
+                  color: message.startsWith("✓")
+                    ? "#16865C"
+                    : "#A33A29",
+                  fontWeight: "800",
+                  textAlign: "center",
                 }}
               >
-                {
-                  message
-                }
+                {message}
               </div>
             )}
 
             {/* RESERVATION */}
 
-            {reservation &&
-              statusData && (
+            {reservation && statusData && (
+              <div
+                style={{
+                  marginTop: "28px",
+                }}
+              >
+                {/* STATUS */}
+
                 <div
                   style={{
-                    marginTop:
-                      "28px",
+                    background: statusData.background,
+                    color: statusData.color,
+                    borderRadius: "16px",
+                    padding: "22px",
+                    textAlign: "center",
                   }}
                 >
-                  {/* STATUS */}
-
                   <div
                     style={{
+                      width: "56px",
+                      height: "56px",
+                      borderRadius: "50%",
+                      margin: "0 auto 10px",
                       background:
-                        statusData.background,
-
-                      color:
-                        statusData.color,
-
-                      borderRadius:
-                        "16px",
-
-                      padding:
-                        "22px",
-
-                      textAlign:
-                        "center",
+                        "rgba(255,255,255,0.7)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "30px",
+                      fontWeight: "900",
                     }}
                   >
-                    <div
-                      style={{
-                        width:
-                          "56px",
-
-                        height:
-                          "56px",
-
-                        borderRadius:
-                          "50%",
-
-                        margin:
-                          "0 auto 10px",
-
-                        background:
-                          "rgba(255,255,255,0.7)",
-
-                        display:
-                          "flex",
-
-                        alignItems:
-                          "center",
-
-                        justifyContent:
-                          "center",
-
-                        fontSize:
-                          "30px",
-
-                        fontWeight:
-                          "900",
-                      }}
-                    >
-                      {
-                        statusData.icon
-                      }
-                    </div>
-
-                    <h2
-                      style={{
-                        margin:
-                          "8px 0",
-                      }}
-                    >
-                      {
-                        statusData.title
-                      }
-                    </h2>
-
-                    <p
-                      style={{
-                        margin:
-                          0,
-
-                        lineHeight:
-                          1.6,
-                      }}
-                    >
-                      {
-                        statusData.text
-                      }
-                    </p>
+                    {statusData.icon}
                   </div>
 
-                  {/* OFFER */}
+                  <h2
+                    style={{
+                      margin: "8px 0",
+                    }}
+                  >
+                    {statusData.title}
+                  </h2>
 
-                  {discount && (
-                    <div
-                      style={{
-                        marginTop:
-                          "18px",
+                  <p
+                    style={{
+                      margin: 0,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {statusData.text}
+                  </p>
+                </div>
 
-                        background:
-                          "#FFF0EC",
+                {/* OFFER */}
 
-                        border:
-                          "1px solid #FFD8CF",
-
-                        borderRadius:
-                          "16px",
-
-                        padding:
-                          "20px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          color:
-                            "#FF5A3C",
-
-                          fontWeight:
-                            "900",
-
-                          fontSize:
-                            "13px",
-
-                          textTransform:
-                            "uppercase",
-
-                          letterSpacing:
-                            "0.7px",
-
-                          marginBottom:
-                            "6px",
-                        }}
-                      >
-                        Oferta rezervată
-                      </div>
-
-                      <div
-                        style={{
-                          color:
-                            "#FF5A3C",
-
-                          fontSize:
-                            "32px",
-
-                          fontWeight:
-                            "900",
-                        }}
-                      >
-                        -
-                        {
-                          discount
-                        }
-                        %
-                      </div>
-
-                      {offer && (
-                        <div
-                          style={{
-                            marginTop:
-                              "12px",
-
-                            color:
-                              "#667085",
-
-                            lineHeight:
-                              1.7,
-
-                            fontWeight:
-                              "700",
-                          }}
-                        >
-                          📅{" "}
-                          {formatDate(
-                            offer.offer_date
-                          )}
-
-                          <br />
-
-                          🕐{" "}
-                          {formatTime(
-                            offer.start_time
-                          )}{" "}
-                          -{" "}
-                          {formatTime(
-                            offer.end_time
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {!discount && (
-                    <div
-                      style={{
-                        marginTop:
-                          "18px",
-
-                        background:
-                          "#F2F4F7",
-
-                        border:
-                          "1px solid #E4E7EC",
-
-                        borderRadius:
-                          "16px",
-
-                        padding:
-                          "17px",
-
-                        color:
-                          "#667085",
-
-                        fontWeight:
-                          "800",
-                      }}
-                    >
-                      ℹ️ Această rezervare
-                      nu este asociată
-                      unei oferte Masago.
-                    </div>
-                  )}
-
-                  {/* DETAILS */}
-
+                {discount && (
                   <div
                     style={{
-                      marginTop:
-                        "20px",
-
-                      border:
-                        "1px solid #E7E9ED",
-
-                      borderRadius:
-                        "16px",
-
-                      overflow:
-                        "hidden",
+                      marginTop: "18px",
+                      background: "#FFF0EC",
+                      border: "1px solid #FFD8CF",
+                      borderRadius: "16px",
+                      padding: "20px",
                     }}
                   >
                     <div
-                      style={
-                        rowStyle
-                      }
+                      style={{
+                        color: "#FF5A3C",
+                        fontWeight: "900",
+                        fontSize: "13px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.7px",
+                        marginBottom: "6px",
+                      }}
                     >
-                      <span
-                        style={
-                          rowLabel
-                        }
-                      >
-                        Restaurant
-                      </span>
-
-                      <strong>
-                        {reservation.restaurant_name ||
-                          "-"}
-                      </strong>
+                      Oferta rezervată
                     </div>
 
                     <div
-                      style={
-                        rowStyle
-                      }
+                      style={{
+                        color: "#FF5A3C",
+                        fontSize: "32px",
+                        fontWeight: "900",
+                      }}
                     >
-                      <span
-                        style={
-                          rowLabel
-                        }
-                      >
-                        Data
-                      </span>
-
-                      <strong>
-                        {formatDate(
-                          reservation.reservation_date
-                        )}
-                      </strong>
+                      -{discount}%
                     </div>
-
-                    <div
-                      style={
-                        rowStyle
-                      }
-                    >
-                      <span
-                        style={
-                          rowLabel
-                        }
-                      >
-                        Ora
-                      </span>
-
-                      <strong>
-                        {formatTime(
-                          reservation.reservation_time
-                        )}
-                      </strong>
-                    </div>
-
-                    <div
-                      style={
-                        rowStyle
-                      }
-                    >
-                      <span
-                        style={
-                          rowLabel
-                        }
-                      >
-                        Persoane
-                      </span>
-
-                      <strong>
-                        {
-                          reservation.guests
-                        }
-                      </strong>
-                    </div>
-
-                    {discount && (
-                      <div
-                        style={
-                          rowStyle
-                        }
-                      >
-                        <span
-                          style={
-                            rowLabel
-                          }
-                        >
-                          Reducere
-                        </span>
-
-                        <strong
-                          style={{
-                            color:
-                              "#FF5A3C",
-                          }}
-                        >
-                          -
-                          {
-                            discount
-                          }
-                          %
-                        </strong>
-                      </div>
-                    )}
 
                     {offer && (
                       <div
-                        style={
-                          rowStyle
-                        }
+                        style={{
+                          marginTop: "12px",
+                          color: "#667085",
+                          lineHeight: 1.7,
+                          fontWeight: "700",
+                        }}
                       >
-                        <span
-                          style={
-                            rowLabel
-                          }
-                        >
-                          Interval ofertă
-                        </span>
-
-                        <strong>
-                          {formatTime(
-                            offer.start_time
-                          )}{" "}
-                          -{" "}
-                          {formatTime(
-                            offer.end_time
-                          )}
-                        </strong>
+                        📅 {formatDate(offer.offer_date)}
+                        <br />
+                        🕐 {formatTime(offer.start_time)} -{" "}
+                        {formatTime(offer.end_time)}
                       </div>
                     )}
+                  </div>
+                )}
 
-                    <div
-                      style={{
-                        ...rowStyle,
+                {/* FARA OFERTA */}
 
-                        borderBottom:
-                          "none",
-                      }}
-                    >
-                      <span
-                        style={
-                          rowLabel
-                        }
+                {!discount && (
+                  <div
+                    style={{
+                      marginTop: "18px",
+                      background: "#F2F4F7",
+                      border: "1px solid #E4E7EC",
+                      borderRadius: "16px",
+                      padding: "17px",
+                      color: "#667085",
+                      fontWeight: "800",
+                    }}
+                  >
+                    ℹ️ Această rezervare nu este asociată unei
+                    oferte Masago.
+                  </div>
+                )}
+
+                {/* DETAILS */}
+
+                <div
+                  style={{
+                    marginTop: "20px",
+                    border: "1px solid #E7E9ED",
+                    borderRadius: "16px",
+                    overflow: "hidden",
+                  }}
+                >
+                  <div style={rowStyle}>
+                    <span style={rowLabel}>
+                      Restaurant
+                    </span>
+
+                    <strong>
+                      {reservation.restaurant_name || "-"}
+                    </strong>
+                  </div>
+
+                  <div style={rowStyle}>
+                    <span style={rowLabel}>Data</span>
+
+                    <strong>
+                      {formatDate(
+                        reservation.reservation_date
+                      )}
+                    </strong>
+                  </div>
+
+                  <div style={rowStyle}>
+                    <span style={rowLabel}>Ora</span>
+
+                    <strong>
+                      {formatTime(
+                        reservation.reservation_time
+                      )}
+                    </strong>
+                  </div>
+
+                  <div style={rowStyle}>
+                    <span style={rowLabel}>Persoane</span>
+
+                    <strong>{reservation.guests}</strong>
+                  </div>
+
+                  {discount && (
+                    <div style={rowStyle}>
+                      <span style={rowLabel}>
+                        Reducere
+                      </span>
+
+                      <strong
+                        style={{
+                          color: "#FF5A3C",
+                        }}
                       >
-                        Cod
+                        -{discount}%
+                      </strong>
+                    </div>
+                  )}
+
+                  {offer && (
+                    <div style={rowStyle}>
+                      <span style={rowLabel}>
+                        Interval ofertă
                       </span>
 
                       <strong>
-                        {
-                          reservation.reservation_code
-                        }
+                        {formatTime(offer.start_time)} -{" "}
+                        {formatTime(offer.end_time)}
                       </strong>
                     </div>
+                  )}
+
+                  <div
+                    style={{
+                      ...rowStyle,
+                      borderBottom: "none",
+                    }}
+                  >
+                    <span style={rowLabel}>Cod</span>
+
+                    <strong>
+                      {reservation.reservation_code}
+                    </strong>
                   </div>
-
-                  {/* PENDING */}
-
-                  {reservation.status ===
-                    "pending" && (
-                    <div
-                      style={{
-                        marginTop:
-                          "18px",
-
-                        padding:
-                          "16px",
-
-                        background:
-                          "#F8F9FB",
-
-                        border:
-                          "1px solid #E7E9ED",
-
-                        borderRadius:
-                          "13px",
-
-                        color:
-                          "#667085",
-
-                        fontSize:
-                          "14px",
-
-                        lineHeight:
-                          1.6,
-                      }}
-                    >
-                      ⏳ Poți reveni și
-                      apăsa{" "}
-                      <strong>
-                        „Actualizează statusul”
-                      </strong>{" "}
-                      pentru a vedea
-                      răspunsul
-                      restaurantului.
-                    </div>
-                  )}
-
-                  {/* ACCEPTED */}
-
-                  {reservation.status ===
-                    "accepted" && (
-                    <div
-                      style={{
-                        marginTop:
-                          "18px",
-
-                        padding:
-                          "16px",
-
-                        background:
-                          "#E9F8EF",
-
-                        border:
-                          "1px solid #CDEEDB",
-
-                        borderRadius:
-                          "13px",
-
-                        color:
-                          "#16865C",
-
-                        fontWeight:
-                          "800",
-
-                        lineHeight:
-                          1.6,
-                      }}
-                    >
-                      ✓ Rezervarea ta este
-                      confirmată. Prezintă
-                      codul{" "}
-                      <strong>
-                        {
-                          reservation.reservation_code
-                        }
-                      </strong>{" "}
-                      la restaurant.
-                    </div>
-                  )}
-
-                  {/* CANCELLED */}
-
-                  {reservation.status ===
-                    "cancelled" && (
-                    <div
-                      style={{
-                        marginTop:
-                          "18px",
-
-                        padding:
-                          "16px",
-
-                        background:
-                          "#F2F4F7",
-
-                        border:
-                          "1px solid #E4E7EC",
-
-                        borderRadius:
-                          "13px",
-
-                        color:
-                          "#667085",
-
-                        fontWeight:
-                          "800",
-
-                        lineHeight:
-                          1.6,
-                      }}
-                    >
-                      Rezervarea a fost
-                      anulată. Dacă era
-                      confirmată, locurile
-                      au devenit din nou
-                      disponibile.
-                    </div>
-                  )}
-
-                  {/* REJECTED */}
-
-                  {reservation.status ===
-                    "rejected" && (
-                    <div
-                      style={{
-                        marginTop:
-                          "18px",
-
-                        padding:
-                          "16px",
-
-                        background:
-                          "#FDECEC",
-
-                        border:
-                          "1px solid #F8CACA",
-
-                        borderRadius:
-                          "13px",
-
-                        color:
-                          "#B42318",
-
-                        fontWeight:
-                          "800",
-
-                        lineHeight:
-                          1.6,
-                      }}
-                    >
-                      Rezervarea nu a
-                      putut fi confirmată
-                      de restaurant.
-                    </div>
-                  )}
-
-                  {/* CANCEL BUTTON */}
-
-                  {canCancel && (
-                    <button
-                      type="button"
-
-                      onClick={
-                        cancelReservation
-                      }
-
-                      disabled={
-                        cancelling
-                      }
-
-                      style={{
-                        width:
-                          "100%",
-
-                        marginTop:
-                          "20px",
-
-                        padding:
-                          "14px 16px",
-
-                        borderRadius:
-                          "12px",
-
-                        border:
-                          "1px solid #F1C6C0",
-
-                        background:
-                          cancelling
-                            ? "#F2F4F7"
-                            : "#FFF5F2",
-
-                        color:
-                          "#B42318",
-
-                        fontWeight:
-                          "900",
-
-                        fontSize:
-                          "15px",
-
-                        cursor:
-                          cancelling
-                            ? "not-allowed"
-                            : "pointer",
-                      }}
-                    >
-                      {cancelling
-                        ? "Se anulează..."
-                        : "Anulează rezervarea"}
-                    </button>
-                  )}
                 </div>
-              )}
+
+                {/* PENDING */}
+
+                {reservation.status === "pending" && (
+                  <div
+                    style={{
+                      marginTop: "18px",
+                      padding: "16px",
+                      background: "#F8F9FB",
+                      border: "1px solid #E7E9ED",
+                      borderRadius: "13px",
+                      color: "#667085",
+                      fontSize: "14px",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    ⏳ Poți reveni și apăsa{" "}
+                    <strong>
+                      „Actualizează statusul”
+                    </strong>{" "}
+                    pentru a vedea răspunsul restaurantului.
+                  </div>
+                )}
+
+                {/* ACCEPTED */}
+
+                {reservation.status === "accepted" && (
+                  <div
+                    style={{
+                      marginTop: "18px",
+                      padding: "16px",
+                      background: "#E9F8EF",
+                      border: "1px solid #CDEEDB",
+                      borderRadius: "13px",
+                      color: "#16865C",
+                      fontWeight: "800",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    ✓ Rezervarea ta este confirmată. Prezintă
+                    codul{" "}
+                    <strong>
+                      {reservation.reservation_code}
+                    </strong>{" "}
+                    la restaurant.
+                  </div>
+                )}
+
+                {/* CANCELLED */}
+
+                {reservation.status === "cancelled" && (
+                  <div
+                    style={{
+                      marginTop: "18px",
+                      padding: "16px",
+                      background: "#F2F4F7",
+                      border: "1px solid #E4E7EC",
+                      borderRadius: "13px",
+                      color: "#667085",
+                      fontWeight: "800",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Rezervarea a fost anulată.
+                  </div>
+                )}
+
+                {/* REJECTED */}
+
+                {reservation.status === "rejected" && (
+                  <div
+                    style={{
+                      marginTop: "18px",
+                      padding: "16px",
+                      background: "#FDECEC",
+                      border: "1px solid #F8CACA",
+                      borderRadius: "13px",
+                      color: "#B42318",
+                      fontWeight: "800",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    Rezervarea nu a putut fi confirmată de
+                    restaurant.
+                  </div>
+                )}
+
+                {/* CANCEL BUTTON */}
+
+                {canCancel && (
+                  <button
+                    type="button"
+                    onClick={cancelReservation}
+                    disabled={cancelling}
+                    style={{
+                      width: "100%",
+                      marginTop: "20px",
+                      padding: "14px 16px",
+                      borderRadius: "12px",
+                      border: "1px solid #F1C6C0",
+                      background: cancelling
+                        ? "#F2F4F7"
+                        : "#FFF5F2",
+                      color: "#B42318",
+                      fontWeight: "900",
+                      fontSize: "15px",
+                      cursor: cancelling
+                        ? "not-allowed"
+                        : "pointer",
+                    }}
+                  >
+                    {cancelling
+                      ? "Se anulează..."
+                      : "Anulează rezervarea"}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -1396,29 +843,15 @@ export default function VerificaRezervarePage() {
 }
 
 const rowStyle = {
-  padding:
-    "15px 17px",
-
-  display:
-    "flex",
-
-  justifyContent:
-    "space-between",
-
-  alignItems:
-    "center",
-
-  gap:
-    "20px",
-
-  borderBottom:
-    "1px solid #EEF0F2",
+  padding: "15px 17px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "20px",
+  borderBottom: "1px solid #EEF0F2",
 };
 
 const rowLabel = {
-  color:
-    "#7A8393",
-
-  fontWeight:
-    "700",
+  color: "#7A8393",
+  fontWeight: "700",
 };
