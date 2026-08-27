@@ -5,198 +5,445 @@ import { useEffect, useState } from "react";
 export default function VerificaRezervarePage() {
   const [code, setCode] = useState("");
   const [reservation, setReservation] = useState(null);
+  const [offer, setOffer] = useState(null);
+
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const savedCode =
-      localStorage.getItem("masago_last_reservation_code");
+      localStorage.getItem(
+        "masago_last_reservation_code"
+      );
 
     if (savedCode) {
       setCode(savedCode);
-      checkReservationByCode(savedCode);
+
+      checkReservationByCode(
+        savedCode
+      );
     }
   }, []);
 
   function formatDate(date) {
     if (!date) return "";
 
-    const [year, month, day] = date.split("-");
+    const [
+      year,
+      month,
+      day,
+    ] =
+      date.split("-");
+
     return `${day}/${month}/${year}`;
   }
 
+  function formatTime(time) {
+    if (!time) return "";
+
+    return String(
+      time
+    ).slice(0, 5);
+  }
+
   function getStatusData(status) {
-    if (status === "accepted") {
+    if (
+      status ===
+      "accepted"
+    ) {
       return {
-        title: "Rezervare confirmată",
-        text: "Restaurantul a confirmat rezervarea ta.",
-        icon: "✓",
-        background: "#E9F8EF",
-        color: "#16865C",
+        title:
+          "Rezervare confirmată",
+
+        text:
+          "Restaurantul a confirmat rezervarea ta.",
+
+        icon:
+          "✓",
+
+        background:
+          "#E9F8EF",
+
+        color:
+          "#16865C",
       };
     }
 
-    if (status === "rejected") {
+    if (
+      status ===
+      "rejected"
+    ) {
       return {
-        title: "Rezervare respinsă",
-        text: "Restaurantul nu a putut confirma această rezervare.",
-        icon: "✕",
-        background: "#FDECEC",
-        color: "#B42318",
+        title:
+          "Rezervare respinsă",
+
+        text:
+          "Restaurantul nu a putut confirma această rezervare.",
+
+        icon:
+          "✕",
+
+        background:
+          "#FDECEC",
+
+        color:
+          "#B42318",
       };
     }
 
     return {
-      title: "În așteptare",
-      text: "Restaurantul nu a răspuns încă solicitării tale.",
-      icon: "⏳",
-      background: "#FFF4DD",
-      color: "#8A6500",
+      title:
+        "În așteptare",
+
+      text:
+        "Restaurantul nu a răspuns încă solicitării tale.",
+
+      icon:
+        "⏳",
+
+      background:
+        "#FFF4DD",
+
+      color:
+        "#8A6500",
     };
   }
 
-  async function checkReservationByCode(reservationCode) {
+  async function loadOfferDetails(
+    offerId,
+    supabaseUrl,
+    supabaseKey
+  ) {
+    if (!offerId) {
+      setOffer(null);
+      return;
+    }
+
+    try {
+      const response =
+        await fetch(
+          `${supabaseUrl}/rest/v1/offers?id=eq.${offerId}&select=id,offer_date,start_time,end_time,discount_percent,capacity&limit=1`,
+          {
+            headers: {
+              apikey:
+                supabaseKey,
+            },
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Offer details error:",
+          data
+        );
+
+        setOffer(null);
+        return;
+      }
+
+      if (
+        data &&
+        data.length > 0
+      ) {
+        setOffer(
+          data[0]
+        );
+      } else {
+        setOffer(null);
+      }
+    } catch (error) {
+      console.error(
+        "Offer details error:",
+        error
+      );
+
+      setOffer(null);
+    }
+  }
+
+  async function checkReservationByCode(
+    reservationCode
+  ) {
     const cleanCode =
-      reservationCode.trim().toUpperCase();
+      reservationCode
+        .trim()
+        .toUpperCase();
 
     if (!cleanCode) {
-      setMessage("Introdu codul rezervării.");
+      setMessage(
+        "Introdu codul rezervării."
+      );
+
       return;
     }
 
     const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL;
+      process.env
+        .NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
-      setMessage("Conexiunea cu Supabase nu este configurată.");
+    if (
+      !supabaseUrl ||
+      !supabaseKey
+    ) {
+      setMessage(
+        "Conexiunea cu Supabase nu este configurată."
+      );
+
       return;
     }
 
     setLoading(true);
     setMessage("");
     setReservation(null);
+    setOffer(null);
 
     try {
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/rpc/get_reservation_by_code`,
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          `${supabaseUrl}/rest/v1/rpc/get_reservation_by_code`,
+          {
+            method:
+              "POST",
 
-          headers: {
-            apikey: supabaseKey,
-            "Content-Type": "application/json",
-          },
+            headers: {
+              apikey:
+                supabaseKey,
 
-          body: JSON.stringify({
-            p_code: cleanCode,
-          }),
-        }
-      );
+              "Content-Type":
+                "application/json",
+            },
 
-      const data = await response.json();
+            body:
+              JSON.stringify({
+                p_code:
+                  cleanCode,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
 
       if (!response.ok) {
-        console.error(data);
-        setMessage("Nu am putut verifica rezervarea.");
+        console.error(
+          data
+        );
+
+        setMessage(
+          "Nu am putut verifica rezervarea."
+        );
+
         return;
       }
 
-      if (!data || data.length === 0) {
+      if (
+        !data ||
+        data.length === 0
+      ) {
         setMessage(
           "Nu am găsit nicio rezervare cu acest cod."
         );
+
         return;
       }
 
-      setReservation(data[0]);
+      const foundReservation =
+        data[0];
+
+      setReservation(
+        foundReservation
+      );
+
+      /*
+        Dacă rezervarea este legată
+        de o ofertă, încărcăm oferta
+        exactă folosită.
+      */
+
+      if (
+        foundReservation.offer_id
+      ) {
+        await loadOfferDetails(
+          foundReservation.offer_id,
+          supabaseUrl,
+          supabaseKey
+        );
+      }
     } catch (error) {
-      console.error(error);
-      setMessage("A apărut o eroare la verificare.");
+      console.error(
+        error
+      );
+
+      setMessage(
+        "A apărut o eroare la verificare."
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  async function checkReservation(e) {
+  async function checkReservation(
+    e
+  ) {
     e.preventDefault();
-    await checkReservationByCode(code);
+
+    await checkReservationByCode(
+      code
+    );
   }
 
-  const statusData = reservation
-    ? getStatusData(reservation.status)
-    : null;
+  const statusData =
+    reservation
+      ? getStatusData(
+          reservation.status
+        )
+      : null;
+
+  const discount =
+    reservation
+      ?.discount_percent ||
+    offer
+      ?.discount_percent ||
+    null;
 
   return (
     <main
       style={{
-        minHeight: "100vh",
-        background: "#FAFAF8",
-        fontFamily: "Arial, sans-serif",
-        color: "#172033",
+        minHeight:
+          "100vh",
+
+        background:
+          "#FAFAF8",
+
+        fontFamily:
+          "Arial, sans-serif",
+
+        color:
+          "#172033",
       }}
     >
+      {/* HEADER */}
+
       <header
         style={{
-          background: "white",
-          borderBottom: "1px solid #ececec",
-          padding: "18px 6%",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          background:
+            "white",
+
+          borderBottom:
+            "1px solid #ececec",
+
+          padding:
+            "18px 6%",
+
+          display:
+            "flex",
+
+          justifyContent:
+            "space-between",
+
+          alignItems:
+            "center",
         }}
       >
         <a
           href="/"
           style={{
-            textDecoration: "none",
-            color: "#172033",
-            fontSize: "29px",
-            fontWeight: "900",
-            letterSpacing: "-1px",
+            textDecoration:
+              "none",
+
+            color:
+              "#172033",
+
+            fontSize:
+              "29px",
+
+            fontWeight:
+              "900",
+
+            letterSpacing:
+              "-1px",
           }}
         >
-          Masago<span style={{ color: "#FF5A3C" }}>.</span>
+          Masago
+
+          <span
+            style={{
+              color:
+                "#FF5A3C",
+            }}
+          >
+            .
+          </span>
         </a>
 
         <a
           href="/"
           style={{
-            textDecoration: "none",
-            color: "#485267",
-            fontWeight: "700",
+            textDecoration:
+              "none",
+
+            color:
+              "#485267",
+
+            fontWeight:
+              "700",
           }}
         >
           ← Înapoi
         </a>
       </header>
 
+      {/* CONTENT */}
+
       <section
         style={{
-          padding: "75px 6%",
+          padding:
+            "75px 6%",
         }}
       >
         <div
           style={{
-            maxWidth: "650px",
-            margin: "0 auto",
+            maxWidth:
+              "650px",
+
+            margin:
+              "0 auto",
           }}
         >
+          {/* TITLE */}
+
           <div
             style={{
-              textAlign: "center",
-              marginBottom: "30px",
+              textAlign:
+                "center",
+
+              marginBottom:
+                "30px",
             }}
           >
             <p
               style={{
-                color: "#FF5A3C",
-                fontWeight: "900",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
-                fontSize: "13px",
+                color:
+                  "#FF5A3C",
+
+                fontWeight:
+                  "900",
+
+                textTransform:
+                  "uppercase",
+
+                letterSpacing:
+                  "1px",
+
+                fontSize:
+                  "13px",
               }}
             >
               Rezervarea mea
@@ -204,8 +451,11 @@ export default function VerificaRezervarePage() {
 
             <h1
               style={{
-                fontSize: "42px",
-                margin: "8px 0",
+                fontSize:
+                  "42px",
+
+                margin:
+                  "8px 0",
               }}
             >
               Statusul rezervării
@@ -213,28 +463,56 @@ export default function VerificaRezervarePage() {
 
             <p
               style={{
-                color: "#737C8D",
-                lineHeight: 1.6,
+                color:
+                  "#737C8D",
+
+                lineHeight:
+                  1.6,
               }}
             >
-              Ultima ta rezervare este încărcată automat.
+              Verifică statusul și
+              detaliile rezervării
+              tale Masago.
             </p>
           </div>
 
+          {/* CARD */}
+
           <div
             style={{
-              background: "white",
-              border: "1px solid #E7E9ED",
-              borderRadius: "22px",
-              padding: "30px",
+              background:
+                "white",
+
+              border:
+                "1px solid #E7E9ED",
+
+              borderRadius:
+                "22px",
+
+              padding:
+                "30px",
+
+              boxShadow:
+                "0 12px 35px rgba(23,32,51,0.06)",
             }}
           >
-            <form onSubmit={checkReservation}>
+            {/* SEARCH */}
+
+            <form
+              onSubmit={
+                checkReservation
+              }
+            >
               <label
                 style={{
-                  display: "block",
-                  fontWeight: "800",
-                  marginBottom: "8px",
+                  display:
+                    "block",
+
+                  fontWeight:
+                    "800",
+
+                  marginBottom:
+                    "8px",
                 }}
               >
                 Cod rezervare
@@ -242,155 +520,690 @@ export default function VerificaRezervarePage() {
 
               <input
                 type="text"
-                value={code}
-                onChange={(e) =>
-                  setCode(e.target.value.toUpperCase())
+
+                value={
+                  code
                 }
+
+                onChange={(e) =>
+                  setCode(
+                    e.target.value.toUpperCase()
+                  )
+                }
+
                 placeholder="MASAGO-ABC12345"
+
                 style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "16px",
-                  borderRadius: "12px",
-                  border: "1px solid #DDE1E6",
-                  fontSize: "17px",
-                  fontWeight: "700",
-                  letterSpacing: "1px",
+                  width:
+                    "100%",
+
+                  boxSizing:
+                    "border-box",
+
+                  padding:
+                    "16px",
+
+                  borderRadius:
+                    "12px",
+
+                  border:
+                    "1px solid #DDE1E6",
+
+                  fontSize:
+                    "17px",
+
+                  fontWeight:
+                    "700",
+
+                  letterSpacing:
+                    "1px",
+
+                  outline:
+                    "none",
                 }}
               />
 
               <button
                 type="submit"
-                disabled={loading}
+
+                disabled={
+                  loading
+                }
+
                 style={{
-                  width: "100%",
-                  marginTop: "14px",
-                  padding: "16px",
-                  borderRadius: "12px",
-                  border: "none",
-                  background: loading
-                    ? "#aaa"
-                    : "#FF5A3C",
-                  color: "white",
-                  fontWeight: "900",
+                  width:
+                    "100%",
+
+                  marginTop:
+                    "14px",
+
+                  padding:
+                    "16px",
+
+                  borderRadius:
+                    "12px",
+
+                  border:
+                    "none",
+
+                  background:
+                    loading
+                      ? "#aaa"
+                      : "#FF5A3C",
+
+                  color:
+                    "white",
+
+                  fontWeight:
+                    "900",
+
+                  fontSize:
+                    "16px",
+
+                  cursor:
+                    loading
+                      ? "not-allowed"
+                      : "pointer",
                 }}
               >
                 {loading
                   ? "Se verifică..."
-                  : "Actualizează statusul"}
+                  : reservation
+                  ? "Actualizează statusul"
+                  : "Verifică rezervarea"}
               </button>
             </form>
+
+            {/* ERROR */}
 
             {message && (
               <div
                 style={{
-                  marginTop: "20px",
-                  padding: "14px",
-                  borderRadius: "11px",
-                  background: "#FFF0EC",
-                  color: "#A33A29",
-                  fontWeight: "800",
-                  textAlign: "center",
+                  marginTop:
+                    "20px",
+
+                  padding:
+                    "14px",
+
+                  borderRadius:
+                    "11px",
+
+                  background:
+                    "#FFF0EC",
+
+                  color:
+                    "#A33A29",
+
+                  fontWeight:
+                    "800",
+
+                  textAlign:
+                    "center",
                 }}
               >
-                {message}
+                {
+                  message
+                }
               </div>
             )}
 
-            {reservation && statusData && (
-              <div
-                style={{
-                  marginTop: "28px",
-                }}
-              >
+            {/* RESERVATION */}
+
+            {reservation &&
+              statusData && (
                 <div
                   style={{
-                    background: statusData.background,
-                    color: statusData.color,
-                    borderRadius: "16px",
-                    padding: "22px",
-                    textAlign: "center",
+                    marginTop:
+                      "28px",
                   }}
                 >
+                  {/* STATUS */}
+
                   <div
                     style={{
-                      fontSize: "34px",
+                      background:
+                        statusData.background,
+
+                      color:
+                        statusData.color,
+
+                      borderRadius:
+                        "16px",
+
+                      padding:
+                        "22px",
+
+                      textAlign:
+                        "center",
                     }}
                   >
-                    {statusData.icon}
+                    <div
+                      style={{
+                        width:
+                          "56px",
+
+                        height:
+                          "56px",
+
+                        borderRadius:
+                          "50%",
+
+                        margin:
+                          "0 auto 10px",
+
+                        background:
+                          "rgba(255,255,255,0.7)",
+
+                        display:
+                          "flex",
+
+                        alignItems:
+                          "center",
+
+                        justifyContent:
+                          "center",
+
+                        fontSize:
+                          "30px",
+
+                        fontWeight:
+                          "900",
+                      }}
+                    >
+                      {
+                        statusData.icon
+                      }
+                    </div>
+
+                    <h2
+                      style={{
+                        margin:
+                          "8px 0",
+                      }}
+                    >
+                      {
+                        statusData.title
+                      }
+                    </h2>
+
+                    <p
+                      style={{
+                        margin:
+                          0,
+
+                        lineHeight:
+                          1.6,
+                      }}
+                    >
+                      {
+                        statusData.text
+                      }
+                    </p>
                   </div>
 
-                  <h2>
-                    {statusData.title}
-                  </h2>
+                  {/* OFERTA */}
 
-                  <p>
-                    {statusData.text}
-                  </p>
-                </div>
+                  {discount && (
+                    <div
+                      style={{
+                        marginTop:
+                          "18px",
 
-                <div
-                  style={{
-                    marginTop: "20px",
-                    border: "1px solid #E7E9ED",
-                    borderRadius: "16px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div style={rowStyle}>
-                    <span style={rowLabel}>
-                      Restaurant
-                    </span>
-                    <strong>
-                      {reservation.restaurant_name}
-                    </strong>
-                  </div>
+                        background:
+                          "#FFF0EC",
 
-                  <div style={rowStyle}>
-                    <span style={rowLabel}>
-                      Data
-                    </span>
-                    <strong>
-                      {formatDate(
-                        reservation.reservation_date
+                        border:
+                          "1px solid #FFD8CF",
+
+                        borderRadius:
+                          "16px",
+
+                        padding:
+                          "20px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color:
+                            "#FF5A3C",
+
+                          fontWeight:
+                            "900",
+
+                          fontSize:
+                            "13px",
+
+                          textTransform:
+                            "uppercase",
+
+                          letterSpacing:
+                            "0.7px",
+
+                          marginBottom:
+                            "6px",
+                        }}
+                      >
+                        Oferta rezervată
+                      </div>
+
+                      <div
+                        style={{
+                          color:
+                            "#FF5A3C",
+
+                          fontSize:
+                            "32px",
+
+                          fontWeight:
+                            "900",
+                        }}
+                      >
+                        -
+                        {
+                          discount
+                        }
+                        %
+                      </div>
+
+                      {offer && (
+                        <div
+                          style={{
+                            marginTop:
+                              "12px",
+
+                            color:
+                              "#667085",
+
+                            lineHeight:
+                              1.7,
+
+                            fontWeight:
+                              "700",
+                          }}
+                        >
+                          📅{" "}
+                          {formatDate(
+                            offer.offer_date
+                          )}
+
+                          <br />
+
+                          🕐{" "}
+                          {formatTime(
+                            offer.start_time
+                          )}{" "}
+                          -{" "}
+                          {formatTime(
+                            offer.end_time
+                          )}
+                        </div>
                       )}
-                    </strong>
-                  </div>
 
-                  <div style={rowStyle}>
-                    <span style={rowLabel}>
-                      Ora
-                    </span>
-                    <strong>
-                      {reservation.reservation_time}
-                    </strong>
-                  </div>
+                      <div
+                        style={{
+                          marginTop:
+                            "12px",
 
-                  <div style={rowStyle}>
-                    <span style={rowLabel}>
-                      Persoane
-                    </span>
-                    <strong>
-                      {reservation.guests}
-                    </strong>
-                  </div>
+                          color:
+                            "#A33A29",
+
+                          fontSize:
+                            "13px",
+
+                          lineHeight:
+                            1.6,
+
+                          fontWeight:
+                            "700",
+                        }}
+                      >
+                        Reducerea acestei
+                        rezervări rămâne
+                        cea afișată aici,
+                        chiar dacă
+                        restaurantul își
+                        modifică ofertele
+                        ulterior.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FARA OFERTA */}
+
+                  {!discount && (
+                    <div
+                      style={{
+                        marginTop:
+                          "18px",
+
+                        background:
+                          "#F2F4F7",
+
+                        border:
+                          "1px solid #E4E7EC",
+
+                        borderRadius:
+                          "16px",
+
+                        padding:
+                          "17px",
+
+                        color:
+                          "#667085",
+
+                        fontWeight:
+                          "800",
+                      }}
+                    >
+                      ℹ️ Această rezervare
+                      nu este asociată
+                      unei oferte Masago.
+                    </div>
+                  )}
+
+                  {/* DETAILS */}
 
                   <div
                     style={{
-                      ...rowStyle,
-                      borderBottom: "none",
+                      marginTop:
+                        "20px",
+
+                      border:
+                        "1px solid #E7E9ED",
+
+                      borderRadius:
+                        "16px",
+
+                      overflow:
+                        "hidden",
                     }}
                   >
-                    <span style={rowLabel}>
-                      Cod
-                    </span>
-                    <strong>
-                      {reservation.reservation_code}
-                    </strong>
+                    <div
+                      style={
+                        rowStyle
+                      }
+                    >
+                      <span
+                        style={
+                          rowLabel
+                        }
+                      >
+                        Restaurant
+                      </span>
+
+                      <strong>
+                        {reservation.restaurant_name ||
+                          "-"}
+                      </strong>
+                    </div>
+
+                    <div
+                      style={
+                        rowStyle
+                      }
+                    >
+                      <span
+                        style={
+                          rowLabel
+                        }
+                      >
+                        Data
+                      </span>
+
+                      <strong>
+                        {formatDate(
+                          reservation.reservation_date
+                        )}
+                      </strong>
+                    </div>
+
+                    <div
+                      style={
+                        rowStyle
+                      }
+                    >
+                      <span
+                        style={
+                          rowLabel
+                        }
+                      >
+                        Ora
+                      </span>
+
+                      <strong>
+                        {formatTime(
+                          reservation.reservation_time
+                        )}
+                      </strong>
+                    </div>
+
+                    <div
+                      style={
+                        rowStyle
+                      }
+                    >
+                      <span
+                        style={
+                          rowLabel
+                        }
+                      >
+                        Persoane
+                      </span>
+
+                      <strong>
+                        {
+                          reservation.guests
+                        }
+                      </strong>
+                    </div>
+
+                    {discount && (
+                      <div
+                        style={
+                          rowStyle
+                        }
+                      >
+                        <span
+                          style={
+                            rowLabel
+                          }
+                        >
+                          Reducere
+                        </span>
+
+                        <strong
+                          style={{
+                            color:
+                              "#FF5A3C",
+                          }}
+                        >
+                          -
+                          {
+                            discount
+                          }
+                          %
+                        </strong>
+                      </div>
+                    )}
+
+                    {offer && (
+                      <div
+                        style={
+                          rowStyle
+                        }
+                      >
+                        <span
+                          style={
+                            rowLabel
+                          }
+                        >
+                          Interval ofertă
+                        </span>
+
+                        <strong>
+                          {formatTime(
+                            offer.start_time
+                          )}{" "}
+                          -{" "}
+                          {formatTime(
+                            offer.end_time
+                          )}
+                        </strong>
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        ...rowStyle,
+
+                        borderBottom:
+                          "none",
+                      }}
+                    >
+                      <span
+                        style={
+                          rowLabel
+                        }
+                      >
+                        Cod
+                      </span>
+
+                      <strong
+                        style={{
+                          letterSpacing:
+                            "0.7px",
+                        }}
+                      >
+                        {reservation.reservation_code}
+                      </strong>
+                    </div>
                   </div>
+
+                  {/* INFO PENDING */}
+
+                  {reservation.status ===
+                    "pending" && (
+                    <div
+                      style={{
+                        marginTop:
+                          "18px",
+
+                        padding:
+                          "16px",
+
+                        background:
+                          "#F8F9FB",
+
+                        border:
+                          "1px solid #E7E9ED",
+
+                        borderRadius:
+                          "13px",
+
+                        color:
+                          "#667085",
+
+                        fontSize:
+                          "14px",
+
+                        lineHeight:
+                          1.6,
+                      }}
+                    >
+                      ⏳ Poți reveni pe
+                      această pagină și
+                      apăsa{" "}
+                      <strong>
+                        „Actualizează statusul”
+                      </strong>{" "}
+                      pentru a vedea
+                      dacă restaurantul
+                      a confirmat
+                      rezervarea.
+                    </div>
+                  )}
+
+                  {/* CONFIRMED INFO */}
+
+                  {reservation.status ===
+                    "accepted" && (
+                    <div
+                      style={{
+                        marginTop:
+                          "18px",
+
+                        padding:
+                          "16px",
+
+                        background:
+                          "#E9F8EF",
+
+                        border:
+                          "1px solid #CDEEDB",
+
+                        borderRadius:
+                          "13px",
+
+                        color:
+                          "#16865C",
+
+                        fontWeight:
+                          "800",
+
+                        lineHeight:
+                          1.6,
+                      }}
+                    >
+                      ✓ Rezervarea ta este
+                      confirmată. Prezintă
+                      codul{" "}
+                      <strong>
+                        {
+                          reservation.reservation_code
+                        }
+                      </strong>{" "}
+                      la restaurant.
+                    </div>
+                  )}
+
+                  {/* REJECTED INFO */}
+
+                  {reservation.status ===
+                    "rejected" && (
+                    <div
+                      style={{
+                        marginTop:
+                          "18px",
+
+                        padding:
+                          "16px",
+
+                        background:
+                          "#FDECEC",
+
+                        border:
+                          "1px solid #F8CACA",
+
+                        borderRadius:
+                          "13px",
+
+                        color:
+                          "#B42318",
+
+                        fontWeight:
+                          "800",
+
+                        lineHeight:
+                          1.6,
+                      }}
+                    >
+                      Rezervarea nu a
+                      putut fi confirmată
+                      de restaurant.
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </section>
@@ -399,14 +1212,29 @@ export default function VerificaRezervarePage() {
 }
 
 const rowStyle = {
-  padding: "15px 17px",
-  display: "flex",
-  justifyContent: "space-between",
-  gap: "20px",
-  borderBottom: "1px solid #EEF0F2",
+  padding:
+    "15px 17px",
+
+  display:
+    "flex",
+
+  justifyContent:
+    "space-between",
+
+  alignItems:
+    "center",
+
+  gap:
+    "20px",
+
+  borderBottom:
+    "1px solid #EEF0F2",
 };
 
 const rowLabel = {
-  color: "#7A8393",
-  fontWeight: "700",
+  color:
+    "#7A8393",
+
+  fontWeight:
+    "700",
 };
