@@ -717,6 +717,26 @@ export default function RestaurantPage() {
         "masago_last_reservation_code",
         reservationCode
       );
+      const savedReservations = JSON.parse(
+  localStorage.getItem(
+    "masago_reservation_codes"
+  ) || "[]"
+);
+
+const updatedReservations = [
+  reservationCode,
+  ...savedReservations.filter(
+    (savedCode) =>
+      savedCode !== reservationCode
+  ),
+];
+
+localStorage.setItem(
+  "masago_reservation_codes",
+  JSON.stringify(
+    updatedReservations
+  )
+);
 
       setConfirmation(
         reservationSummary
