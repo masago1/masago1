@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function RestaurantPage() {
   const [date, setDate] = useState("");
@@ -13,14 +13,39 @@ export default function RestaurantPage() {
   const [loading, setLoading] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
 
-  const [offer, setOffer] = useState(null);
-  const [offerLoading, setOfferLoading] = useState(true);
+  const [offers, setOffers] = useState([]);
+  const [offersLoading, setOffersLoading] = useState(true);
+
+  const [selectedOfferId, setSelectedOfferId] = useState(null);
 
   useEffect(() => {
-    loadOffer();
+    loadOffers();
   }, []);
 
-  async function loadOffer() {
+  function getLocalDate(offset = 0) {
+    const currentDate = new Date();
+
+    currentDate.setDate(
+      currentDate.getDate() + offset
+    );
+
+    const year = currentDate.getFullYear();
+
+    const month = String(
+      currentDate.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+      currentDate.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
+  const today = getLocalDate(0);
+  const maxReservationDate = getLocalDate(3);
+
+  async function loadOffers() {
     const supabaseUrl =
       process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -31,7 +56,8 @@ export default function RestaurantPage() {
       console.error(
         "Conexiunea cu Supabase nu este configurată."
       );
-      setOfferLoading(false);
+
+      setOffersLoading(false);
       return;
     }
 
@@ -59,23 +85,15 @@ export default function RestaurantPage() {
           restaurantData
         );
 
-        setOffer(null);
+        setOffers([]);
         return;
       }
 
       const restaurantId =
         restaurantData[0].id;
 
-      const today = new Date()
-        .toISOString()
-        .slice(0, 10);
-
-      /*
-        IMPORTANT:
-        id.desc = ultima ofertă creată.
-      */
-      const offerResponse = await fetch(
-        `${supabaseUrl}/rest/v1/offers?restaurant_id=eq.${restaurantId}&active=eq.true&offer_date=gte.${today}&select=*&order=id.desc&limit=1`,
+      const offersResponse = await fetch(
+        `${supabaseUrl}/rest/v1/offers?restaurant_id=eq.${restaurantId}&active=eq.true&offer_date=gte.${today}&offer_date=lte.${maxReservationDate}&select=*&order=offer_date.asc,start_time.asc,id.desc`,
         {
           headers: {
             apikey: supabaseKey,
@@ -83,48 +101,162 @@ export default function RestaurantPage() {
         }
       );
 
-      const offerData =
-        await offerResponse.json();
+      const offersData =
+        await offersResponse.json();
 
-      if (!offerResponse.ok) {
+      if (!offersResponse.ok) {
         console.error(
           "Offers error:",
-          offerData
+          offersData
         );
 
-        setOffer(null);
+        setOffers([]);
         return;
       }
 
-      if (offerData?.[0]) {
-        const currentOffer =
-          offerData[0];
+      setOffers(offersData || []);
+      setDate(today);
 
-        setOffer(currentOffer);
+      const todayOffers = (
+        offersData || []
+      ).filter(
+        (offer) =>
+          offer.offer_date === today
+      );
 
-        setDate(
-          currentOffer.offer_date || ""
+      if (todayOffers.length > 0) {
+        const firstOffer =
+          todayOffers[0];
+
+        setSelectedOfferId(
+          firstOffer.id
         );
 
         setTime(
           String(
-            currentOffer.start_time ||
-              "19:00"
+            firstOffer.start_time
           ).slice(0, 5)
         );
       } else {
-        setOffer(null);
+        setSelectedOfferId(null);
+        setTime("19:00");
       }
     } catch (error) {
       console.error(
-        "Eroare la încărcarea ofertei:",
+        "Eroare la încărcarea ofertelor:",
         error
       );
 
-      setOffer(null);
+      setOffers([]);
     } finally {
-      setOfferLoading(false);
+      setOffersLoading(false);
     }
+  }
+
+  const selectedDayOffers =
+    useMemo(() => {
+      if (!date) return [];
+
+      return offers
+        .filter(
+          (offer) =>
+            offer.offer_date === date
+        )
+        .sort((a, b) =>
+          String(a.start_time).localeCompare(
+            String(b.start_time)
+          )
+        );
+    }, [offers, date]);
+
+  const selectedOffer =
+    useMemo(() => {
+      if (!selectedOfferId) {
+        return null;
+      }
+
+      return (
+        offers.find(
+          (offer) =>
+            offer.id ===
+            selectedOfferId
+        ) || null
+      );
+    }, [
+      offers,
+      selectedOfferId,
+    ]);
+
+  const upcomingDays =
+    useMemo(() => {
+      return [0, 1, 2, 3].map(
+        (offset) => {
+          const currentDate =
+            getLocalDate(offset);
+
+          const dayOffers =
+            offers.filter(
+              (offer) =>
+                offer.offer_date ===
+                currentDate
+            );
+
+          return {
+            date: currentDate,
+            offers: dayOffers,
+          };
+        }
+      );
+    }, [offers]);
+
+  function handleDateChange(newDate) {
+    setDate(newDate);
+    setMessage("");
+
+    const offersForDay =
+      offers
+        .filter(
+          (offer) =>
+            offer.offer_date ===
+            newDate
+        )
+        .sort((a, b) =>
+          String(
+            a.start_time
+          ).localeCompare(
+            String(b.start_time)
+          )
+        );
+
+    if (offersForDay.length > 0) {
+      const firstOffer =
+        offersForDay[0];
+
+      setSelectedOfferId(
+        firstOffer.id
+      );
+
+      setTime(
+        String(
+          firstOffer.start_time
+        ).slice(0, 5)
+      );
+    } else {
+      setSelectedOfferId(null);
+      setTime("19:00");
+    }
+  }
+
+  function selectOffer(offer) {
+    setSelectedOfferId(offer.id);
+
+    setTime(
+      String(
+        offer.start_time
+      ).slice(0, 5)
+    );
+
+    setMessage("");
   }
 
   function generateReservationCode() {
@@ -146,10 +278,55 @@ export default function RestaurantPage() {
     return `${day}/${month}/${year}`;
   }
 
+  function formatShortDate(value) {
+    if (!value) return "";
+
+    const [, month, day] =
+      value.split("-");
+
+    return `${day}/${month}`;
+  }
+
   function formatTime(value) {
     if (!value) return "";
 
     return String(value).slice(0, 5);
+  }
+
+  function getDayLabel(value, index) {
+    if (index === 0) {
+      return "Azi";
+    }
+
+    if (index === 1) {
+      return "Mâine";
+    }
+
+    return formatShortDate(value);
+  }
+
+  function timeIsInsideOffer() {
+    if (!selectedOffer) {
+      return true;
+    }
+
+    const selectedTime =
+      String(time).slice(0, 5);
+
+    const start =
+      formatTime(
+        selectedOffer.start_time
+      );
+
+    const end =
+      formatTime(
+        selectedOffer.end_time
+      );
+
+    return (
+      selectedTime >= start &&
+      selectedTime <= end
+    );
   }
 
   async function handleReservation() {
@@ -169,8 +346,25 @@ export default function RestaurantPage() {
       return;
     }
 
+    if (
+      selectedOffer &&
+      !timeIsInsideOffer()
+    ) {
+      setMessage(
+        `Pentru oferta de -${selectedOffer.discount_percent}%, ora trebuie să fie între ${formatTime(
+          selectedOffer.start_time
+        )} și ${formatTime(
+          selectedOffer.end_time
+        )}.`
+      );
+
+      return;
+    }
+
     if (!name.trim()) {
-      setMessage("Introdu numele.");
+      setMessage(
+        "Introdu numele."
+      );
       return;
     }
 
@@ -191,6 +385,7 @@ export default function RestaurantPage() {
       setMessage(
         "Conexiunea cu Supabase nu este configurată."
       );
+
       return;
     }
 
@@ -204,8 +399,14 @@ export default function RestaurantPage() {
       time,
       guests,
       name: name.trim(),
+
       discount:
-        offer?.discount_percent ||
+        selectedOffer
+          ?.discount_percent ||
+        null,
+
+      offerId:
+        selectedOffer?.id ||
         null,
     };
 
@@ -218,10 +419,14 @@ export default function RestaurantPage() {
           method: "POST",
 
           headers: {
-            apikey: supabaseKey,
+            apikey:
+              supabaseKey,
+
             "Content-Type":
               "application/json",
-            Prefer: "return=minimal",
+
+            Prefer:
+              "return=minimal",
           },
 
           body: JSON.stringify({
@@ -243,10 +448,20 @@ export default function RestaurantPage() {
             customer_phone:
               phone.trim(),
 
-            status: "pending",
+            status:
+              "pending",
 
             reservation_code:
               reservationCode,
+
+            offer_id:
+              selectedOffer?.id ||
+              null,
+
+            discount_percent:
+              selectedOffer
+                ?.discount_percent ||
+              null,
           }),
         }
       );
@@ -293,18 +508,6 @@ export default function RestaurantPage() {
   function makeAnotherReservation() {
     setConfirmation(null);
     setMessage("");
-
-    if (offer) {
-      setDate(
-        offer.offer_date || ""
-      );
-
-      setTime(
-        formatTime(
-          offer.start_time
-        )
-      );
-    }
   }
 
   const fieldStyle = {
@@ -359,7 +562,8 @@ export default function RestaurantPage() {
         <a
           href="/"
           style={{
-            textDecoration: "none",
+            textDecoration:
+              "none",
             color: "#172033",
             fontSize: "29px",
             fontWeight: "900",
@@ -379,7 +583,8 @@ export default function RestaurantPage() {
         <a
           href="/"
           style={{
-            textDecoration: "none",
+            textDecoration:
+              "none",
             color: "#485267",
             fontWeight: "700",
           }}
@@ -419,7 +624,8 @@ export default function RestaurantPage() {
                   "1px solid rgba(255,90,60,0.35)",
                 borderRadius:
                   "999px",
-                padding: "8px 12px",
+                padding:
+                  "8px 12px",
                 fontSize: "14px",
                 fontWeight: "800",
                 marginBottom:
@@ -452,7 +658,7 @@ export default function RestaurantPage() {
               Bucătărie românească și
               preparate tradiționale,
               cu oferte disponibile în
-              anumite intervale.
+              mai multe intervale orare.
             </p>
 
             <div
@@ -478,54 +684,35 @@ export default function RestaurantPage() {
                 ⭐ 9.2
               </span>
 
-              {!offerLoading &&
-                offer && (
-                  <span
-                    style={{
-                      background:
-                        "#FF5A3C",
-                      color: "white",
-                      padding:
-                        "10px 13px",
-                      borderRadius:
-                        "10px",
-                      fontWeight:
-                        "900",
-                    }}
-                  >
-                    -
-                    {
-                      offer.discount_percent
-                    }
-                    % reducere
-                  </span>
-                )}
-
-              {!offerLoading &&
-                !offer && (
-                  <span
-                    style={{
-                      background:
-                        "#667085",
-                      color: "white",
-                      padding:
-                        "10px 13px",
-                      borderRadius:
-                        "10px",
-                      fontWeight:
-                        "900",
-                    }}
-                  >
-                    Fără ofertă activă
-                  </span>
-                )}
+              {selectedOffer && (
+                <span
+                  style={{
+                    background:
+                      "#FF5A3C",
+                    color: "white",
+                    padding:
+                      "10px 13px",
+                    borderRadius:
+                      "10px",
+                    fontWeight:
+                      "900",
+                  }}
+                >
+                  -
+                  {
+                    selectedOffer.discount_percent
+                  }
+                  % reducere
+                </span>
+              )}
             </div>
           </div>
 
           <div
             style={{
               height: "320px",
-              borderRadius: "22px",
+              borderRadius:
+                "22px",
               background:
                 "linear-gradient(135deg, #2b3448, #151c2b)",
               display: "flex",
@@ -548,7 +735,8 @@ export default function RestaurantPage() {
         style={{
           maxWidth: "1180px",
           margin: "0 auto",
-          padding: "55px 6% 80px",
+          padding:
+            "55px 6% 80px",
           display: "grid",
           gridTemplateColumns:
             "repeat(auto-fit, minmax(320px, 1fr))",
@@ -562,11 +750,13 @@ export default function RestaurantPage() {
               background: "white",
               border:
                 "1px solid #ebedf0",
-              borderRadius: "20px",
+              borderRadius:
+                "20px",
               padding: "28px",
               boxShadow:
                 "0 10px 30px rgba(23,32,51,0.05)",
-              marginBottom: "22px",
+              marginBottom:
+                "22px",
             }}
           >
             <h2
@@ -575,201 +765,374 @@ export default function RestaurantPage() {
                 fontSize: "26px",
               }}
             >
-              Despre Casa Bunicii
+              Alege ziua
             </h2>
 
             <p
               style={{
                 color: "#667085",
-                lineHeight: 1.7,
+                lineHeight: 1.6,
               }}
             >
-              Casa Bunicii este listat
-              în Masago pentru rezervări
-              cu reducere în intervalele
-              disponibile.
+              Vezi ofertele Casei
+              Bunicii pentru următoarele
+              zile.
             </p>
 
-            <div
-              style={{
-                display: "grid",
-                gap: "14px",
-                marginTop: "22px",
-              }}
-            >
-              <div>
-                <strong>
-                  📍 Locație
-                </strong>
-
-                <div
-                  style={{
-                    color: "#667085",
-                    marginTop: "4px",
-                  }}
-                >
-                  Timișoara
-                </div>
-              </div>
-
-              <div>
-                <strong>
-                  🍽️ Tip
-                </strong>
-
-                <div
-                  style={{
-                    color: "#667085",
-                    marginTop: "4px",
-                  }}
-                >
-                  Bucătărie românească
-                </div>
-              </div>
-
-              <div>
-                <strong>
-                  ⭐ Evaluare
-                </strong>
-
-                <div
-                  style={{
-                    color: "#667085",
-                    marginTop: "4px",
-                  }}
-                >
-                  9.2
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: offer
-                ? "#FFF0EC"
-                : "#F2F4F7",
-
-              border: offer
-                ? "1px solid #FFD8CF"
-                : "1px solid #E4E7EC",
-
-              borderRadius: "20px",
-              padding: "28px",
-            }}
-          >
-            {offerLoading ? (
+            {offersLoading ? (
               <div
                 style={{
                   color: "#667085",
                   fontWeight: "800",
                 }}
               >
-                Se încarcă oferta...
+                Se încarcă ofertele...
               </div>
-            ) : offer ? (
-              <>
-                <div
-                  style={{
-                    color: "#FF5A3C",
-                    fontWeight: "900",
-                    fontSize: "34px",
-                    marginBottom:
-                      "8px",
-                  }}
-                >
-                  -
-                  {
-                    offer.discount_percent
-                  }
-                  %
-                </div>
-
-                <h3
-                  style={{
-                    margin:
-                      "0 0 10px",
-                    fontSize: "22px",
-                  }}
-                >
-                  Oferta Masago
-                </h3>
-
-                <p
-                  style={{
-                    margin:
-                      "0 0 16px",
-                    color: "#5f6777",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Reducerea se aplică
-                  la nota de plată
-                  conform condițiilor
-                  restaurantului și
-                  intervalului
-                  rezervat.
-                </p>
-
-                <div
-                  style={{
-                    background:
-                      "white",
-                    borderRadius:
-                      "12px",
-                    padding:
-                      "14px",
-                    color: "#172033",
-                    fontWeight: "800",
-                  }}
-                >
-                  📅{" "}
-                  {formatDateRomanian(
-                    offer.offer_date
-                  )}
-                  <br />
-
-                  🕐{" "}
-                  {formatTime(
-                    offer.start_time
-                  )}{" "}
-                  -{" "}
-                  {formatTime(
-                    offer.end_time
-                  )}
-                  <br />
-
-                  👥{" "}
-                  {offer.capacity}{" "}
-                  locuri
-                </div>
-              </>
             ) : (
-              <>
-                <div
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(2, minmax(0, 1fr))",
+                  gap: "10px",
+                  marginTop: "20px",
+                }}
+              >
+                {upcomingDays.map(
+                  (
+                    day,
+                    index
+                  ) => {
+                    const active =
+                      date ===
+                      day.date;
+
+                    return (
+                      <button
+                        key={
+                          day.date
+                        }
+                        type="button"
+                        onClick={() =>
+                          handleDateChange(
+                            day.date
+                          )
+                        }
+                        style={{
+                          border:
+                            active
+                              ? "2px solid #FF5A3C"
+                              : "1px solid #E2E5E9",
+
+                          background:
+                            active
+                              ? "#FFF5F2"
+                              : "white",
+
+                          borderRadius:
+                            "14px",
+
+                          padding:
+                            "15px",
+
+                          textAlign:
+                            "left",
+
+                          cursor:
+                            "pointer",
+                        }}
+                      >
+                        <div
+                          style={{
+                            color:
+                              "#667085",
+                            fontSize:
+                              "12px",
+                            fontWeight:
+                              "800",
+                            marginBottom:
+                              "6px",
+                          }}
+                        >
+                          {getDayLabel(
+                            day.date,
+                            index
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            fontWeight:
+                              "900",
+                            fontSize:
+                              "16px",
+                          }}
+                        >
+                          {formatDateRomanian(
+                            day.date
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop:
+                              "8px",
+                            color:
+                              day.offers
+                                .length >
+                              0
+                                ? "#FF5A3C"
+                                : "#98A2B3",
+                            fontWeight:
+                              "900",
+                            fontSize:
+                              "13px",
+                          }}
+                        >
+                          {day.offers
+                            .length >
+                          0
+                            ? `${day.offers.length} ${
+                                day
+                                  .offers
+                                  .length ===
+                                1
+                                  ? "ofertă"
+                                  : "oferte"
+                              }`
+                            : "Fără ofertă"}
+                        </div>
+                      </button>
+                    );
+                  }
+                )}
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              background:
+                "white",
+              border:
+                "1px solid #E7E9ED",
+              borderRadius:
+                "20px",
+              padding: "25px",
+            }}
+          >
+            <h2
+              style={{
+                margin:
+                  "0 0 5px",
+                fontSize: "24px",
+              }}
+            >
+              Oferte pentru{" "}
+              {formatDateRomanian(
+                date
+              )}
+            </h2>
+
+            <p
+              style={{
+                margin:
+                  "0 0 20px",
+                color: "#667085",
+                lineHeight: 1.5,
+              }}
+            >
+              Alege intervalul care
+              ți se potrivește.
+            </p>
+
+            {selectedDayOffers.length >
+            0 ? (
+              <div
+                style={{
+                  display: "grid",
+                  gap: "12px",
+                }}
+              >
+                {selectedDayOffers.map(
+                  (offer) => {
+                    const active =
+                      selectedOfferId ===
+                      offer.id;
+
+                    return (
+                      <div
+                        key={
+                          offer.id
+                        }
+                        style={{
+                          border:
+                            active
+                              ? "2px solid #FF5A3C"
+                              : "1px solid #E4E7EC",
+
+                          background:
+                            active
+                              ? "#FFF5F2"
+                              : "white",
+
+                          borderRadius:
+                            "16px",
+
+                          padding:
+                            "18px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            justifyContent:
+                              "space-between",
+                            alignItems:
+                              "center",
+                            gap: "12px",
+                            flexWrap:
+                              "wrap",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                color:
+                                  "#FF5A3C",
+                                fontSize:
+                                  "28px",
+                                fontWeight:
+                                  "900",
+                              }}
+                            >
+                              -
+                              {
+                                offer.discount_percent
+                              }
+                              %
+                            </div>
+
+                            <div
+                              style={{
+                                marginTop:
+                                  "5px",
+                                fontWeight:
+                                  "900",
+                              }}
+                            >
+                              {formatTime(
+                                offer.start_time
+                              )}{" "}
+                              -{" "}
+                              {formatTime(
+                                offer.end_time
+                              )}
+                            </div>
+
+                            <div
+                              style={{
+                                color:
+                                  "#667085",
+                                marginTop:
+                                  "5px",
+                                fontSize:
+                                  "14px",
+                              }}
+                            >
+                              👥{" "}
+                              {
+                                offer.capacity
+                              }{" "}
+                              locuri
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              selectOffer(
+                                offer
+                              )
+                            }
+                            style={{
+                              border:
+                                "none",
+                              background:
+                                active
+                                  ? "#16865C"
+                                  : "#172033",
+                              color:
+                                "white",
+                              borderRadius:
+                                "10px",
+                              padding:
+                                "11px 14px",
+                              fontWeight:
+                                "900",
+                              cursor:
+                                "pointer",
+                            }}
+                          >
+                            {active
+                              ? "✓ Selectată"
+                              : "Alege oferta"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  background:
+                    "#F2F4F7",
+                  border:
+                    "1px solid #E4E7EC",
+                  borderRadius:
+                    "14px",
+                  padding: "20px",
+                }}
+              >
+                <strong
                   style={{
-                    color: "#667085",
-                    fontWeight: "900",
-                    fontSize: "25px",
+                    display:
+                      "block",
                     marginBottom:
-                      "8px",
+                      "7px",
                   }}
                 >
-                  Fără ofertă
-                </div>
+                  Nicio ofertă setată
+                </strong>
 
-                <p
+                <div
                   style={{
-                    margin: 0,
                     color: "#667085",
                     lineHeight: 1.6,
                   }}
                 >
-                  Restaurantul nu are
-                  momentan o ofertă
-                  Masago activă.
-                </p>
-              </>
+                  Casa Bunicii nu a
+                  setat încă o ofertă
+                  pentru această zi.
+                </div>
+
+                <div
+                  style={{
+                    color: "#667085",
+                    lineHeight: 1.6,
+                    marginTop:
+                      "6px",
+                  }}
+                >
+                  Poți face în
+                  continuare o
+                  rezervare normală,
+                  fără reducere.
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -779,7 +1142,8 @@ export default function RestaurantPage() {
             background: "white",
             border:
               "1px solid #ebedf0",
-            borderRadius: "22px",
+            borderRadius:
+              "22px",
             padding: "30px",
             boxShadow:
               "0 18px 45px rgba(23,32,51,0.08)",
@@ -793,7 +1157,8 @@ export default function RestaurantPage() {
                   height: "64px",
                   margin:
                     "0 auto 20px",
-                  borderRadius: "50%",
+                  borderRadius:
+                    "50%",
                   background:
                     "#E9F8EF",
                   color: "#16865C",
@@ -810,38 +1175,37 @@ export default function RestaurantPage() {
 
               <div
                 style={{
-                  textAlign: "center",
+                  textAlign:
+                    "center",
                 }}
               >
                 <p
                   style={{
                     margin: 0,
-                    color: "#16865C",
+                    color:
+                      "#16865C",
+                    fontWeight:
+                      "900",
                     textTransform:
                       "uppercase",
                     letterSpacing:
                       "1px",
-                    fontSize: "13px",
-                    fontWeight: "900",
+                    fontSize:
+                      "13px",
                   }}
                 >
                   Rezervare trimisă
                 </p>
 
-                <h2
-                  style={{
-                    fontSize: "30px",
-                    margin:
-                      "8px 0",
-                  }}
-                >
+                <h2>
                   Mulțumim,{" "}
                   {confirmation.name}!
                 </h2>
 
                 <p
                   style={{
-                    color: "#737C8D",
+                    color:
+                      "#737C8D",
                     lineHeight: 1.6,
                   }}
                 >
@@ -852,23 +1216,50 @@ export default function RestaurantPage() {
                   restaurantului.
                 </p>
 
-                {confirmation.discount && (
-                  <p
+                {confirmation.discount ? (
+                  <div
                     style={{
+                      marginTop:
+                        "15px",
+                      background:
+                        "#FFF0EC",
+                      padding:
+                        "14px",
+                      borderRadius:
+                        "12px",
                       color:
                         "#FF5A3C",
                       fontWeight:
                         "900",
-                      fontSize:
-                        "18px",
                     }}
                   >
-                    Oferta rezervată: -
+                    Oferta rezervată:
+                    -
                     {
                       confirmation.discount
                     }
                     %
-                  </p>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      marginTop:
+                        "15px",
+                      background:
+                        "#F2F4F7",
+                      padding:
+                        "14px",
+                      borderRadius:
+                        "12px",
+                      color:
+                        "#667085",
+                      fontWeight:
+                        "800",
+                    }}
+                  >
+                    Rezervare fără
+                    ofertă Masago.
+                  </div>
                 )}
               </div>
 
@@ -888,13 +1279,16 @@ export default function RestaurantPage() {
               >
                 <div
                   style={{
-                    color: "#AEB7C6",
-                    fontSize: "12px",
+                    color:
+                      "#AEB7C6",
+                    fontSize:
+                      "12px",
                     textTransform:
                       "uppercase",
                     letterSpacing:
                       "1px",
-                    fontWeight: "800",
+                    fontWeight:
+                      "800",
                   }}
                 >
                   Cod rezervare
@@ -902,14 +1296,19 @@ export default function RestaurantPage() {
 
                 <div
                   style={{
-                    fontSize: "27px",
-                    fontWeight: "900",
+                    fontSize:
+                      "27px",
+                    fontWeight:
+                      "900",
                     letterSpacing:
                       "2px",
-                    marginTop: "8px",
+                    marginTop:
+                      "8px",
                   }}
                 >
-                  {confirmation.code}
+                  {
+                    confirmation.code
+                  }
                 </div>
               </div>
 
@@ -922,22 +1321,26 @@ export default function RestaurantPage() {
                     "border-box",
                   textDecoration:
                     "none",
-                  textAlign: "center",
+                  textAlign:
+                    "center",
                   background:
                     "#FF5A3C",
                   color: "white",
                   borderRadius:
                     "12px",
                   padding: "15px",
-                  fontWeight: "900",
+                  fontWeight:
+                    "900",
                   marginBottom:
                     "12px",
                 }}
               >
-                Vezi statusul rezervării
+                Vezi statusul
+                rezervării
               </a>
 
               <button
+                type="button"
                 onClick={
                   makeAnotherReservation
                 }
@@ -950,9 +1353,12 @@ export default function RestaurantPage() {
                   padding: "14px",
                   background:
                     "white",
-                  color: "#172033",
-                  fontWeight: "900",
-                  cursor: "pointer",
+                  color:
+                    "#172033",
+                  fontWeight:
+                    "900",
+                  cursor:
+                    "pointer",
                 }}
               >
                 Fă altă rezervare
@@ -963,9 +1369,12 @@ export default function RestaurantPage() {
               <p
                 style={{
                   margin: 0,
-                  color: "#FF5A3C",
-                  fontWeight: "900",
-                  fontSize: "13px",
+                  color:
+                    "#FF5A3C",
+                  fontWeight:
+                    "900",
+                  fontSize:
+                    "13px",
                   textTransform:
                     "uppercase",
                   letterSpacing:
@@ -987,18 +1396,20 @@ export default function RestaurantPage() {
 
               <p
                 style={{
-                  color: "#737c8d",
+                  color:
+                    "#737C8D",
                   marginTop: 0,
                   marginBottom:
-                    "28px",
+                    "25px",
+                  lineHeight: 1.5,
                 }}
               >
-                Completează detaliile
-                și trimitem rezervarea
-                către restaurant.
+                Selectează ziua,
+                oferta și ora
+                rezervării.
               </p>
 
-              {offer && (
+              {selectedOffer ? (
                 <div
                   style={{
                     background:
@@ -1008,31 +1419,77 @@ export default function RestaurantPage() {
                     borderRadius:
                       "12px",
                     padding:
-                      "14px 16px",
+                      "15px",
                     marginBottom:
                       "22px",
-                    color: "#A33A29",
-                    fontWeight: "800",
+                    color:
+                      "#A33A29",
+                    fontWeight:
+                      "800",
                   }}
                 >
-                  🎁 Rezervare cu -
-                  {offer.discount_percent}
-                  % •{" "}
+                  <div
+                    style={{
+                      color:
+                        "#FF5A3C",
+                      fontSize:
+                        "21px",
+                      fontWeight:
+                        "900",
+                      marginBottom:
+                        "5px",
+                    }}
+                  >
+                    -
+                    {
+                      selectedOffer.discount_percent
+                    }
+                    %
+                  </div>
+
+                  📅{" "}
                   {formatDateRomanian(
-                    offer.offer_date
-                  )}{" "}
-                  •{" "}
+                    selectedOffer.offer_date
+                  )}
+                  <br />
+
+                  🕐{" "}
                   {formatTime(
-                    offer.start_time
+                    selectedOffer.start_time
                   )}{" "}
                   -{" "}
                   {formatTime(
-                    offer.end_time
+                    selectedOffer.end_time
                   )}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background:
+                      "#F2F4F7",
+                    border:
+                      "1px solid #E4E7EC",
+                    borderRadius:
+                      "12px",
+                    padding:
+                      "15px",
+                    marginBottom:
+                      "22px",
+                    color:
+                      "#667085",
+                    fontWeight:
+                      "800",
+                  }}
+                >
+                  ℹ️ Restaurantul nu
+                  a setat încă o ofertă
+                  pentru ziua selectată.
                 </div>
               )}
 
-              <div style={fieldStyle}>
+              <div
+                style={fieldStyle}
+              >
                 <label
                   style={labelStyle}
                 >
@@ -1042,81 +1499,93 @@ export default function RestaurantPage() {
                 <input
                   type="date"
                   value={date}
-                  min={
-                    new Date()
-                      .toISOString()
-                      .split("T")[0]
+                  min={today}
+                  max={
+                    maxReservationDate
                   }
                   onChange={(e) =>
-                    setDate(
+                    handleDateChange(
                       e.target.value
                     )
                   }
                   style={inputStyle}
                 />
-
-                {date && (
-                  <div
-                    style={{
-                      marginTop: "7px",
-                      color: "#7a8393",
-                      fontSize: "14px",
-                    }}
-                  >
-                    Data selectată:{" "}
-                    <strong>
-                      {formatDateRomanian(
-                        date
-                      )}
-                    </strong>
-                  </div>
-                )}
               </div>
 
-              <div style={fieldStyle}>
+              <div
+                style={fieldStyle}
+              >
                 <label
                   style={labelStyle}
                 >
-                  Ora
+                  Ora rezervării
                 </label>
 
-                <select
+                <input
+                  type="time"
                   value={time}
+                  min={
+                    selectedOffer
+                      ? formatTime(
+                          selectedOffer.start_time
+                        )
+                      : undefined
+                  }
+                  max={
+                    selectedOffer
+                      ? formatTime(
+                          selectedOffer.end_time
+                        )
+                      : undefined
+                  }
                   onChange={(e) =>
                     setTime(
                       e.target.value
                     )
                   }
                   style={inputStyle}
-                >
-                  <option value="18:00">
-                    18:00
-                  </option>
-                  <option value="18:30">
-                    18:30
-                  </option>
-                  <option value="19:00">
-                    19:00
-                  </option>
-                  <option value="19:30">
-                    19:30
-                  </option>
-                  <option value="20:00">
-                    20:00
-                  </option>
-                  <option value="20:30">
-                    20:30
-                  </option>
-                  <option value="21:00">
-                    21:00
-                  </option>
-                  <option value="21:30">
-                    21:30
-                  </option>
-                </select>
+                />
+
+                {selectedOffer && (
+                  <div
+                    style={{
+                      marginTop:
+                        "8px",
+                      color:
+                        "#667085",
+                      fontSize:
+                        "13px",
+                    }}
+                  >
+                    Pentru reducerea
+                    de{" "}
+                    <strong>
+                      -
+                      {
+                        selectedOffer.discount_percent
+                      }
+                      %
+                    </strong>
+                    , rezervarea
+                    trebuie făcută
+                    între{" "}
+                    <strong>
+                      {formatTime(
+                        selectedOffer.start_time
+                      )}{" "}
+                      și{" "}
+                      {formatTime(
+                        selectedOffer.end_time
+                      )}
+                    </strong>
+                    .
+                  </div>
+                )}
               </div>
 
-              <div style={fieldStyle}>
+              <div
+                style={fieldStyle}
+              >
                 <label
                   style={labelStyle}
                 >
@@ -1159,7 +1628,9 @@ export default function RestaurantPage() {
                 </select>
               </div>
 
-              <div style={fieldStyle}>
+              <div
+                style={fieldStyle}
+              >
                 <label
                   style={labelStyle}
                 >
@@ -1179,7 +1650,9 @@ export default function RestaurantPage() {
                 />
               </div>
 
-              <div style={fieldStyle}>
+              <div
+                style={fieldStyle}
+              >
                 <label
                   style={labelStyle}
                 >
@@ -1200,6 +1673,7 @@ export default function RestaurantPage() {
               </div>
 
               <button
+                type="button"
                 onClick={
                   handleReservation
                 }
@@ -1211,35 +1685,43 @@ export default function RestaurantPage() {
                   borderRadius:
                     "12px",
                   padding: "16px",
-                  background: loading
-                    ? "#aeb4bf"
-                    : "#FF5A3C",
+
+                  background:
+                    loading
+                      ? "#aeb4bf"
+                      : "#FF5A3C",
+
                   color: "white",
                   fontSize: "17px",
                   fontWeight: "900",
-                  cursor: loading
-                    ? "not-allowed"
-                    : "pointer",
+
+                  cursor:
+                    loading
+                      ? "not-allowed"
+                      : "pointer",
                 }}
               >
                 {loading
                   ? "Se trimite..."
-                  : offer
-                  ? `Rezervă cu -${offer.discount_percent}%`
-                  : "Rezervă masa"}
+                  : selectedOffer
+                  ? `Rezervă cu -${selectedOffer.discount_percent}%`
+                  : "Rezervă fără reducere"}
               </button>
 
               {message && (
                 <div
                   style={{
-                    marginTop: "20px",
+                    marginTop:
+                      "20px",
                     padding: "14px",
                     borderRadius:
                       "11px",
                     background:
                       "#FFF0EC",
-                    color: "#A33A29",
-                    fontWeight: "800",
+                    color:
+                      "#A33A29",
+                    fontWeight:
+                      "800",
                     textAlign:
                       "center",
                   }}
