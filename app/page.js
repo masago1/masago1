@@ -1,10 +1,15 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 export default function Home() {
+  const [offersByRestaurant, setOffersByRestaurant] = useState({});
+
   const restaurants = [
     {
       name: "Casa Bunicii",
       type: "Românesc",
       rating: "9.2",
-      discount: "-30%",
       location: "Timișoara",
       emoji: "🍲",
       href: "/restaurant",
@@ -14,13 +19,113 @@ export default function Home() {
       name: "Boom Pub",
       type: "Pub",
       rating: "9.1",
-      discount: "-20%",
       location: "Timișoara",
       emoji: "🍻",
       href: "/restaurant/boom-pub",
       description: "Atmosferă relaxată, băuturi și preparate de pub.",
     },
   ];
+
+  useEffect(() => {
+    loadOffers();
+  }, []);
+
+  async function loadOffers() {
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Supabase nu este configurat.");
+      return;
+    }
+
+    try {
+      const restaurantsResponse = await fetch(
+        `${supabaseUrl}/rest/v1/restaurants?select=id,name`,
+        {
+          headers: {
+            apikey: supabaseKey,
+          },
+        }
+      );
+
+      const restaurantRows =
+        await restaurantsResponse.json();
+
+      if (!restaurantsResponse.ok) {
+        console.error(
+          "Restaurants error:",
+          restaurantRows
+        );
+        return;
+      }
+
+      const today = new Date()
+        .toISOString()
+        .slice(0, 10);
+
+      const offersResponse = await fetch(
+        `${supabaseUrl}/rest/v1/offers?select=*&active=eq.true&offer_date=gte.${today}&order=offer_date.asc,start_time.asc`,
+        {
+          headers: {
+            apikey: supabaseKey,
+          },
+        }
+      );
+
+      const offersData =
+        await offersResponse.json();
+
+      if (!offersResponse.ok) {
+        console.error(
+          "Offers error:",
+          offersData
+        );
+        return;
+      }
+
+      const mappedOffers = {};
+
+      restaurantRows.forEach((dbRestaurant) => {
+        const restaurantOffers =
+          offersData.filter(
+            (offer) =>
+              offer.restaurant_id ===
+              dbRestaurant.id
+          );
+
+        if (restaurantOffers.length > 0) {
+          mappedOffers[dbRestaurant.name] =
+            restaurantOffers[0];
+        }
+      });
+
+      setOffersByRestaurant(mappedOffers);
+    } catch (error) {
+      console.error(
+        "Eroare încărcare oferte:",
+        error
+      );
+    }
+  }
+
+  function formatOfferDate(date) {
+    if (!date) return "";
+
+    const [year, month, day] =
+      date.split("-");
+
+    return `${day}/${month}/${year}`;
+  }
+
+  function formatOfferTime(time) {
+    if (!time) return "";
+
+    return String(time).slice(0, 5);
+  }
 
   return (
     <main
@@ -56,7 +161,10 @@ export default function Home() {
             letterSpacing: "-1px",
           }}
         >
-          Masago<span style={{ color: "#FF5A3C" }}>.</span>
+          Masago
+          <span style={{ color: "#FF5A3C" }}>
+            .
+          </span>
         </a>
 
         <div
@@ -116,8 +224,10 @@ export default function Home() {
           <div
             style={{
               display: "inline-block",
-              background: "rgba(255,90,60,0.16)",
-              border: "1px solid rgba(255,90,60,0.35)",
+              background:
+                "rgba(255,90,60,0.16)",
+              border:
+                "1px solid rgba(255,90,60,0.35)",
               color: "#FF8A73",
               padding: "8px 13px",
               borderRadius: "999px",
@@ -131,7 +241,8 @@ export default function Home() {
 
           <h1
             style={{
-              fontSize: "clamp(44px, 7vw, 74px)",
+              fontSize:
+                "clamp(44px, 7vw, 74px)",
               lineHeight: "0.98",
               letterSpacing: "-3px",
               margin: 0,
@@ -140,7 +251,12 @@ export default function Home() {
           >
             Descoperă mese bune,
             <br />
-            <span style={{ color: "#FF5A3C" }}>
+
+            <span
+              style={{
+                color: "#FF5A3C",
+              }}
+            >
               la momentul potrivit.
             </span>
           </h1>
@@ -154,8 +270,9 @@ export default function Home() {
               lineHeight: 1.6,
             }}
           >
-            Rezervă la restaurante din Timișoara și profită de reduceri
-            disponibile în anumite intervale.
+            Rezervă la restaurante din Timișoara
+            și profită de reduceri disponibile în
+            anumite intervale.
           </p>
 
           <div
@@ -167,7 +284,8 @@ export default function Home() {
               borderRadius: "16px",
               display: "flex",
               gap: "8px",
-              boxShadow: "0 18px 60px rgba(0,0,0,0.22)",
+              boxShadow:
+                "0 18px 60px rgba(0,0,0,0.22)",
             }}
           >
             <input
@@ -235,7 +353,8 @@ export default function Home() {
             maxWidth: "1180px",
             margin: "auto",
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(180px, 1fr))",
             gap: "18px",
           }}
         >
@@ -243,7 +362,10 @@ export default function Home() {
             ["⚡", "Rezervare rapidă"],
             ["💸", "Reduceri la nota de plată"],
             ["📍", "Restaurante locale"],
-            ["✅", "Confirmare de la restaurant"],
+            [
+              "✅",
+              "Confirmare de la restaurant",
+            ],
           ].map(([icon, text]) => (
             <div
               key={text}
@@ -255,7 +377,14 @@ export default function Home() {
                 color: "#485267",
               }}
             >
-              <span style={{ fontSize: "21px" }}>{icon}</span>
+              <span
+                style={{
+                  fontSize: "21px",
+                }}
+              >
+                {icon}
+              </span>
+
               <span>{text}</span>
             </div>
           ))}
@@ -310,7 +439,8 @@ export default function Home() {
                 fontSize: "17px",
               }}
             >
-              Alege restaurantul, intervalul și rezervă în câteva secunde.
+              Alege restaurantul, intervalul și
+              rezervă în câteva secunde.
             </p>
           </div>
 
@@ -327,140 +457,217 @@ export default function Home() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(290px, 1fr))",
             gap: "26px",
           }}
         >
-          {restaurants.map((restaurant) => (
-            <article
-              key={restaurant.name}
-              style={{
-                background: "white",
-                borderRadius: "22px",
-                overflow: "hidden",
-                border: "1px solid #ebedf0",
-                boxShadow: "0 12px 35px rgba(23,32,51,0.07)",
-              }}
-            >
-              <div
+          {restaurants.map((restaurant) => {
+            const offer =
+              offersByRestaurant[
+                restaurant.name
+              ];
+
+            return (
+              <article
+                key={restaurant.name}
                 style={{
-                  height: "220px",
-                  background:
-                    "linear-gradient(135deg, #f1f2f4, #e8eaed)",
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  background: "white",
+                  borderRadius: "22px",
+                  overflow: "hidden",
+                  border:
+                    "1px solid #ebedf0",
+                  boxShadow:
+                    "0 12px 35px rgba(23,32,51,0.07)",
                 }}
               >
-                <span style={{ fontSize: "90px" }}>
-                  {restaurant.emoji}
-                </span>
-
                 <div
                   style={{
-                    position: "absolute",
-                    top: "16px",
-                    left: "16px",
-                    background: "#FF5A3C",
-                    color: "white",
-                    fontWeight: "900",
-                    fontSize: "20px",
-                    padding: "9px 12px",
-                    borderRadius: "10px",
-                    boxShadow: "0 8px 20px rgba(255,90,60,0.28)",
-                  }}
-                >
-                  {restaurant.discount}
-                </div>
-
-                <div
-                  style={{
-                    position: "absolute",
-                    right: "16px",
-                    top: "16px",
-                    background: "rgba(255,255,255,0.94)",
-                    padding: "8px 10px",
-                    borderRadius: "10px",
-                    fontWeight: "800",
-                  }}
-                >
-                  ⭐ {restaurant.rating}
-                </div>
-              </div>
-
-              <div style={{ padding: "22px" }}>
-                <h3
-                  style={{
-                    margin: 0,
-                    fontSize: "24px",
-                    letterSpacing: "-0.5px",
-                  }}
-                >
-                  {restaurant.name}
-                </h3>
-
-                <p
-                  style={{
-                    color: "#7a8393",
-                    margin: "8px 0 12px",
-                  }}
-                >
-                  {restaurant.type} • {restaurant.location}
-                </p>
-
-                <p
-                  style={{
-                    color: "#485267",
-                    lineHeight: 1.5,
-                    minHeight: "48px",
-                  }}
-                >
-                  {restaurant.description}
-                </p>
-
-                <div
-                  style={{
-                    margin: "18px 0",
-                    paddingTop: "16px",
-                    borderTop: "1px solid #eeeeee",
+                    height: "220px",
+                    background:
+                      "linear-gradient(135deg, #f1f2f4, #e8eaed)",
+                    position: "relative",
                     display: "flex",
-                    justifyContent: "space-between",
-                    gap: "12px",
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
                   <span
                     style={{
-                      color: "#667085",
-                      fontSize: "14px",
+                      fontSize: "90px",
                     }}
                   >
-                    Ofertă disponibilă
+                    {restaurant.emoji}
                   </span>
 
-                  <strong style={{ color: "#FF5A3C" }}>
-                    la nota de plată
-                  </strong>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "16px",
+                      left: "16px",
+                      background: offer
+                        ? "#FF5A3C"
+                        : "#98A2B3",
+                      color: "white",
+                      fontWeight: "900",
+                      fontSize: offer
+                        ? "20px"
+                        : "13px",
+                      padding: "9px 12px",
+                      borderRadius: "10px",
+                      boxShadow: offer
+                        ? "0 8px 20px rgba(255,90,60,0.28)"
+                        : "none",
+                    }}
+                  >
+                    {offer
+                      ? `-${offer.discount_percent}%`
+                      : "Fără ofertă"}
+                  </div>
+
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: "16px",
+                      top: "16px",
+                      background:
+                        "rgba(255,255,255,0.94)",
+                      padding: "8px 10px",
+                      borderRadius: "10px",
+                      fontWeight: "800",
+                    }}
+                  >
+                    ⭐ {restaurant.rating}
+                  </div>
                 </div>
 
-                <a
-                  href={restaurant.href}
+                <div
                   style={{
-                    display: "block",
-                    background: "#172033",
-                    color: "white",
-                    textDecoration: "none",
-                    textAlign: "center",
-                    padding: "14px",
-                    borderRadius: "11px",
-                    fontWeight: "800",
+                    padding: "22px",
                   }}
                 >
-                  Vezi disponibilitatea
-                </a>
-              </div>
-            </article>
-          ))}
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: "24px",
+                      letterSpacing: "-0.5px",
+                    }}
+                  >
+                    {restaurant.name}
+                  </h3>
+
+                  <p
+                    style={{
+                      color: "#7a8393",
+                      margin: "8px 0 12px",
+                    }}
+                  >
+                    {restaurant.type} •{" "}
+                    {restaurant.location}
+                  </p>
+
+                  <p
+                    style={{
+                      color: "#485267",
+                      lineHeight: 1.5,
+                      minHeight: "48px",
+                    }}
+                  >
+                    {restaurant.description}
+                  </p>
+
+                  <div
+                    style={{
+                      margin: "18px 0",
+                      paddingTop: "16px",
+                      borderTop:
+                        "1px solid #eeeeee",
+                      display: "flex",
+                      justifyContent:
+                        "space-between",
+                      alignItems: "center",
+                      gap: "12px",
+                    }}
+                  >
+                    {offer ? (
+                      <>
+                        <span
+                          style={{
+                            color: "#667085",
+                            fontSize: "14px",
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          {formatOfferDate(
+                            offer.offer_date
+                          )}
+                          <br />
+
+                          {formatOfferTime(
+                            offer.start_time
+                          )}{" "}
+                          -{" "}
+                          {formatOfferTime(
+                            offer.end_time
+                          )}
+                        </span>
+
+                        <strong
+                          style={{
+                            color: "#FF5A3C",
+                            fontSize: "18px",
+                          }}
+                        >
+                          -
+                          {
+                            offer.discount_percent
+                          }
+                          %
+                        </strong>
+                      </>
+                    ) : (
+                      <>
+                        <span
+                          style={{
+                            color: "#667085",
+                            fontSize: "14px",
+                          }}
+                        >
+                          Momentan
+                        </span>
+
+                        <strong
+                          style={{
+                            color: "#98A2B3",
+                          }}
+                        >
+                          Fără ofertă
+                        </strong>
+                      </>
+                    )}
+                  </div>
+
+                  <a
+                    href={restaurant.href}
+                    style={{
+                      display: "block",
+                      background: "#172033",
+                      color: "white",
+                      textDecoration: "none",
+                      textAlign: "center",
+                      padding: "14px",
+                      borderRadius: "11px",
+                      fontWeight: "800",
+                    }}
+                  >
+                    {offer
+                      ? `Vezi oferta -${offer.discount_percent}%`
+                      : "Vezi disponibilitatea"}
+                  </a>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -513,8 +720,9 @@ export default function Home() {
                 fontSize: "17px",
               }}
             >
-              De la descoperirea restaurantului până la masă rezervată,
-              în doar câțiva pași.
+              De la descoperirea restaurantului
+              până la masă rezervată, în doar
+              câțiva pași.
             </p>
           </div>
 
@@ -522,7 +730,8 @@ export default function Home() {
             style={{
               marginTop: "50px",
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(220px, 1fr))",
               gap: "20px",
             }}
           >
@@ -558,7 +767,8 @@ export default function Home() {
                   background: "#202c43",
                   padding: "26px",
                   borderRadius: "18px",
-                  border: "1px solid #2c3952",
+                  border:
+                    "1px solid #2c3952",
                 }}
               >
                 <div
@@ -580,7 +790,11 @@ export default function Home() {
                   {item.icon}
                 </div>
 
-                <h3 style={{ margin: "0 0 10px" }}>
+                <h3
+                  style={{
+                    margin: "0 0 10px",
+                  }}
+                >
                   {item.title}
                 </h3>
 
@@ -621,7 +835,8 @@ export default function Home() {
             alignItems: "center",
             gap: "30px",
             flexWrap: "wrap",
-            boxShadow: "0 18px 45px rgba(255,90,60,0.16)",
+            boxShadow:
+              "0 18px 45px rgba(255,90,60,0.16)",
           }}
         >
           <div
@@ -664,8 +879,9 @@ export default function Home() {
                 lineHeight: 1.6,
               }}
             >
-              Contactează-ne pentru a afla mai multe despre Masago și
-              posibilitatea unei colaborări.
+              Contactează-ne pentru a afla mai
+              multe despre Masago și posibilitatea
+              unei colaborări.
             </p>
           </div>
 
@@ -679,7 +895,8 @@ export default function Home() {
               borderRadius: "11px",
               fontWeight: "900",
               fontSize: "16px",
-              boxShadow: "0 8px 20px rgba(0,0,0,0.10)",
+              boxShadow:
+                "0 8px 20px rgba(0,0,0,0.10)",
             }}
           >
             Contactează-ne →
@@ -695,7 +912,11 @@ export default function Home() {
           textAlign: "center",
         }}
       >
-        <strong style={{ color: "#172033" }}>
+        <strong
+          style={{
+            color: "#172033",
+          }}
+        >
           Masago.
         </strong>{" "}
         © 2026
