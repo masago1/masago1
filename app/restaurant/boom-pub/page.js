@@ -70,10 +70,6 @@ export default function RestaurantPage() {
         .toISOString()
         .slice(0, 10);
 
-      /*
-        id.desc = ultima ofertă creată
-        de Boom Pub apare prima.
-      */
       const offerResponse = await fetch(
         `${supabaseUrl}/rest/v1/offers?restaurant_id=eq.${restaurantId}&active=eq.true&offer_date=gte.${today}&select=*&order=id.desc&limit=1`,
         {
@@ -207,6 +203,8 @@ export default function RestaurantPage() {
       discount:
         offer?.discount_percent ||
         null,
+      offerId:
+        offer?.id || null,
     };
 
     setLoading(true);
@@ -247,6 +245,13 @@ export default function RestaurantPage() {
 
             reservation_code:
               reservationCode,
+
+            offer_id:
+              offer?.id || null,
+
+            discount_percent:
+              offer?.discount_percent ||
+              null,
           }),
         }
       );
@@ -1052,23 +1057,6 @@ export default function RestaurantPage() {
                   }
                   style={inputStyle}
                 />
-
-                {date && (
-                  <div
-                    style={{
-                      marginTop: "7px",
-                      color: "#7a8393",
-                      fontSize: "14px",
-                    }}
-                  >
-                    Data selectată:{" "}
-                    <strong>
-                      {formatDateRomanian(
-                        date
-                      )}
-                    </strong>
-                  </div>
-                )}
               </div>
 
               <div style={fieldStyle}>
