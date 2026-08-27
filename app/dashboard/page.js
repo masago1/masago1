@@ -229,52 +229,62 @@ export default function DashboardPage() {
   ========================= */
 
   async function loadReservations(
-    accessToken,
-    supabaseUrl,
-    supabaseKey
-  ) {
-    try {
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/reservations?select=*&order=id.desc`,
-        {
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
+  accessToken,
+  supabaseUrl,
+  supabaseKey
+) {
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/get_my_restaurant_reservations`,
+      {
+        method: "POST",
+
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({}),
+      }
+    );
+
+    if (response.status === 401) {
+      handleLogout();
+      return;
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error(
+        "Reservations error:",
+        data
       );
-
-      if (response.status === 401) {
-        handleLogout();
-        return;
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        console.error(
-          "Reservations error:",
-          data
-        );
-
-        setMessage(
-          "Nu am putut încărca rezervările."
-        );
-
-        return;
-      }
-
-      setReservations(data || []);
-    } catch (error) {
-      console.error(error);
 
       setMessage(
-        "A apărut o eroare la încărcarea rezervărilor."
+        data?.message ||
+          data?.error ||
+          "Nu am putut încărca rezervările restaurantului."
       );
-    } finally {
-      setLoading(false);
+
+      return;
     }
+
+    setReservations(data || []);
+  } catch (error) {
+    console.error(
+      "Load reservations error:",
+      error
+    );
+
+    setMessage(
+      "A apărut o eroare la încărcarea rezervărilor."
+    );
+  } finally {
+    setLoading(false);
   }
+}
 
   /* =========================
      OFFERS
