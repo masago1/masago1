@@ -36,7 +36,6 @@ export default function RestaurantPage() {
     }
 
     try {
-      // Găsim ID-ul pentru Casa Bunicii
       const restaurantResponse = await fetch(
         `${supabaseUrl}/rest/v1/restaurants?name=eq.${encodeURIComponent(
           "Casa Bunicii"
@@ -71,10 +70,12 @@ export default function RestaurantPage() {
         .toISOString()
         .slice(0, 10);
 
-      // Luăm prima ofertă activă disponibilă,
-      // exact în aceeași ordine ca pe homepage
+      /*
+        IMPORTANT:
+        id.desc = ultima ofertă creată.
+      */
       const offerResponse = await fetch(
-        `${supabaseUrl}/rest/v1/offers?restaurant_id=eq.${restaurantId}&active=eq.true&offer_date=gte.${today}&select=*&order=offer_date.asc,start_time.asc&limit=1`,
+        `${supabaseUrl}/rest/v1/offers?restaurant_id=eq.${restaurantId}&active=eq.true&offer_date=gte.${today}&select=*&order=id.desc&limit=1`,
         {
           headers: {
             apikey: supabaseKey,
@@ -101,7 +102,6 @@ export default function RestaurantPage() {
 
         setOffer(currentOffer);
 
-        // Punem automat data și ora ofertei în formular
         setDate(
           currentOffer.offer_date || ""
         );
@@ -341,8 +341,6 @@ export default function RestaurantPage() {
         color: "#172033",
       }}
     >
-      {/* HEADER */}
-
       <header
         style={{
           background: "white",
@@ -389,8 +387,6 @@ export default function RestaurantPage() {
           ← Înapoi la restaurante
         </a>
       </header>
-
-      {/* HERO */}
 
       <section
         style={{
@@ -548,8 +544,6 @@ export default function RestaurantPage() {
         </div>
       </section>
 
-      {/* CONTENT */}
-
       <section
         style={{
           maxWidth: "1180px",
@@ -562,8 +556,6 @@ export default function RestaurantPage() {
           alignItems: "start",
         }}
       >
-        {/* LEFT */}
-
         <div>
           <div
             style={{
@@ -593,9 +585,9 @@ export default function RestaurantPage() {
               }}
             >
               Casa Bunicii este listat
-              în Masago pentru
-              rezervări cu reducere în
-              intervalele disponibile.
+              în Masago pentru rezervări
+              cu reducere în intervalele
+              disponibile.
             </p>
 
             <div
@@ -651,8 +643,6 @@ export default function RestaurantPage() {
               </div>
             </div>
           </div>
-
-          {/* OFERTA */}
 
           <div
             style={{
@@ -738,6 +728,7 @@ export default function RestaurantPage() {
                     offer.offer_date
                   )}
                   <br />
+
                   🕐{" "}
                   {formatTime(
                     offer.start_time
@@ -747,6 +738,7 @@ export default function RestaurantPage() {
                     offer.end_time
                   )}
                   <br />
+
                   👥{" "}
                   {offer.capacity}{" "}
                   locuri
@@ -781,8 +773,6 @@ export default function RestaurantPage() {
             )}
           </div>
         </div>
-
-        {/* FORMULAR */}
 
         <div
           style={{
@@ -1042,9 +1032,7 @@ export default function RestaurantPage() {
                 </div>
               )}
 
-              <div
-                style={fieldStyle}
-              >
+              <div style={fieldStyle}>
                 <label
                   style={labelStyle}
                 >
@@ -1085,9 +1073,7 @@ export default function RestaurantPage() {
                 )}
               </div>
 
-              <div
-                style={fieldStyle}
-              >
+              <div style={fieldStyle}>
                 <label
                   style={labelStyle}
                 >
@@ -1106,40 +1092,31 @@ export default function RestaurantPage() {
                   <option value="18:00">
                     18:00
                   </option>
-
                   <option value="18:30">
                     18:30
                   </option>
-
                   <option value="19:00">
                     19:00
                   </option>
-
                   <option value="19:30">
                     19:30
                   </option>
-
                   <option value="20:00">
                     20:00
                   </option>
-
                   <option value="20:30">
                     20:30
                   </option>
-
                   <option value="21:00">
                     21:00
                   </option>
-
                   <option value="21:30">
                     21:30
                   </option>
                 </select>
               </div>
 
-              <div
-                style={fieldStyle}
-              >
+              <div style={fieldStyle}>
                 <label
                   style={labelStyle}
                 >
@@ -1158,40 +1135,31 @@ export default function RestaurantPage() {
                   <option value="1">
                     1 persoană
                   </option>
-
                   <option value="2">
                     2 persoane
                   </option>
-
                   <option value="3">
                     3 persoane
                   </option>
-
                   <option value="4">
                     4 persoane
                   </option>
-
                   <option value="5">
                     5 persoane
                   </option>
-
                   <option value="6">
                     6 persoane
                   </option>
-
                   <option value="7">
                     7 persoane
                   </option>
-
                   <option value="8">
                     8 persoane
                   </option>
                 </select>
               </div>
 
-              <div
-                style={fieldStyle}
-              >
+              <div style={fieldStyle}>
                 <label
                   style={labelStyle}
                 >
@@ -1211,9 +1179,7 @@ export default function RestaurantPage() {
                 />
               </div>
 
-              <div
-                style={fieldStyle}
-              >
+              <div style={fieldStyle}>
                 <label
                   style={labelStyle}
                 >
