@@ -9,6 +9,7 @@ export default function VerificaRezervarePage() {
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     const savedCode =
@@ -32,8 +33,7 @@ export default function VerificaRezervarePage() {
       year,
       month,
       day,
-    ] =
-      date.split("-");
+    ] = date.split("-");
 
     return `${day}/${month}/${year}`;
   }
@@ -41,16 +41,11 @@ export default function VerificaRezervarePage() {
   function formatTime(time) {
     if (!time) return "";
 
-    return String(
-      time
-    ).slice(0, 5);
+    return String(time).slice(0, 5);
   }
 
   function getStatusData(status) {
-    if (
-      status ===
-      "accepted"
-    ) {
+    if (status === "accepted") {
       return {
         title:
           "Rezervare confirmată",
@@ -69,10 +64,7 @@ export default function VerificaRezervarePage() {
       };
     }
 
-    if (
-      status ===
-      "rejected"
-    ) {
+    if (status === "rejected") {
       return {
         title:
           "Rezervare respinsă",
@@ -88,6 +80,25 @@ export default function VerificaRezervarePage() {
 
         color:
           "#B42318",
+      };
+    }
+
+    if (status === "cancelled") {
+      return {
+        title:
+          "Rezervare anulată",
+
+        text:
+          "Această rezervare a fost anulată.",
+
+        icon:
+          "✕",
+
+        background:
+          "#F2F4F7",
+
+        color:
+          "#667085",
       };
     }
 
@@ -261,12 +272,6 @@ export default function VerificaRezervarePage() {
         foundReservation
       );
 
-      /*
-        Dacă rezervarea este legată
-        de o ofertă, încărcăm oferta
-        exactă folosită.
-      */
-
       if (
         foundReservation.offer_id
       ) {
@@ -299,6 +304,111 @@ export default function VerificaRezervarePage() {
     );
   }
 
+  async function cancelReservation() {
+    if (!reservation) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        reservation.status ===
+          "accepted"
+          ? "Rezervarea este deja confirmată. Dacă o anulezi, locurile vor deveni din nou disponibile. Vrei să continui?"
+          : "Sigur vrei să anulezi această rezervare?"
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const supabaseUrl =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey
+    ) {
+      setMessage(
+        "Conexiunea cu Supabase nu este configurată."
+      );
+
+      return;
+    }
+
+    setCancelling(true);
+    setMessage("");
+
+    try {
+      const response =
+        await fetch(
+          `${supabaseUrl}/rest/v1/rpc/cancel_reservation_by_code`,
+          {
+            method:
+              "POST",
+
+            headers: {
+              apikey:
+                supabaseKey,
+
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                p_code:
+                  reservation.reservation_code,
+              }),
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Cancel reservation error:",
+          data
+        );
+
+        setMessage(
+          data?.message ||
+            data?.error ||
+            "Rezervarea nu a putut fi anulată."
+        );
+
+        return;
+      }
+
+      setReservation(
+        (current) => ({
+          ...current,
+          status:
+            "cancelled",
+        })
+      );
+
+      setMessage(
+        "✓ Rezervarea a fost anulată."
+      );
+    } catch (error) {
+      console.error(
+        error
+      );
+
+      setMessage(
+        "A apărut o eroare la anularea rezervării."
+      );
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   const statusData =
     reservation
       ? getStatusData(
@@ -312,6 +422,15 @@ export default function VerificaRezervarePage() {
     offer
       ?.discount_percent ||
     null;
+
+  const canCancel =
+    reservation &&
+    (
+      reservation.status ===
+        "pending" ||
+      reservation.status ===
+        "accepted"
+    );
 
   return (
     <main
@@ -417,8 +536,6 @@ export default function VerificaRezervarePage() {
               "0 auto",
           }}
         >
-          {/* TITLE */}
-
           <div
             style={{
               textAlign:
@@ -475,8 +592,6 @@ export default function VerificaRezervarePage() {
               tale Masago.
             </p>
           </div>
-
-          {/* CARD */}
 
           <div
             style={{
@@ -614,7 +729,7 @@ export default function VerificaRezervarePage() {
               </button>
             </form>
 
-            {/* ERROR */}
+            {/* MESSAGE */}
 
             {message && (
               <div
@@ -629,10 +744,18 @@ export default function VerificaRezervarePage() {
                     "11px",
 
                   background:
-                    "#FFF0EC",
+                    message.startsWith(
+                      "✓"
+                    )
+                      ? "#E9F8EF"
+                      : "#FFF0EC",
 
                   color:
-                    "#A33A29",
+                    message.startsWith(
+                      "✓"
+                    )
+                      ? "#16865C"
+                      : "#A33A29",
 
                   fontWeight:
                     "800",
@@ -741,7 +864,7 @@ export default function VerificaRezervarePage() {
                     </p>
                   </div>
 
-                  {/* OFERTA */}
+                  {/* OFFER */}
 
                   {discount && (
                     <div
@@ -838,37 +961,8 @@ export default function VerificaRezervarePage() {
                           )}
                         </div>
                       )}
-
-                      <div
-                        style={{
-                          marginTop:
-                            "12px",
-
-                          color:
-                            "#A33A29",
-
-                          fontSize:
-                            "13px",
-
-                          lineHeight:
-                            1.6,
-
-                          fontWeight:
-                            "700",
-                        }}
-                      >
-                        Reducerea acestei
-                        rezervări rămâne
-                        cea afișată aici,
-                        chiar dacă
-                        restaurantul își
-                        modifică ofertele
-                        ulterior.
-                      </div>
                     </div>
                   )}
-
-                  {/* FARA OFERTA */}
 
                   {!discount && (
                     <div
@@ -1068,18 +1162,15 @@ export default function VerificaRezervarePage() {
                         Cod
                       </span>
 
-                      <strong
-                        style={{
-                          letterSpacing:
-                            "0.7px",
-                        }}
-                      >
-                        {reservation.reservation_code}
+                      <strong>
+                        {
+                          reservation.reservation_code
+                        }
                       </strong>
                     </div>
                   </div>
 
-                  {/* INFO PENDING */}
+                  {/* PENDING */}
 
                   {reservation.status ===
                     "pending" && (
@@ -1110,20 +1201,18 @@ export default function VerificaRezervarePage() {
                           1.6,
                       }}
                     >
-                      ⏳ Poți reveni pe
-                      această pagină și
+                      ⏳ Poți reveni și
                       apăsa{" "}
                       <strong>
                         „Actualizează statusul”
                       </strong>{" "}
                       pentru a vedea
-                      dacă restaurantul
-                      a confirmat
-                      rezervarea.
+                      răspunsul
+                      restaurantului.
                     </div>
                   )}
 
-                  {/* CONFIRMED INFO */}
+                  {/* ACCEPTED */}
 
                   {reservation.status ===
                     "accepted" && (
@@ -1166,7 +1255,46 @@ export default function VerificaRezervarePage() {
                     </div>
                   )}
 
-                  {/* REJECTED INFO */}
+                  {/* CANCELLED */}
+
+                  {reservation.status ===
+                    "cancelled" && (
+                    <div
+                      style={{
+                        marginTop:
+                          "18px",
+
+                        padding:
+                          "16px",
+
+                        background:
+                          "#F2F4F7",
+
+                        border:
+                          "1px solid #E4E7EC",
+
+                        borderRadius:
+                          "13px",
+
+                        color:
+                          "#667085",
+
+                        fontWeight:
+                          "800",
+
+                        lineHeight:
+                          1.6,
+                      }}
+                    >
+                      Rezervarea a fost
+                      anulată. Dacă era
+                      confirmată, locurile
+                      au devenit din nou
+                      disponibile.
+                    </div>
+                  )}
+
+                  {/* REJECTED */}
 
                   {reservation.status ===
                     "rejected" && (
@@ -1201,6 +1329,62 @@ export default function VerificaRezervarePage() {
                       putut fi confirmată
                       de restaurant.
                     </div>
+                  )}
+
+                  {/* CANCEL BUTTON */}
+
+                  {canCancel && (
+                    <button
+                      type="button"
+
+                      onClick={
+                        cancelReservation
+                      }
+
+                      disabled={
+                        cancelling
+                      }
+
+                      style={{
+                        width:
+                          "100%",
+
+                        marginTop:
+                          "20px",
+
+                        padding:
+                          "14px 16px",
+
+                        borderRadius:
+                          "12px",
+
+                        border:
+                          "1px solid #F1C6C0",
+
+                        background:
+                          cancelling
+                            ? "#F2F4F7"
+                            : "#FFF5F2",
+
+                        color:
+                          "#B42318",
+
+                        fontWeight:
+                          "900",
+
+                        fontSize:
+                          "15px",
+
+                        cursor:
+                          cancelling
+                            ? "not-allowed"
+                            : "pointer",
+                      }}
+                    >
+                      {cancelling
+                        ? "Se anulează..."
+                        : "Anulează rezervarea"}
+                    </button>
                   )}
                 </div>
               )}
