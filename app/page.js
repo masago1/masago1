@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [offersByRestaurant, setOffersByRestaurant] = useState({});
+  const [offersCountByRestaurant, setOffersCountByRestaurant] =
+    useState({});
   const [offersLoading, setOffersLoading] = useState(true);
 
   const restaurants = [
@@ -33,6 +34,27 @@ export default function Home() {
     loadOffers();
   }, []);
 
+  function getLocalDate(offset = 0) {
+    const currentDate = new Date();
+
+    currentDate.setDate(
+      currentDate.getDate() + offset
+    );
+
+    const year =
+      currentDate.getFullYear();
+
+    const month = String(
+      currentDate.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+      currentDate.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  }
+
   async function loadOffers() {
     const supabaseUrl =
       process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -41,7 +63,10 @@ export default function Home() {
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      console.error("Supabase nu este configurat.");
+      console.error(
+        "Supabase nu este configurat."
+      );
+
       setOffersLoading(false);
       return;
     }
@@ -64,19 +89,24 @@ export default function Home() {
           "Restaurants error:",
           restaurantRows
         );
+
         return;
       }
 
-      const today = new Date()
-        .toISOString()
-        .slice(0, 10);
+      const today =
+        getLocalDate(0);
+
+      const maxDate =
+        getLocalDate(3);
 
       /*
-        IMPORTANT:
-        id.desc = ultima ofertă creată apare prima.
+        Luăm ofertele active doar pentru
+        perioada pe care clientul o poate
+        rezerva pe pagina restaurantului:
+        azi + următoarele 3 zile.
       */
       const offersResponse = await fetch(
-        `${supabaseUrl}/rest/v1/offers?select=*&active=eq.true&offer_date=gte.${today}&order=id.desc`,
+        `${supabaseUrl}/rest/v1/offers?select=id,restaurant_id,offer_date,active&active=eq.true&offer_date=gte.${today}&offer_date=lte.${maxDate}&order=id.desc`,
         {
           headers: {
             apikey: supabaseKey,
@@ -92,31 +122,30 @@ export default function Home() {
           "Offers error:",
           offersData
         );
+
         return;
       }
 
-      const mappedOffers = {};
+      const mappedCounts = {};
 
-      restaurantRows.forEach((dbRestaurant) => {
-        const restaurantOffers =
-          offersData.filter(
-            (offer) =>
-              offer.restaurant_id ===
-              dbRestaurant.id
-          );
+      restaurantRows.forEach(
+        (dbRestaurant) => {
+          const count =
+            offersData.filter(
+              (offer) =>
+                offer.restaurant_id ===
+                dbRestaurant.id
+            ).length;
 
-        /*
-          Fiindcă offersData este ordonat id.desc,
-          [0] este ULTIMA ofertă creată
-          pentru restaurantul respectiv.
-        */
-        if (restaurantOffers.length > 0) {
-          mappedOffers[dbRestaurant.name] =
-            restaurantOffers[0];
+          mappedCounts[
+            dbRestaurant.name
+          ] = count;
         }
-      });
+      );
 
-      setOffersByRestaurant(mappedOffers);
+      setOffersCountByRestaurant(
+        mappedCounts
+      );
     } catch (error) {
       console.error(
         "Eroare încărcare oferte:",
@@ -127,25 +156,23 @@ export default function Home() {
     }
   }
 
-  function formatOfferDate(date) {
-    if (!date) return "";
+  function offerCountText(count) {
+    if (count === 1) {
+      return "1 ofertă disponibilă";
+    }
 
-    const [year, month, day] =
-      date.split("-");
+    if (count > 1) {
+      return `${count} oferte disponibile`;
+    }
 
-    return `${day}/${month}/${year}`;
-  }
-
-  function formatOfferTime(time) {
-    if (!time) return "";
-
-    return String(time).slice(0, 5);
+    return "Momentan fără oferte";
   }
 
   return (
     <main
       style={{
-        fontFamily: "Arial, sans-serif",
+        fontFamily:
+          "Arial, sans-serif",
         background: "#FAFAF8",
         minHeight: "100vh",
         color: "#172033",
@@ -155,16 +182,20 @@ export default function Home() {
 
       <header
         style={{
-          background: "rgba(255,255,255,0.96)",
-          borderBottom: "1px solid #ececec",
+          background:
+            "rgba(255,255,255,0.96)",
+          borderBottom:
+            "1px solid #ececec",
           padding: "18px 6%",
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent:
+            "space-between",
           alignItems: "center",
           position: "sticky",
           top: 0,
           zIndex: 50,
-          backdropFilter: "blur(10px)",
+          backdropFilter:
+            "blur(10px)",
         }}
       >
         <a
@@ -178,7 +209,11 @@ export default function Home() {
           }}
         >
           Masago
-          <span style={{ color: "#FF5A3C" }}>
+          <span
+            style={{
+              color: "#FF5A3C",
+            }}
+          >
             .
           </span>
         </a>
@@ -193,11 +228,14 @@ export default function Home() {
           <a
             href="#contact"
             style={{
-              textDecoration: "none",
+              textDecoration:
+                "none",
               color: "#172033",
-              border: "1px solid #dcdfe5",
+              border:
+                "1px solid #dcdfe5",
               background: "white",
-              padding: "11px 17px",
+              padding:
+                "11px 17px",
               borderRadius: "10px",
               fontWeight: "700",
             }}
@@ -208,10 +246,13 @@ export default function Home() {
           <a
             href="/login"
             style={{
-              textDecoration: "none",
+              textDecoration:
+                "none",
               color: "white",
-              background: "#172033",
-              padding: "12px 18px",
+              background:
+                "#172033",
+              padding:
+                "12px 18px",
               borderRadius: "10px",
               fontWeight: "700",
             }}
@@ -225,7 +266,8 @@ export default function Home() {
 
       <section
         style={{
-          padding: "90px 6% 80px",
+          padding:
+            "90px 6% 80px",
           background:
             "linear-gradient(135deg, #172033 0%, #202c43 65%, #2a3751 100%)",
           color: "white",
@@ -240,17 +282,20 @@ export default function Home() {
         >
           <div
             style={{
-              display: "inline-block",
+              display:
+                "inline-block",
               background:
                 "rgba(255,90,60,0.16)",
               border:
                 "1px solid rgba(255,90,60,0.35)",
               color: "#FF8A73",
               padding: "8px 13px",
-              borderRadius: "999px",
+              borderRadius:
+                "999px",
               fontWeight: "700",
               fontSize: "14px",
-              marginBottom: "22px",
+              marginBottom:
+                "22px",
             }}
           >
             Restaurante bune. Oferte mai bune.
@@ -261,7 +306,8 @@ export default function Home() {
               fontSize:
                 "clamp(44px, 7vw, 74px)",
               lineHeight: "0.98",
-              letterSpacing: "-3px",
+              letterSpacing:
+                "-3px",
               margin: 0,
               maxWidth: "850px",
             }}
@@ -287,9 +333,10 @@ export default function Home() {
               lineHeight: 1.6,
             }}
           >
-            Rezervă la restaurante din Timișoara
-            și profită de reduceri disponibile în
-            anumite intervale.
+            Rezervă la restaurante
+            din Timișoara și profită
+            de reduceri disponibile
+            în anumite intervale.
           </p>
 
           <div
@@ -321,7 +368,8 @@ export default function Home() {
             <div
               style={{
                 width: "1px",
-                background: "#ececec",
+                background:
+                  "#ececec",
               }}
             />
 
@@ -341,11 +389,14 @@ export default function Home() {
 
             <button
               style={{
-                background: "#FF5A3C",
+                background:
+                  "#FF5A3C",
                 color: "white",
                 border: "none",
-                borderRadius: "11px",
-                padding: "0 26px",
+                borderRadius:
+                  "11px",
+                padding:
+                  "0 26px",
                 fontWeight: "800",
                 fontSize: "16px",
                 cursor: "pointer",
@@ -362,7 +413,8 @@ export default function Home() {
       <section
         style={{
           background: "white",
-          borderBottom: "1px solid #ececec",
+          borderBottom:
+            "1px solid #ececec",
           padding: "22px 6%",
         }}
       >
@@ -377,28 +429,51 @@ export default function Home() {
           }}
         >
           {[
-            ["⚡", "Rezervare rapidă"],
-            ["💸", "Reduceri la nota de plată"],
-            ["📍", "Restaurante locale"],
-            ["✅", "Confirmare de la restaurant"],
-          ].map(([icon, text]) => (
-            <div
-              key={text}
-              style={{
-                display: "flex",
-                gap: "10px",
-                alignItems: "center",
-                fontWeight: "700",
-                color: "#485267",
-              }}
-            >
-              <span style={{ fontSize: "21px" }}>
-                {icon}
-              </span>
+            [
+              "⚡",
+              "Rezervare rapidă",
+            ],
+            [
+              "💸",
+              "Reduceri la nota de plată",
+            ],
+            [
+              "📍",
+              "Restaurante locale",
+            ],
+            [
+              "✅",
+              "Confirmare de la restaurant",
+            ],
+          ].map(
+            ([icon, text]) => (
+              <div
+                key={text}
+                style={{
+                  display:
+                    "flex",
+                  gap: "10px",
+                  alignItems:
+                    "center",
+                  fontWeight:
+                    "700",
+                  color:
+                    "#485267",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize:
+                      "21px",
+                  }}
+                >
+                  {icon}
+                </span>
 
-              <span>{text}</span>
-            </div>
-          ))}
+                <span>{text}</span>
+              </div>
+            )
+          )}
         </div>
       </section>
 
@@ -414,7 +489,8 @@ export default function Home() {
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             alignItems: "end",
             gap: "20px",
             marginBottom: "30px",
@@ -427,8 +503,10 @@ export default function Home() {
                 color: "#FF5A3C",
                 fontWeight: "800",
                 fontSize: "14px",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
+                textTransform:
+                  "uppercase",
+                letterSpacing:
+                  "1px",
               }}
             >
               Descoperă
@@ -436,12 +514,14 @@ export default function Home() {
 
             <h2
               style={{
-                margin: "8px 0 8px",
+                margin:
+                  "8px 0 8px",
                 fontSize: "38px",
-                letterSpacing: "-1px",
+                letterSpacing:
+                  "-1px",
               }}
             >
-              Oferte în Timișoara
+              Restaurante în Timișoara
             </h2>
 
             <p
@@ -451,8 +531,9 @@ export default function Home() {
                 fontSize: "17px",
               }}
             >
-              Alege restaurantul, intervalul și
-              rezervă în câteva secunde.
+              Vezi restaurantele și
+              ofertele disponibile în
+              următoarele zile.
             </p>
           </div>
 
@@ -474,223 +555,277 @@ export default function Home() {
             gap: "26px",
           }}
         >
-          {restaurants.map((restaurant) => {
-            const offer =
-              offersByRestaurant[
-                restaurant.name
-              ];
+          {restaurants.map(
+            (restaurant) => {
+              const offersCount =
+                offersCountByRestaurant[
+                  restaurant.name
+                ] || 0;
 
-            return (
-              <article
-                key={restaurant.name}
-                style={{
-                  background: "white",
-                  borderRadius: "22px",
-                  overflow: "hidden",
-                  border:
-                    "1px solid #ebedf0",
-                  boxShadow:
-                    "0 12px 35px rgba(23,32,51,0.07)",
-                }}
-              >
-                <div
+              return (
+                <article
+                  key={
+                    restaurant.name
+                  }
                   style={{
-                    height: "220px",
                     background:
-                      "linear-gradient(135deg, #f1f2f4, #e8eaed)",
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                      "white",
+                    borderRadius:
+                      "22px",
+                    overflow:
+                      "hidden",
+                    border:
+                      "1px solid #ebedf0",
+                    boxShadow:
+                      "0 12px 35px rgba(23,32,51,0.07)",
                   }}
                 >
-                  <span
-                    style={{
-                      fontSize: "90px",
-                    }}
-                  >
-                    {restaurant.emoji}
-                  </span>
-
                   <div
                     style={{
-                      position: "absolute",
-                      top: "16px",
-                      left: "16px",
-                      background: offer
-                        ? "#FF5A3C"
-                        : "#98A2B3",
-                      color: "white",
-                      fontWeight: "900",
-                      fontSize: offer
-                        ? "20px"
-                        : "13px",
-                      padding: "9px 12px",
-                      borderRadius: "10px",
-                      boxShadow: offer
-                        ? "0 8px 20px rgba(255,90,60,0.28)"
-                        : "none",
-                    }}
-                  >
-                    {offersLoading
-                      ? "..."
-                      : offer
-                      ? `-${offer.discount_percent}%`
-                      : "Fără ofertă"}
-                  </div>
-
-                  <div
-                    style={{
-                      position: "absolute",
-                      right: "16px",
-                      top: "16px",
+                      height: "220px",
                       background:
-                        "rgba(255,255,255,0.94)",
-                      padding: "8px 10px",
-                      borderRadius: "10px",
-                      fontWeight: "800",
+                        "linear-gradient(135deg, #f1f2f4, #e8eaed)",
+                      position:
+                        "relative",
+                      display: "flex",
+                      alignItems:
+                        "center",
+                      justifyContent:
+                        "center",
                     }}
                   >
-                    ⭐ {restaurant.rating}
+                    <span
+                      style={{
+                        fontSize:
+                          "90px",
+                      }}
+                    >
+                      {
+                        restaurant.emoji
+                      }
+                    </span>
+
+                    {/* BADGE CU NUMARUL DE OFERTE */}
+
+                    <div
+                      style={{
+                        position:
+                          "absolute",
+                        top: "16px",
+                        left: "16px",
+
+                        background:
+                          offersCount > 0
+                            ? "#FF5A3C"
+                            : "#98A2B3",
+
+                        color: "white",
+
+                        fontWeight:
+                          "900",
+
+                        fontSize:
+                          "13px",
+
+                        padding:
+                          "9px 12px",
+
+                        borderRadius:
+                          "10px",
+
+                        boxShadow:
+                          offersCount > 0
+                            ? "0 8px 20px rgba(255,90,60,0.28)"
+                            : "none",
+                      }}
+                    >
+                      {offersLoading
+                        ? "..."
+                        : offersCount > 0
+                        ? `${offersCount} ${
+                            offersCount ===
+                            1
+                              ? "ofertă"
+                              : "oferte"
+                          }`
+                        : "Fără oferte"}
+                    </div>
+
+                    {/* RATING */}
+
+                    <div
+                      style={{
+                        position:
+                          "absolute",
+                        right: "16px",
+                        top: "16px",
+                        background:
+                          "rgba(255,255,255,0.94)",
+                        padding:
+                          "8px 10px",
+                        borderRadius:
+                          "10px",
+                        fontWeight:
+                          "800",
+                      }}
+                    >
+                      ⭐{" "}
+                      {
+                        restaurant.rating
+                      }
+                    </div>
                   </div>
-                </div>
-
-                <div
-                  style={{
-                    padding: "22px",
-                  }}
-                >
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: "24px",
-                      letterSpacing: "-0.5px",
-                    }}
-                  >
-                    {restaurant.name}
-                  </h3>
-
-                  <p
-                    style={{
-                      color: "#7a8393",
-                      margin: "8px 0 12px",
-                    }}
-                  >
-                    {restaurant.type} •{" "}
-                    {restaurant.location}
-                  </p>
-
-                  <p
-                    style={{
-                      color: "#485267",
-                      lineHeight: 1.5,
-                      minHeight: "48px",
-                    }}
-                  >
-                    {restaurant.description}
-                  </p>
 
                   <div
                     style={{
-                      margin: "18px 0",
-                      paddingTop: "16px",
-                      borderTop:
-                        "1px solid #eeeeee",
-                      display: "flex",
-                      justifyContent:
-                        "space-between",
-                      alignItems: "center",
-                      gap: "12px",
+                      padding: "22px",
                     }}
                   >
-                    {offersLoading ? (
-                      <span
-                        style={{
-                          color: "#667085",
-                          fontSize: "14px",
-                        }}
-                      >
-                        Se încarcă oferta...
-                      </span>
-                    ) : offer ? (
-                      <>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize:
+                          "24px",
+                        letterSpacing:
+                          "-0.5px",
+                      }}
+                    >
+                      {
+                        restaurant.name
+                      }
+                    </h3>
+
+                    <p
+                      style={{
+                        color:
+                          "#7a8393",
+                        margin:
+                          "8px 0 12px",
+                      }}
+                    >
+                      {
+                        restaurant.type
+                      }{" "}
+                      •{" "}
+                      {
+                        restaurant.location
+                      }
+                    </p>
+
+                    <p
+                      style={{
+                        color:
+                          "#485267",
+                        lineHeight: 1.5,
+                        minHeight:
+                          "48px",
+                      }}
+                    >
+                      {
+                        restaurant.description
+                      }
+                    </p>
+
+                    {/* NUMAR OFERTE */}
+
+                    <div
+                      style={{
+                        margin:
+                          "18px 0",
+                        paddingTop:
+                          "16px",
+                        borderTop:
+                          "1px solid #eeeeee",
+                      }}
+                    >
+                      {offersLoading ? (
                         <span
                           style={{
-                            color: "#667085",
-                            fontSize: "14px",
-                            lineHeight: 1.5,
+                            color:
+                              "#667085",
+                            fontSize:
+                              "14px",
+                            fontWeight:
+                              "700",
                           }}
                         >
-                          {formatOfferDate(
-                            offer.offer_date
-                          )}
-                          <br />
-
-                          {formatOfferTime(
-                            offer.start_time
-                          )}{" "}
-                          -{" "}
-                          {formatOfferTime(
-                            offer.end_time
-                          )}
+                          Se verifică ofertele...
                         </span>
+                      ) : (
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            alignItems:
+                              "center",
+                            gap: "9px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize:
+                                "20px",
+                            }}
+                          >
+                            {offersCount >
+                            0
+                              ? "🎁"
+                              : "📅"}
+                          </span>
 
-                        <strong
-                          style={{
-                            color: "#FF5A3C",
-                            fontSize: "18px",
-                          }}
-                        >
-                          -
-                          {
-                            offer.discount_percent
-                          }
-                          %
-                        </strong>
-                      </>
-                    ) : (
-                      <>
-                        <span
-                          style={{
-                            color: "#667085",
-                            fontSize: "14px",
-                          }}
-                        >
-                          Momentan
-                        </span>
+                          <strong
+                            style={{
+                              color:
+                                offersCount >
+                                0
+                                  ? "#172033"
+                                  : "#7A8393",
 
-                        <strong
-                          style={{
-                            color: "#98A2B3",
-                          }}
-                        >
-                          Fără ofertă
-                        </strong>
-                      </>
-                    )}
+                              fontSize:
+                                "16px",
+                            }}
+                          >
+                            {offerCountText(
+                              offersCount
+                            )}
+                          </strong>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* BUTON */}
+
+                    <a
+                      href={
+                        restaurant.href
+                      }
+                      style={{
+                        display:
+                          "block",
+                        background:
+                          "#172033",
+                        color: "white",
+                        textDecoration:
+                          "none",
+                        textAlign:
+                          "center",
+                        padding:
+                          "14px",
+                        borderRadius:
+                          "11px",
+                        fontWeight:
+                          "800",
+                      }}
+                    >
+                      {offersCount > 0
+                        ? "Vezi ofertele"
+                        : "Vezi restaurantul"}
+                    </a>
                   </div>
-
-                  <a
-                    href={restaurant.href}
-                    style={{
-                      display: "block",
-                      background: "#172033",
-                      color: "white",
-                      textDecoration: "none",
-                      textAlign: "center",
-                      padding: "14px",
-                      borderRadius: "11px",
-                      fontWeight: "800",
-                    }}
-                  >
-                    {offer
-                      ? `Vezi oferta -${offer.discount_percent}%`
-                      : "Vezi disponibilitatea"}
-                  </a>
-                </div>
-              </article>
-            );
-          })}
+                </article>
+              );
+            }
+          )}
         </div>
       </section>
 
@@ -719,8 +854,10 @@ export default function Home() {
             <p
               style={{
                 color: "#FF8A73",
-                textTransform: "uppercase",
-                letterSpacing: "1px",
+                textTransform:
+                  "uppercase",
+                letterSpacing:
+                  "1px",
                 fontWeight: "800",
                 fontSize: "14px",
               }}
@@ -731,10 +868,12 @@ export default function Home() {
             <h2
               style={{
                 fontSize: "38px",
-                margin: "8px 0 15px",
+                margin:
+                  "8px 0 15px",
               }}
             >
-              Cum funcționează Masago?
+              Cum funcționează
+              Masago?
             </h2>
 
             <p
@@ -744,8 +883,9 @@ export default function Home() {
                 fontSize: "17px",
               }}
             >
-              De la descoperirea restaurantului
-              până la masă rezervată, în doar
+              De la descoperirea
+              restaurantului până la
+              masă rezervată, în doar
               câțiva pași.
             </p>
           </div>
@@ -763,47 +903,56 @@ export default function Home() {
               {
                 number: "01",
                 icon: "🔎",
-                title: "Alege restaurantul",
+                title:
+                  "Alege restaurantul",
                 text:
-                  "Descoperă restaurante și ofertele disponibile.",
+                  "Descoperă restaurante și vezi câte oferte sunt disponibile.",
               },
               {
                 number: "02",
                 icon: "📅",
-                title: "Alege intervalul",
+                title:
+                  "Alege ziua și oferta",
                 text:
-                  "Selectează data, ora și numărul de persoane.",
+                  "Vezi ofertele pe zile și selectează intervalul potrivit.",
               },
               {
                 number: "03",
                 icon: "✅",
-                title: "Primește confirmarea",
+                title:
+                  "Primește confirmarea",
                 text:
                   "Restaurantul vede rezervarea și o poate confirma.",
               },
               {
                 number: "04",
                 icon: "💸",
-                title: "Primește reducerea",
+                title:
+                  "Primește reducerea",
                 text:
-                  "Oferta este aplicată conform condițiilor rezervării.",
+                  "Oferta aleasă rămâne legată de rezervarea ta.",
               },
             ].map((item) => (
               <div
                 key={item.number}
                 style={{
-                  background: "#202c43",
+                  background:
+                    "#202c43",
                   padding: "26px",
-                  borderRadius: "18px",
+                  borderRadius:
+                    "18px",
                   border:
                     "1px solid #2c3952",
                 }}
               >
                 <div
                   style={{
-                    color: "#FF5A3C",
-                    fontWeight: "900",
-                    fontSize: "13px",
+                    color:
+                      "#FF5A3C",
+                    fontWeight:
+                      "900",
+                    fontSize:
+                      "13px",
                   }}
                 >
                   {item.number}
@@ -811,8 +960,10 @@ export default function Home() {
 
                 <div
                   style={{
-                    fontSize: "34px",
-                    margin: "18px 0",
+                    fontSize:
+                      "34px",
+                    margin:
+                      "18px 0",
                   }}
                 >
                   {item.icon}
@@ -820,7 +971,8 @@ export default function Home() {
 
                 <h3
                   style={{
-                    margin: "0 0 10px",
+                    margin:
+                      "0 0 10px",
                   }}
                 >
                   {item.title}
@@ -828,7 +980,8 @@ export default function Home() {
 
                 <p
                   style={{
-                    color: "#b8c0ce",
+                    color:
+                      "#b8c0ce",
                     lineHeight: 1.6,
                     margin: 0,
                   }}
@@ -882,10 +1035,13 @@ export default function Home() {
                 background: "white",
                 color: "#FF5A3C",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                alignItems:
+                  "center",
+                justifyContent:
+                  "center",
                 fontSize: "23px",
-                marginBottom: "20px",
+                marginBottom:
+                  "20px",
               }}
             >
               ☎
@@ -894,8 +1050,10 @@ export default function Home() {
             <h2
               style={{
                 fontSize: "36px",
-                margin: "0 0 12px",
-                letterSpacing: "-1px",
+                margin:
+                  "0 0 12px",
+                letterSpacing:
+                  "-1px",
               }}
             >
               Ai un restaurant?
@@ -909,8 +1067,9 @@ export default function Home() {
                 lineHeight: 1.6,
               }}
             >
-              Contactează-ne pentru a afla mai
-              multe despre Masago și posibilitatea
+              Contactează-ne pentru
+              a afla mai multe despre
+              Masago și posibilitatea
               unei colaborări.
             </p>
           </div>
@@ -920,8 +1079,10 @@ export default function Home() {
             style={{
               background: "white",
               color: "#172033",
-              textDecoration: "none",
-              padding: "16px 24px",
+              textDecoration:
+                "none",
+              padding:
+                "16px 24px",
               borderRadius: "11px",
               fontWeight: "900",
               fontSize: "16px",
@@ -938,7 +1099,8 @@ export default function Home() {
 
       <footer
         style={{
-          padding: "30px 6% 45px",
+          padding:
+            "30px 6% 45px",
           color: "#7a8393",
           textAlign: "center",
         }}
