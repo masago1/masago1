@@ -20,7 +20,78 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     loadOffers();
+    loadClientProfile();
   }, []);
+
+  async function loadClientProfile() {
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const clientAccessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !clientAccessToken
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/client_profiles?select=full_name,phone&limit=1`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization:
+              `Bearer ${clientAccessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error(
+          "Profile load error:",
+          await response.text()
+        );
+
+        return;
+      }
+
+      const data =
+        await response.json();
+
+      const profile =
+        data?.[0];
+
+      if (!profile) {
+        return;
+      }
+
+      if (profile.full_name) {
+        setName(
+          profile.full_name
+        );
+      }
+
+      if (profile.phone) {
+        setPhone(
+          profile.phone
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Eroare încărcare profil client:",
+        error
+      );
+    }
+  }
 
   function getLocalDate(offset = 0) {
     const currentDate = new Date();
@@ -543,6 +614,19 @@ export default function RestaurantPage() {
     const reservationCode =
       generateReservationCode();
 
+    const clientAccessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    const authHeaders =
+      clientAccessToken
+        ? {
+            Authorization:
+              `Bearer ${clientAccessToken}`,
+          }
+        : {};
+
     setLoading(true);
 
     try {
@@ -564,6 +648,8 @@ export default function RestaurantPage() {
 
                 "Content-Type":
                   "application/json",
+
+                ...authHeaders,
               },
 
               body:
@@ -637,6 +723,8 @@ export default function RestaurantPage() {
 
                 Prefer:
                   "return=minimal",
+
+                ...authHeaders,
               },
 
               body:
@@ -717,26 +805,27 @@ export default function RestaurantPage() {
         "masago_last_reservation_code",
         reservationCode
       );
+
       const savedReservations = JSON.parse(
-  localStorage.getItem(
-    "masago_reservation_codes"
-  ) || "[]"
-);
+        localStorage.getItem(
+          "masago_reservation_codes"
+        ) || "[]"
+      );
 
-const updatedReservations = [
-  reservationCode,
-  ...savedReservations.filter(
-    (savedCode) =>
-      savedCode !== reservationCode
-  ),
-];
+      const updatedReservations = [
+        reservationCode,
+        ...savedReservations.filter(
+          (savedCode) =>
+            savedCode !== reservationCode
+        ),
+      ];
 
-localStorage.setItem(
-  "masago_reservation_codes",
-  JSON.stringify(
-    updatedReservations
-  )
-);
+      localStorage.setItem(
+        "masago_reservation_codes",
+        JSON.stringify(
+          updatedReservations
+        )
+      );
 
       setConfirmation(
         reservationSummary
@@ -754,8 +843,11 @@ localStorage.setItem(
       );
 
       setGuests("2");
-      setName("");
-      setPhone("");
+
+      /*
+        Păstrăm numele și telefonul
+        încărcate din profilul clientului.
+      */
     } catch (error) {
       console.error(error);
 
