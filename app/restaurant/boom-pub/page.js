@@ -506,6 +506,18 @@ export default function RestaurantPage() {
     const reservationCode =
       generateReservationCode();
 
+    const clientAccessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    const authHeaders =
+      clientAccessToken
+        ? {
+            Authorization: `Bearer ${clientAccessToken}`,
+          }
+        : {};
+
     setLoading(true);
 
     try {
@@ -526,6 +538,8 @@ export default function RestaurantPage() {
 
                 "Content-Type":
                   "application/json",
+
+                ...authHeaders,
               },
 
               body:
@@ -607,6 +621,8 @@ export default function RestaurantPage() {
 
                 Prefer:
                   "return=minimal",
+
+                ...authHeaders,
               },
 
               body:
@@ -688,25 +704,25 @@ export default function RestaurantPage() {
         reservationCode
       );
       const savedReservations = JSON.parse(
-  localStorage.getItem(
-    "masago_reservation_codes"
-  ) || "[]"
-);
+        localStorage.getItem(
+          "masago_reservation_codes"
+        ) || "[]"
+      );
 
-const updatedReservations = [
-  reservationCode,
-  ...savedReservations.filter(
-    (savedCode) =>
-      savedCode !== reservationCode
-  ),
-];
+      const updatedReservations = [
+        reservationCode,
+        ...savedReservations.filter(
+          (savedCode) =>
+            savedCode !== reservationCode
+        ),
+      ];
 
-localStorage.setItem(
-  "masago_reservation_codes",
-  JSON.stringify(
-    updatedReservations
-  )
-);
+      localStorage.setItem(
+        "masago_reservation_codes",
+        JSON.stringify(
+          updatedReservations
+        )
+      );
 
       setConfirmation(
         reservationSummary
