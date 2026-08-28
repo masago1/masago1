@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function RezervarileMelePage() {
   const [reservations, setReservations] =
@@ -83,6 +83,53 @@ export default function RezervarileMelePage() {
     } catch {
       return [];
     }
+  }
+
+  function getReservationDateTime(
+    reservation
+  ) {
+    if (!reservation?.reservation_date) {
+      return null;
+    }
+
+    const time =
+      reservation.reservation_time
+        ? String(
+            reservation.reservation_time
+          ).slice(0, 5)
+        : "23:59";
+
+    const value = new Date(
+      `${reservation.reservation_date}T${time}:00`
+    );
+
+    if (
+      Number.isNaN(
+        value.getTime()
+      )
+    ) {
+      return null;
+    }
+
+    return value;
+  }
+
+  function isReservationPast(
+    reservation
+  ) {
+    const reservationDateTime =
+      getReservationDateTime(
+        reservation
+      );
+
+    if (!reservationDateTime) {
+      return false;
+    }
+
+    return (
+      reservationDateTime.getTime() <
+      Date.now()
+    );
   }
 
   async function refreshSession(
@@ -222,12 +269,6 @@ export default function RezervarileMelePage() {
           accessToken
         );
 
-      /*
-        Dacă tokenul a expirat,
-        încercăm automat să reînnoim
-        sesiunea folosind refresh token.
-      */
-
       if (
         response.status === 401
       ) {
@@ -330,14 +371,6 @@ export default function RezervarileMelePage() {
       return;
     }
 
-    /*
-      IMPORTANT:
-      Nu ștergem rezervarea din Supabase.
-
-      Doar o ascundem din lista acestui
-      dispozitiv.
-    */
-
     let hiddenCodes =
       getHiddenReservationCodes();
 
@@ -402,6 +435,292 @@ export default function RezervarileMelePage() {
 
     window.location.href =
       "/";
+  }
+
+  const activeReservations =
+    useMemo(() => {
+      return reservations
+        .filter((reservation) => {
+          const status =
+            reservation.status;
+
+          if (
+            status === "cancelled" ||
+            status === "rejected"
+          ) {
+            return false;
+          }
+
+          return !isReservationPast(
+            reservation
+          );
+        })
+        .sort((a, b) => {
+          const aDate =
+            getReservationDateTime(a);
+
+          const bDate =
+            getReservationDateTime(b);
+
+          if (!aDate && !bDate) {
+            return 0;
+          }
+
+          if (!aDate) {
+            return 1;
+          }
+
+          if (!bDate) {
+            return -1;
+          }
+
+          return (
+            aDate.getTime() -
+            bDate.getTime()
+          );
+        });
+    }, [reservations]);
+
+  const historyReservations =
+    useMemo(() => {
+      return reservations
+        .filter((reservation) => {
+          const status =
+            reservation.status;
+
+          return (
+            status === "cancelled" ||
+            status === "rejected" ||
+            isReservationPast(
+              reservation
+            )
+          );
+        })
+        .sort((a, b) => {
+          const aDate =
+            getReservationDateTime(a);
+
+          const bDate =
+            getReservationDateTime(b);
+
+          if (!aDate && !bDate) {
+            return 0;
+          }
+
+          if (!aDate) {
+            return 1;
+          }
+
+          if (!bDate) {
+            return -1;
+          }
+
+          return (
+            bDate.getTime() -
+            aDate.getTime()
+          );
+        });
+    }, [reservations]);
+
+  function renderReservationCard(
+    reservation
+  ) {
+    const status =
+      getStatusData(
+        reservation.status
+      );
+
+    return (
+      <article
+        key={reservation.id}
+        style={{
+          background: "white",
+          border:
+            "1px solid #E7E9ED",
+          borderRadius: "20px",
+          padding: "24px",
+          boxShadow:
+            "0 8px 25px rgba(23,32,51,0.04)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems:
+              "flex-start",
+            gap: "20px",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "#8A92A0",
+                fontSize: "11px",
+                fontWeight: "900",
+                textTransform:
+                  "uppercase",
+                letterSpacing:
+                  "0.6px",
+              }}
+            >
+              Restaurant
+            </div>
+
+            <h2
+              style={{
+                margin:
+                  "6px 0 5px",
+                fontSize: "24px",
+              }}
+            >
+              {reservation.restaurant_name ||
+                "-"}
+            </h2>
+
+            {reservation.discount_percent !=
+              null && (
+              <div
+                style={{
+                  color:
+                    "#FF5A3C",
+                  fontWeight:
+                    "900",
+                }}
+              >
+                -
+                {
+                  reservation.discount_percent
+                }
+                % reducere
+              </div>
+            )}
+          </div>
+
+          <span
+            style={{
+              background:
+                status.background,
+              color:
+                status.color,
+              padding:
+                "9px 13px",
+              borderRadius:
+                "999px",
+              fontSize:
+                "13px",
+              fontWeight:
+                "900",
+            }}
+          >
+            {
+              status.label
+            }
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(130px, 1fr))",
+            gap: "16px",
+            marginTop: "22px",
+            paddingTop: "20px",
+            borderTop:
+              "1px solid #EEF0F2",
+          }}
+        >
+          <Info
+            label="Data"
+            value={formatDate(
+              reservation.reservation_date
+            )}
+          />
+
+          <Info
+            label="Ora"
+            value={formatTime(
+              reservation.reservation_time
+            )}
+          />
+
+          <Info
+            label="Persoane"
+            value={
+              reservation.guests ??
+              "-"
+            }
+          />
+
+          <Info
+            label="Cod"
+            value={
+              reservation.reservation_code ||
+              "-"
+            }
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            openReservation(
+              reservation.reservation_code
+            )
+          }
+          style={{
+            width: "100%",
+            marginTop: "20px",
+            border: "none",
+            borderRadius:
+              "11px",
+            padding: "14px",
+            background:
+              "#172033",
+            color: "white",
+            fontWeight:
+              "900",
+            fontSize:
+              "15px",
+            cursor:
+              "pointer",
+          }}
+        >
+          Vezi rezervarea
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            removeReservationFromList(
+              reservation.reservation_code
+            )
+          }
+          style={{
+            width: "100%",
+            marginTop: "10px",
+            border:
+              "1px solid #E4E7EC",
+            borderRadius:
+              "11px",
+            padding: "13px",
+            background: "white",
+            color: "#667085",
+            fontWeight:
+              "800",
+            fontSize:
+              "14px",
+            cursor:
+              "pointer",
+          }}
+        >
+          Șterge din lista mea
+        </button>
+      </article>
+    );
   }
 
   return (
@@ -715,7 +1034,7 @@ export default function RezervarileMelePage() {
           </div>
         )}
 
-        {/* CONT LOGAT DAR FĂRĂ REZERVĂRI */}
+        {/* FĂRĂ REZERVĂRI */}
 
         {!loading &&
           loggedIn &&
@@ -800,247 +1119,180 @@ export default function RezervarileMelePage() {
             </div>
           )}
 
-        {/* LISTA REZERVĂRI */}
+        {/* REZERVĂRI ACTIVE */}
 
         {!loading &&
           loggedIn &&
-          reservations.length >
+          activeReservations.length >
+            0 && (
+            <section
+              style={{
+                marginBottom:
+                  "42px",
+              }}
+            >
+              <div
+                style={{
+                  marginBottom:
+                    "18px",
+                }}
+              >
+                <p
+                  style={{
+                    margin:
+                      "0 0 5px",
+                    color:
+                      "#16865C",
+                    fontSize:
+                      "12px",
+                    fontWeight:
+                      "900",
+                    textTransform:
+                      "uppercase",
+                    letterSpacing:
+                      "1px",
+                  }}
+                >
+                  Următoarele rezervări
+                </p>
+
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      "28px",
+                  }}
+                >
+                  Rezervări active
+                </h2>
+
+                <p
+                  style={{
+                    margin:
+                      "7px 0 0",
+                    color:
+                      "#737C8D",
+                  }}
+                >
+                  Rezervările viitoare
+                  și cele care așteaptă
+                  confirmarea restaurantului.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  display:
+                    "grid",
+                  gap:
+                    "16px",
+                }}
+              >
+                {activeReservations.map(
+                  renderReservationCard
+                )}
+              </div>
+            </section>
+          )}
+
+        {/* DACĂ NU MAI SUNT ACTIVE */}
+
+        {!loading &&
+          loggedIn &&
+          reservations.length > 0 &&
+          activeReservations.length ===
             0 && (
             <div
               style={{
-                display:
-                  "grid",
-                gap:
+                marginBottom:
+                  "35px",
+                background:
+                  "#F2F4F7",
+                border:
+                  "1px solid #E4E7EC",
+                borderRadius:
                   "16px",
+                padding:
+                  "20px",
+                color:
+                  "#667085",
+                fontWeight:
+                  "800",
               }}
             >
-              {reservations.map(
-                (reservation) => {
-                  const status =
-                    getStatusData(
-                      reservation.status
-                    );
-
-                  return (
-                    <article
-                      key={
-                        reservation.id
-                      }
-                      style={{
-                        background:
-                          "white",
-                        border:
-                          "1px solid #E7E9ED",
-                        borderRadius:
-                          "20px",
-                        padding:
-                          "24px",
-                        boxShadow:
-                          "0 8px 25px rgba(23,32,51,0.04)",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display:
-                            "flex",
-                          justifyContent:
-                            "space-between",
-                          alignItems:
-                            "flex-start",
-                          gap:
-                            "20px",
-                          flexWrap:
-                            "wrap",
-                        }}
-                      >
-                        <div>
-                          <div
-                            style={{
-                              color:
-                                "#8A92A0",
-                              fontSize:
-                                "11px",
-                              fontWeight:
-                                "900",
-                              textTransform:
-                                "uppercase",
-                              letterSpacing:
-                                "0.6px",
-                            }}
-                          >
-                            Restaurant
-                          </div>
-
-                          <h2
-                            style={{
-                              margin:
-                                "6px 0 5px",
-                              fontSize:
-                                "24px",
-                            }}
-                          >
-                            {reservation.restaurant_name ||
-                              "-"}
-                          </h2>
-
-                          {reservation.discount_percent !=
-                            null && (
-                            <div
-                              style={{
-                                color:
-                                  "#FF5A3C",
-                                fontWeight:
-                                  "900",
-                              }}
-                            >
-                              -
-                              {
-                                reservation.discount_percent
-                              }
-                              % reducere
-                            </div>
-                          )}
-                        </div>
-
-                        <span
-                          style={{
-                            background:
-                              status.background,
-                            color:
-                              status.color,
-                            padding:
-                              "9px 13px",
-                            borderRadius:
-                              "999px",
-                            fontSize:
-                              "13px",
-                            fontWeight:
-                              "900",
-                          }}
-                        >
-                          {
-                            status.label
-                          }
-                        </span>
-                      </div>
-
-                      <div
-                        style={{
-                          display:
-                            "grid",
-                          gridTemplateColumns:
-                            "repeat(auto-fit, minmax(130px, 1fr))",
-                          gap:
-                            "16px",
-                          marginTop:
-                            "22px",
-                          paddingTop:
-                            "20px",
-                          borderTop:
-                            "1px solid #EEF0F2",
-                        }}
-                      >
-                        <Info
-                          label="Data"
-                          value={formatDate(
-                            reservation.reservation_date
-                          )}
-                        />
-
-                        <Info
-                          label="Ora"
-                          value={formatTime(
-                            reservation.reservation_time
-                          )}
-                        />
-
-                        <Info
-                          label="Persoane"
-                          value={
-                            reservation.guests ??
-                            "-"
-                          }
-                        />
-
-                        <Info
-                          label="Cod"
-                          value={
-                            reservation.reservation_code ||
-                            "-"
-                          }
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openReservation(
-                            reservation.reservation_code
-                          )
-                        }
-                        style={{
-                          width:
-                            "100%",
-                          marginTop:
-                            "20px",
-                          border:
-                            "none",
-                          borderRadius:
-                            "11px",
-                          padding:
-                            "14px",
-                          background:
-                            "#172033",
-                          color:
-                            "white",
-                          fontWeight:
-                            "900",
-                          fontSize:
-                            "15px",
-                          cursor:
-                            "pointer",
-                        }}
-                      >
-                        Vezi rezervarea
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          removeReservationFromList(
-                            reservation.reservation_code
-                          )
-                        }
-                        style={{
-                          width:
-                            "100%",
-                          marginTop:
-                            "10px",
-                          border:
-                            "1px solid #E4E7EC",
-                          borderRadius:
-                            "11px",
-                          padding:
-                            "13px",
-                          background:
-                            "white",
-                          color:
-                            "#667085",
-                          fontWeight:
-                            "800",
-                          fontSize:
-                            "14px",
-                          cursor:
-                            "pointer",
-                        }}
-                      >
-                        Șterge din lista mea
-                      </button>
-                    </article>
-                  );
-                }
-              )}
+              Nu ai rezervări active în
+              acest moment.
             </div>
+          )}
+
+        {/* ISTORIC */}
+
+        {!loading &&
+          loggedIn &&
+          historyReservations.length >
+            0 && (
+            <section>
+              <div
+                style={{
+                  marginBottom:
+                    "18px",
+                }}
+              >
+                <p
+                  style={{
+                    margin:
+                      "0 0 5px",
+                    color:
+                      "#8A92A0",
+                    fontSize:
+                      "12px",
+                    fontWeight:
+                      "900",
+                    textTransform:
+                      "uppercase",
+                    letterSpacing:
+                      "1px",
+                  }}
+                >
+                  Rezervări anterioare
+                </p>
+
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize:
+                      "28px",
+                  }}
+                >
+                  Istoric
+                </h2>
+
+                <p
+                  style={{
+                    margin:
+                      "7px 0 0",
+                    color:
+                      "#737C8D",
+                  }}
+                >
+                  Rezervări trecute,
+                  anulate sau respinse.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  display:
+                    "grid",
+                  gap:
+                    "16px",
+                }}
+              >
+                {historyReservations.map(
+                  renderReservationCard
+                )}
+              </div>
+            </section>
           )}
       </section>
     </main>
