@@ -7,6 +7,15 @@ export default function Home() {
     useState({});
   const [offersLoading, setOffersLoading] = useState(true);
 
+  const [clientLoggedIn, setClientLoggedIn] =
+    useState(false);
+
+  const [restaurantLoggedIn, setRestaurantLoggedIn] =
+    useState(false);
+
+  const [sessionLoading, setSessionLoading] =
+    useState(true);
+
   const restaurants = [
     {
       name: "Casa Bunicii",
@@ -32,7 +41,123 @@ export default function Home() {
 
   useEffect(() => {
     loadOffers();
+    checkSessions();
   }, []);
+
+  async function checkSessions() {
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      setSessionLoading(false);
+      return;
+    }
+
+    const clientAccessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    const restaurantAccessToken =
+      localStorage.getItem(
+        "masago_access_token"
+      );
+
+    try {
+      /*
+        VERIFICĂM CLIENTUL
+      */
+
+      if (clientAccessToken) {
+        try {
+          const clientResponse =
+            await fetch(
+              `${supabaseUrl}/auth/v1/user`,
+              {
+                headers: {
+                  apikey:
+                    supabaseKey,
+
+                  Authorization:
+                    `Bearer ${clientAccessToken}`,
+                },
+              }
+            );
+
+          if (clientResponse.ok) {
+            setClientLoggedIn(true);
+          } else {
+            setClientLoggedIn(false);
+          }
+        } catch (error) {
+          console.error(
+            "Client session check error:",
+            error
+          );
+
+          setClientLoggedIn(false);
+        }
+      } else {
+        setClientLoggedIn(false);
+      }
+
+      /*
+        VERIFICĂM RESTAURANTUL
+      */
+
+      if (restaurantAccessToken) {
+        try {
+          const restaurantResponse =
+            await fetch(
+              `${supabaseUrl}/rest/v1/rpc/is_restaurant_user`,
+              {
+                method: "POST",
+
+                headers: {
+                  apikey:
+                    supabaseKey,
+
+                  Authorization:
+                    `Bearer ${restaurantAccessToken}`,
+
+                  "Content-Type":
+                    "application/json",
+                },
+
+                body:
+                  JSON.stringify({}),
+              }
+            );
+
+          const restaurantData =
+            await restaurantResponse.json();
+
+          if (
+            restaurantResponse.ok &&
+            restaurantData === true
+          ) {
+            setRestaurantLoggedIn(true);
+          } else {
+            setRestaurantLoggedIn(false);
+          }
+        } catch (error) {
+          console.error(
+            "Restaurant session check error:",
+            error
+          );
+
+          setRestaurantLoggedIn(false);
+        }
+      } else {
+        setRestaurantLoggedIn(false);
+      }
+    } finally {
+      setSessionLoading(false);
+    }
+  }
 
   function getLocalDate(offset = 0) {
     const currentDate = new Date();
@@ -226,21 +351,32 @@ export default function Home() {
           }}
         >
           <a
-            href="/login"
+            href={
+              restaurantLoggedIn
+                ? "/dashboard"
+                : "/login"
+            }
             style={{
               textDecoration:
                 "none",
               color: "#172033",
               border:
                 "1px solid #dcdfe5",
-              background: "white",
+              background:
+                restaurantLoggedIn
+                  ? "#E9F8EF"
+                  : "white",
               padding:
                 "11px 17px",
               borderRadius: "10px",
               fontWeight: "700",
             }}
           >
-            Pentru restaurante
+            {sessionLoading
+              ? "Pentru restaurante"
+              : restaurantLoggedIn
+              ? "Dashboard restaurant"
+              : "Pentru restaurante"}
           </a>
 
           <a
@@ -259,7 +395,11 @@ export default function Home() {
           </a>
 
           <a
-            href="/cont"
+            href={
+              clientLoggedIn
+                ? "/cont/profil"
+                : "/cont"
+            }
             style={{
               textDecoration:
                 "none",
@@ -272,7 +412,11 @@ export default function Home() {
               fontWeight: "700",
             }}
           >
-            Intră în cont
+            {sessionLoading
+              ? "Intră în cont"
+              : clientLoggedIn
+              ? "Profilul meu"
+              : "Intră în cont"}
           </a>
         </div>
       </header>
