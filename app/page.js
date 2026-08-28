@@ -22,6 +22,7 @@ export default function Home() {
       type: "Românesc",
       rating: "9.2",
       location: "Timișoara",
+      image: "/image.png",
       emoji: "🍲",
       href: "/restaurant",
       description:
@@ -230,6 +231,7 @@ export default function Home() {
         rezerva pe pagina restaurantului:
         azi + următoarele 3 zile.
       */
+
       const offersResponse = await fetch(
         `${supabaseUrl}/rest/v1/offers?select=id,restaurant_id,offer_date,active&active=eq.true&offer_date=gte.${today}&offer_date=lte.${maxDate}&order=id.desc`,
         {
@@ -746,23 +748,56 @@ export default function Home() {
                         "linear-gradient(135deg, #f1f2f4, #e8eaed)",
                       position:
                         "relative",
-                      display: "flex",
-                      alignItems:
-                        "center",
-                      justifyContent:
-                        "center",
+                      overflow:
+                        "hidden",
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize:
-                          "90px",
-                      }}
-                    >
-                      {
-                        restaurant.emoji
-                      }
-                    </span>
+                    {restaurant.image ? (
+                      <img
+                        src={
+                          restaurant.image
+                        }
+                        alt={
+                          restaurant.name
+                        }
+                        style={{
+                          width:
+                            "100%",
+                          height:
+                            "100%",
+                          objectFit:
+                            "cover",
+                          display:
+                            "block",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width:
+                            "100%",
+                          height:
+                            "100%",
+                          display:
+                            "flex",
+                          alignItems:
+                            "center",
+                          justifyContent:
+                            "center",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize:
+                              "90px",
+                          }}
+                        >
+                          {
+                            restaurant.emoji
+                          }
+                        </span>
+                      </div>
+                    )}
 
                     {/* BADGE CU NUMARUL DE OFERTE */}
 
@@ -987,7 +1022,6 @@ export default function Home() {
           )}
         </div>
       </section>
-
       {/* HOW IT WORKS */}
 
       <section
