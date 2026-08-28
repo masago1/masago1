@@ -175,6 +175,64 @@ export default function RezervarileMelePage() {
       "/verifica-rezervare";
   }
 
+  function removeReservationFromList(
+    reservationCode
+  ) {
+    const confirmed = window.confirm(
+      "Vrei să elimini această rezervare din lista ta?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    let savedCodes = [];
+
+    try {
+      savedCodes = JSON.parse(
+        localStorage.getItem(
+          "masago_reservation_codes"
+        ) || "[]"
+      );
+    } catch {
+      savedCodes = [];
+    }
+
+    const updatedCodes =
+      savedCodes.filter(
+        (savedCode) =>
+          savedCode !== reservationCode
+      );
+
+    localStorage.setItem(
+      "masago_reservation_codes",
+      JSON.stringify(updatedCodes)
+    );
+
+    const lastReservationCode =
+      localStorage.getItem(
+        "masago_last_reservation_code"
+      );
+
+    if (
+      lastReservationCode ===
+      reservationCode
+    ) {
+      localStorage.removeItem(
+        "masago_last_reservation_code"
+      );
+    }
+
+    setReservations(
+      (current) =>
+        current.filter(
+          (reservation) =>
+            reservation.reservation_code !==
+            reservationCode
+        )
+    );
+  }
+
   return (
     <main
       style={{
@@ -534,6 +592,29 @@ export default function RezervarileMelePage() {
                         }}
                       >
                         Vezi rezervarea
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          removeReservationFromList(
+                            reservation.reservation_code
+                          )
+                        }
+                        style={{
+                          width: "100%",
+                          marginTop: "10px",
+                          border: "1px solid #E4E7EC",
+                          borderRadius: "11px",
+                          padding: "13px",
+                          background: "white",
+                          color: "#667085",
+                          fontWeight: "800",
+                          fontSize: "14px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Șterge din lista mea
                       </button>
                     </article>
                   );
