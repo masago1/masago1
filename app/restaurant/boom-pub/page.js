@@ -20,7 +20,77 @@ export default function RestaurantPage() {
 
   useEffect(() => {
     loadOffers();
+    loadClientProfile();
   }, []);
+
+  async function loadClientProfile() {
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const clientAccessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !clientAccessToken
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/client_profiles?select=full_name,phone&limit=1`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${clientAccessToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error(
+          "Profile load error:",
+          await response.text()
+        );
+
+        return;
+      }
+
+      const data =
+        await response.json();
+
+      const profile =
+        data?.[0];
+
+      if (!profile) {
+        return;
+      }
+
+      if (profile.full_name) {
+        setName(
+          profile.full_name
+        );
+      }
+
+      if (profile.phone) {
+        setPhone(
+          profile.phone
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Eroare încărcare profil client:",
+        error
+      );
+    }
+  }
 
   function getLocalDate(offset = 0) {
     const currentDate = new Date();
@@ -703,6 +773,7 @@ export default function RestaurantPage() {
         "masago_last_reservation_code",
         reservationCode
       );
+
       const savedReservations = JSON.parse(
         localStorage.getItem(
           "masago_reservation_codes"
@@ -739,8 +810,11 @@ export default function RestaurantPage() {
       );
 
       setGuests("2");
-      setName("");
-      setPhone("");
+
+      /*
+        NU mai golim numele și telefonul,
+        pentru că sunt datele din profil.
+      */
     } catch (error) {
       console.error(error);
 
