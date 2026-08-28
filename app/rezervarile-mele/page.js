@@ -3,24 +3,40 @@
 import { useEffect, useState } from "react";
 
 export default function RezervarileMelePage() {
-  const [reservations, setReservations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [reservations, setReservations] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [loggedIn, setLoggedIn] =
+    useState(true);
 
   useEffect(() => {
     loadReservations();
   }, []);
 
   function formatDate(date) {
-    if (!date) return "-";
+    if (!date) {
+      return "-";
+    }
 
-    const [year, month, day] = date.split("-");
+    const [
+      year,
+      month,
+      day,
+    ] = date.split("-");
 
     return `${day}/${month}/${year}`;
   }
 
   function formatTime(time) {
-    if (!time) return "-";
+    if (!time) {
+      return "-";
+    }
 
     return String(time).slice(0, 5);
   }
@@ -57,7 +73,120 @@ export default function RezervarileMelePage() {
     };
   }
 
+  function getHiddenReservationCodes() {
+    try {
+      return JSON.parse(
+        localStorage.getItem(
+          "masago_hidden_reservation_codes"
+        ) || "[]"
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  async function refreshSession(
+    supabaseUrl,
+    supabaseKey
+  ) {
+    const refreshToken =
+      localStorage.getItem(
+        "masago_client_refresh_token"
+      );
+
+    if (!refreshToken) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/auth/v1/token?grant_type=refresh_token`,
+        {
+          method: "POST",
+
+          headers: {
+            apikey: supabaseKey,
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            refresh_token:
+              refreshToken,
+          }),
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data?.access_token
+      ) {
+        return null;
+      }
+
+      localStorage.setItem(
+        "masago_client_access_token",
+        data.access_token
+      );
+
+      if (data.refresh_token) {
+        localStorage.setItem(
+          "masago_client_refresh_token",
+          data.refresh_token
+        );
+      }
+
+      if (data.user) {
+        localStorage.setItem(
+          "masago_client_user",
+          JSON.stringify(data.user)
+        );
+      }
+
+      return data.access_token;
+    } catch (error) {
+      console.error(
+        "Refresh session error:",
+        error
+      );
+
+      return null;
+    }
+  }
+
+  async function requestReservations(
+    supabaseUrl,
+    supabaseKey,
+    accessToken
+  ) {
+    return fetch(
+      `${supabaseUrl}/rest/v1/rpc/get_my_client_reservations`,
+      {
+        method: "POST",
+
+        headers: {
+          apikey: supabaseKey,
+
+          Authorization:
+            `Bearer ${accessToken}`,
+
+          "Content-Type":
+            "application/json",
+        },
+
+        body:
+          JSON.stringify({}),
+      }
+    );
+  }
+
   async function loadReservations() {
+    setLoading(true);
+    setMessage("");
+
     const supabaseUrl =
       process.env.NEXT_PUBLIC_SUPABASE_URL;
 
@@ -73,90 +202,104 @@ export default function RezervarileMelePage() {
       return;
     }
 
-    let savedCodes = [];
-
-    try {
-      savedCodes = JSON.parse(
-        localStorage.getItem(
-          "masago_reservation_codes"
-        ) || "[]"
-      );
-    } catch {
-      savedCodes = [];
-    }
-
-    const lastReservationCode =
+    let accessToken =
       localStorage.getItem(
-        "masago_last_reservation_code"
+        "masago_client_access_token"
       );
 
-    if (
-      lastReservationCode &&
-      !savedCodes.includes(lastReservationCode)
-    ) {
-      savedCodes.unshift(lastReservationCode);
-    }
-
-    if (savedCodes.length === 0) {
+    if (!accessToken) {
+      setLoggedIn(false);
       setReservations([]);
       setLoading(false);
       return;
     }
 
     try {
-      const requests = savedCodes.map(
-        async (reservationCode) => {
-          try {
-            const response = await fetch(
-              `${supabaseUrl}/rest/v1/rpc/get_reservation_by_code`,
-              {
-                method: "POST",
+      let response =
+        await requestReservations(
+          supabaseUrl,
+          supabaseKey,
+          accessToken
+        );
 
-                headers: {
-                  apikey: supabaseKey,
-                  "Content-Type": "application/json",
-                },
+      /*
+        Dacă tokenul a expirat,
+        încercăm automat să reînnoim
+        sesiunea folosind refresh token.
+      */
 
-                body: JSON.stringify({
-                  p_code: reservationCode,
-                }),
-              }
-            );
+      if (
+        response.status === 401
+      ) {
+        const newAccessToken =
+          await refreshSession(
+            supabaseUrl,
+            supabaseKey
+          );
 
-            const data = await response.json();
+        if (!newAccessToken) {
+          clearClientSession();
 
-            if (
-              !response.ok ||
-              !data ||
-              data.length === 0
-            ) {
-              return null;
-            }
+          setLoggedIn(false);
+          setReservations([]);
+          setLoading(false);
 
-            return data[0];
-          } catch (error) {
-            console.error(
-              "Reservation load error:",
-              error
-            );
-
-            return null;
-          }
+          return;
         }
+
+        accessToken =
+          newAccessToken;
+
+        response =
+          await requestReservations(
+            supabaseUrl,
+            supabaseKey,
+            accessToken
+          );
+      }
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Reservations error:",
+          data
+        );
+
+        setMessage(
+          data?.message ||
+            data?.error ||
+            "Nu am putut încărca rezervările."
+        );
+
+        return;
+      }
+
+      const hiddenCodes =
+        getHiddenReservationCodes();
+
+      const visibleReservations =
+        (data || []).filter(
+          (reservation) =>
+            !hiddenCodes.includes(
+              reservation.reservation_code
+            )
+        );
+
+      setReservations(
+        visibleReservations
       );
 
-      const results =
-        await Promise.all(requests);
-
-      const validReservations =
-        results.filter(Boolean);
-
-      setReservations(validReservations);
+      setLoggedIn(true);
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Load reservations error:",
+        error
+      );
 
       setMessage(
-        "Nu am putut încărca rezervările."
+        "A apărut o eroare la încărcarea rezervărilor."
       );
     } finally {
       setLoading(false);
@@ -178,35 +321,42 @@ export default function RezervarileMelePage() {
   function removeReservationFromList(
     reservationCode
   ) {
-    const confirmed = window.confirm(
-      "Vrei să elimini această rezervare din lista ta?"
-    );
+    const confirmed =
+      window.confirm(
+        "Vrei să elimini această rezervare din lista ta?"
+      );
 
     if (!confirmed) {
       return;
     }
 
-    let savedCodes = [];
+    /*
+      IMPORTANT:
+      Nu ștergem rezervarea din Supabase.
 
-    try {
-      savedCodes = JSON.parse(
-        localStorage.getItem(
-          "masago_reservation_codes"
-        ) || "[]"
-      );
-    } catch {
-      savedCodes = [];
+      Doar o ascundem din lista acestui
+      dispozitiv.
+    */
+
+    let hiddenCodes =
+      getHiddenReservationCodes();
+
+    if (
+      !hiddenCodes.includes(
+        reservationCode
+      )
+    ) {
+      hiddenCodes = [
+        reservationCode,
+        ...hiddenCodes,
+      ];
     }
 
-    const updatedCodes =
-      savedCodes.filter(
-        (savedCode) =>
-          savedCode !== reservationCode
-      );
-
     localStorage.setItem(
-      "masago_reservation_codes",
-      JSON.stringify(updatedCodes)
+      "masago_hidden_reservation_codes",
+      JSON.stringify(
+        hiddenCodes
+      )
     );
 
     const lastReservationCode =
@@ -224,8 +374,8 @@ export default function RezervarileMelePage() {
     }
 
     setReservations(
-      (current) =>
-        current.filter(
+      (currentReservations) =>
+        currentReservations.filter(
           (reservation) =>
             reservation.reservation_code !==
             reservationCode
@@ -233,12 +383,34 @@ export default function RezervarileMelePage() {
     );
   }
 
+  function clearClientSession() {
+    localStorage.removeItem(
+      "masago_client_access_token"
+    );
+
+    localStorage.removeItem(
+      "masago_client_refresh_token"
+    );
+
+    localStorage.removeItem(
+      "masago_client_user"
+    );
+  }
+
+  function handleLogout() {
+    clearClientSession();
+
+    window.location.href =
+      "/";
+  }
+
   return (
     <main
       style={{
         minHeight: "100vh",
         background: "#FAFAF8",
-        fontFamily: "Arial, sans-serif",
+        fontFamily:
+          "Arial, sans-serif",
         color: "#172033",
       }}
     >
@@ -247,10 +419,12 @@ export default function RezervarileMelePage() {
       <header
         style={{
           background: "white",
-          borderBottom: "1px solid #ececec",
+          borderBottom:
+            "1px solid #ececec",
           padding: "18px 6%",
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent:
+            "space-between",
           alignItems: "center",
           gap: "20px",
           flexWrap: "wrap",
@@ -259,14 +433,17 @@ export default function RezervarileMelePage() {
         <a
           href="/"
           style={{
-            textDecoration: "none",
+            textDecoration:
+              "none",
             color: "#172033",
             fontSize: "29px",
             fontWeight: "900",
-            letterSpacing: "-1px",
+            letterSpacing:
+              "-1px",
           }}
         >
           Masago
+
           <span
             style={{
               color: "#FF5A3C",
@@ -276,16 +453,55 @@ export default function RezervarileMelePage() {
           </span>
         </a>
 
-        <a
-          href="/"
+        <div
           style={{
-            textDecoration: "none",
-            color: "#485267",
-            fontWeight: "700",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            flexWrap: "wrap",
           }}
         >
-          ← Înapoi la restaurante
-        </a>
+          <a
+            href="/"
+            style={{
+              textDecoration:
+                "none",
+              color: "#485267",
+              fontWeight: "700",
+              padding:
+                "10px 12px",
+            }}
+          >
+            ← Restaurante
+          </a>
+
+          {loggedIn && (
+            <button
+              type="button"
+              onClick={
+                handleLogout
+              }
+              style={{
+                border:
+                  "1px solid #E4E7EC",
+                background:
+                  "white",
+                color:
+                  "#667085",
+                borderRadius:
+                  "10px",
+                padding:
+                  "10px 14px",
+                fontWeight:
+                  "800",
+                cursor:
+                  "pointer",
+              }}
+            >
+              Ieși din cont
+            </button>
+          )}
+        </div>
       </header>
 
       {/* CONTENT */}
@@ -294,12 +510,14 @@ export default function RezervarileMelePage() {
         style={{
           maxWidth: "950px",
           margin: "0 auto",
-          padding: "65px 6% 90px",
+          padding:
+            "65px 6% 90px",
         }}
       >
         <div
           style={{
-            marginBottom: "32px",
+            marginBottom:
+              "32px",
           }}
         >
           <p
@@ -308,17 +526,21 @@ export default function RezervarileMelePage() {
               color: "#FF5A3C",
               fontSize: "13px",
               fontWeight: "900",
-              textTransform: "uppercase",
-              letterSpacing: "1px",
+              textTransform:
+                "uppercase",
+              letterSpacing:
+                "1px",
             }}
           >
-            Masago
+            Contul meu Masago
           </p>
 
           <h1
             style={{
-              fontSize: "42px",
-              margin: "8px 0",
+              fontSize:
+                "42px",
+              margin:
+                "8px 0",
             }}
           >
             Rezervările mele
@@ -332,56 +554,194 @@ export default function RezervarileMelePage() {
               margin: 0,
             }}
           >
-            Aici găsești rezervările
-            făcute de pe acest dispozitiv.
+            Vezi rezervările asociate
+            contului tău Masago.
           </p>
         </div>
+
+        {/* NECONECTAT */}
+
+        {!loading &&
+          !loggedIn && (
+            <div
+              style={{
+                background:
+                  "white",
+                border:
+                  "1px solid #E7E9ED",
+                borderRadius:
+                  "22px",
+                padding:
+                  "50px 30px",
+                textAlign:
+                  "center",
+                boxShadow:
+                  "0 10px 30px rgba(23,32,51,0.05)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize:
+                    "48px",
+                  marginBottom:
+                    "15px",
+                }}
+              >
+                👤
+              </div>
+
+              <h2
+                style={{
+                  margin:
+                    "0 0 10px",
+                  fontSize:
+                    "27px",
+                }}
+              >
+                Intră în cont
+              </h2>
+
+              <p
+                style={{
+                  color:
+                    "#737C8D",
+                  lineHeight:
+                    1.6,
+                  maxWidth:
+                    "480px",
+                  margin:
+                    "0 auto",
+                }}
+              >
+                Autentifică-te pentru
+                a vedea rezervările
+                asociate contului tău.
+              </p>
+
+              <a
+                href="/cont"
+                style={{
+                  display:
+                    "inline-block",
+                  marginTop:
+                    "22px",
+                  textDecoration:
+                    "none",
+                  background:
+                    "#FF5A3C",
+                  color:
+                    "white",
+                  padding:
+                    "14px 22px",
+                  borderRadius:
+                    "11px",
+                  fontWeight:
+                    "900",
+                }}
+              >
+                Intră în cont
+              </a>
+
+              <div
+                style={{
+                  marginTop:
+                    "18px",
+                  color:
+                    "#667085",
+                }}
+              >
+                Nu ai cont?{" "}
+
+                <a
+                  href="/cont/inregistrare"
+                  style={{
+                    color:
+                      "#FF5A3C",
+                    textDecoration:
+                      "none",
+                    fontWeight:
+                      "900",
+                  }}
+                >
+                  Creează cont
+                </a>
+              </div>
+            </div>
+          )}
+
+        {/* LOADING */}
 
         {loading && (
           <div
             style={{
-              background: "white",
-              border: "1px solid #E7E9ED",
-              borderRadius: "18px",
-              padding: "30px",
-              fontWeight: "800",
+              background:
+                "white",
+              border:
+                "1px solid #E7E9ED",
+              borderRadius:
+                "18px",
+              padding:
+                "30px",
+              fontWeight:
+                "800",
             }}
           >
             Se încarcă rezervările...
           </div>
         )}
 
+        {/* EROARE */}
+
         {message && (
           <div
             style={{
-              background: "#FFF0EC",
-              color: "#A33A29",
-              border: "1px solid #FFD8CF",
-              borderRadius: "14px",
-              padding: "16px",
-              fontWeight: "800",
-              marginBottom: "20px",
+              background:
+                "#FFF0EC",
+              color:
+                "#A33A29",
+              border:
+                "1px solid #FFD8CF",
+              borderRadius:
+                "14px",
+              padding:
+                "16px",
+              fontWeight:
+                "800",
+              marginBottom:
+                "20px",
             }}
           >
             {message}
           </div>
         )}
 
+        {/* CONT LOGAT DAR FĂRĂ REZERVĂRI */}
+
         {!loading &&
-          reservations.length === 0 && (
+          loggedIn &&
+          !message &&
+          reservations.length ===
+            0 && (
             <div
               style={{
-                background: "white",
-                border: "1px solid #E7E9ED",
-                borderRadius: "20px",
-                padding: "50px 30px",
-                textAlign: "center",
+                background:
+                  "white",
+                border:
+                  "1px solid #E7E9ED",
+                borderRadius:
+                  "20px",
+                padding:
+                  "50px 30px",
+                textAlign:
+                  "center",
               }}
             >
               <div
                 style={{
-                  fontSize: "45px",
-                  marginBottom: "15px",
+                  fontSize:
+                    "45px",
+                  marginBottom:
+                    "15px",
                 }}
               >
                 🍽️
@@ -389,34 +749,50 @@ export default function RezervarileMelePage() {
 
               <h2
                 style={{
-                  margin: "0 0 10px",
+                  margin:
+                    "0 0 10px",
                 }}
               >
-                Nu ai rezervări încă
+                Nu ai rezervări
               </h2>
 
               <p
                 style={{
-                  color: "#737C8D",
-                  lineHeight: 1.6,
+                  color:
+                    "#737C8D",
+                  lineHeight:
+                    1.6,
+                  maxWidth:
+                    "500px",
+                  margin:
+                    "0 auto",
                 }}
               >
-                După ce faci o rezervare
-                prin Masago, aceasta va
-                apărea aici.
+                Rezervările făcute
+                în timp ce ești
+                autentificat în contul
+                Masago vor apărea aici.
               </p>
 
               <a
                 href="/"
                 style={{
-                  display: "inline-block",
-                  marginTop: "10px",
-                  textDecoration: "none",
-                  background: "#FF5A3C",
-                  color: "white",
-                  padding: "13px 18px",
-                  borderRadius: "11px",
-                  fontWeight: "900",
+                  display:
+                    "inline-block",
+                  marginTop:
+                    "20px",
+                  textDecoration:
+                    "none",
+                  background:
+                    "#FF5A3C",
+                  color:
+                    "white",
+                  padding:
+                    "13px 18px",
+                  borderRadius:
+                    "11px",
+                  fontWeight:
+                    "900",
                 }}
               >
                 Vezi restaurantele
@@ -424,12 +800,18 @@ export default function RezervarileMelePage() {
             </div>
           )}
 
+        {/* LISTA REZERVĂRI */}
+
         {!loading &&
-          reservations.length > 0 && (
+          loggedIn &&
+          reservations.length >
+            0 && (
             <div
               style={{
-                display: "grid",
-                gap: "16px",
+                display:
+                  "grid",
+                gap:
+                  "16px",
               }}
             >
               {reservations.map(
@@ -445,31 +827,41 @@ export default function RezervarileMelePage() {
                         reservation.id
                       }
                       style={{
-                        background: "white",
-                        border: "1px solid #E7E9ED",
-                        borderRadius: "20px",
-                        padding: "24px",
+                        background:
+                          "white",
+                        border:
+                          "1px solid #E7E9ED",
+                        borderRadius:
+                          "20px",
+                        padding:
+                          "24px",
                         boxShadow:
                           "0 8px 25px rgba(23,32,51,0.04)",
                       }}
                     >
                       <div
                         style={{
-                          display: "flex",
+                          display:
+                            "flex",
                           justifyContent:
                             "space-between",
                           alignItems:
                             "flex-start",
-                          gap: "20px",
-                          flexWrap: "wrap",
+                          gap:
+                            "20px",
+                          flexWrap:
+                            "wrap",
                         }}
                       >
                         <div>
                           <div
                             style={{
-                              color: "#8A92A0",
-                              fontSize: "11px",
-                              fontWeight: "900",
+                              color:
+                                "#8A92A0",
+                              fontSize:
+                                "11px",
+                              fontWeight:
+                                "900",
                               textTransform:
                                 "uppercase",
                               letterSpacing:
@@ -483,25 +875,29 @@ export default function RezervarileMelePage() {
                             style={{
                               margin:
                                 "6px 0 5px",
-                              fontSize: "24px",
+                              fontSize:
+                                "24px",
                             }}
                           >
                             {reservation.restaurant_name ||
                               "-"}
                           </h2>
 
-                          {reservation.discount_percent && (
+                          {reservation.discount_percent !=
+                            null && (
                             <div
                               style={{
-                                color: "#FF5A3C",
-                                fontWeight: "900",
+                                color:
+                                  "#FF5A3C",
+                                fontWeight:
+                                  "900",
                               }}
                             >
                               -
                               {
                                 reservation.discount_percent
                               }
-                              % ofertă
+                              % reducere
                             </div>
                           )}
                         </div>
@@ -530,12 +926,16 @@ export default function RezervarileMelePage() {
 
                       <div
                         style={{
-                          display: "grid",
+                          display:
+                            "grid",
                           gridTemplateColumns:
                             "repeat(auto-fit, minmax(130px, 1fr))",
-                          gap: "16px",
-                          marginTop: "22px",
-                          paddingTop: "20px",
+                          gap:
+                            "16px",
+                          marginTop:
+                            "22px",
+                          paddingTop:
+                            "20px",
                           borderTop:
                             "1px solid #EEF0F2",
                         }}
@@ -579,16 +979,26 @@ export default function RezervarileMelePage() {
                           )
                         }
                         style={{
-                          width: "100%",
-                          marginTop: "20px",
-                          border: "none",
-                          borderRadius: "11px",
-                          padding: "14px",
-                          background: "#172033",
-                          color: "white",
-                          fontWeight: "900",
-                          fontSize: "15px",
-                          cursor: "pointer",
+                          width:
+                            "100%",
+                          marginTop:
+                            "20px",
+                          border:
+                            "none",
+                          borderRadius:
+                            "11px",
+                          padding:
+                            "14px",
+                          background:
+                            "#172033",
+                          color:
+                            "white",
+                          fontWeight:
+                            "900",
+                          fontSize:
+                            "15px",
+                          cursor:
+                            "pointer",
                         }}
                       >
                         Vezi rezervarea
@@ -602,16 +1012,26 @@ export default function RezervarileMelePage() {
                           )
                         }
                         style={{
-                          width: "100%",
-                          marginTop: "10px",
-                          border: "1px solid #E4E7EC",
-                          borderRadius: "11px",
-                          padding: "13px",
-                          background: "white",
-                          color: "#667085",
-                          fontWeight: "800",
-                          fontSize: "14px",
-                          cursor: "pointer",
+                          width:
+                            "100%",
+                          marginTop:
+                            "10px",
+                          border:
+                            "1px solid #E4E7EC",
+                          borderRadius:
+                            "11px",
+                          padding:
+                            "13px",
+                          background:
+                            "white",
+                          color:
+                            "#667085",
+                          fontWeight:
+                            "800",
+                          fontSize:
+                            "14px",
+                          cursor:
+                            "pointer",
                         }}
                       >
                         Șterge din lista mea
@@ -638,9 +1058,12 @@ function Info({
           color: "#8A92A0",
           fontSize: "11px",
           fontWeight: "900",
-          textTransform: "uppercase",
-          letterSpacing: "0.6px",
-          marginBottom: "6px",
+          textTransform:
+            "uppercase",
+          letterSpacing:
+            "0.6px",
+          marginBottom:
+            "6px",
         }}
       >
         {label}
