@@ -242,20 +242,22 @@ export default function Home() {
           >
             Pentru restaurante
           </a>
-<a
-  href="/rezervarile-mele"
-  style={{
-    textDecoration: "none",
-    color: "#172033",
-    border: "1px solid #dcdfe5",
-    background: "#FFF5F2",
-    padding: "11px 17px",
-    borderRadius: "10px",
-    fontWeight: "800",
-  }}
->
-  Rezervările mele
-</a>
+
+          <a
+            href="/rezervarile-mele"
+            style={{
+              textDecoration: "none",
+              color: "#172033",
+              border: "1px solid #dcdfe5",
+              background: "#FFF5F2",
+              padding: "11px 17px",
+              borderRadius: "10px",
+              fontWeight: "800",
+            }}
+          >
+            Rezervările mele
+          </a>
+
           <a
             href="/login"
             style={{
