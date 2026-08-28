@@ -7,11 +7,21 @@ export default function ProfilClientPage() {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
 
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [changingPassword, setChangingPassword] =
+    useState(false);
 
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
+
+  const [passwordMessage, setPasswordMessage] =
+    useState("");
+  const [passwordSuccess, setPasswordSuccess] =
+    useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -464,6 +474,178 @@ export default function ProfilClientPage() {
     }
   }
 
+  async function handleChangePassword(
+    event
+  ) {
+    event.preventDefault();
+
+    setPasswordMessage("");
+    setPasswordSuccess(false);
+
+    if (!newPassword) {
+      setPasswordMessage(
+        "Introdu parola nouă."
+      );
+
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordMessage(
+        "Parola trebuie să aibă minimum 6 caractere."
+      );
+
+      return;
+    }
+
+    if (
+      newPassword !==
+      confirmPassword
+    ) {
+      setPasswordMessage(
+        "Parolele nu coincid."
+      );
+
+      return;
+    }
+
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      setPasswordMessage(
+        "Conexiunea cu Supabase nu este configurată."
+      );
+
+      return;
+    }
+
+    let accessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    if (!accessToken) {
+      window.location.href =
+        "/cont";
+
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      let response =
+        await fetch(
+          `${supabaseUrl}/auth/v1/user`,
+          {
+            method: "PUT",
+
+            headers: {
+              apikey:
+                supabaseKey,
+
+              Authorization:
+                `Bearer ${accessToken}`,
+
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              password:
+                newPassword,
+            }),
+          }
+        );
+
+      if (
+        response.status === 401
+      ) {
+        const refreshed =
+          await refreshSession(
+            supabaseUrl,
+            supabaseKey
+          );
+
+        if (!refreshed) {
+          clearClientSession();
+
+          window.location.href =
+            "/cont";
+
+          return;
+        }
+
+        accessToken =
+          refreshed.accessToken;
+
+        response =
+          await fetch(
+            `${supabaseUrl}/auth/v1/user`,
+            {
+              method: "PUT",
+
+              headers: {
+                apikey:
+                  supabaseKey,
+
+                Authorization:
+                  `Bearer ${accessToken}`,
+
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  password:
+                    newPassword,
+                }),
+            }
+          );
+      }
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Password update error:",
+          data
+        );
+
+        setPasswordMessage(
+          data?.message ||
+            data?.msg ||
+            "Nu am putut schimba parola."
+        );
+
+        return;
+      }
+
+      setNewPassword("");
+      setConfirmPassword("");
+
+      setPasswordSuccess(true);
+
+      setPasswordMessage(
+        "Parola a fost schimbată cu succes."
+      );
+    } catch (error) {
+      console.error(error);
+
+      setPasswordMessage(
+        "A apărut o eroare la schimbarea parolei."
+      );
+    } finally {
+      setChangingPassword(false);
+    }
+  }
+
   function handleLogout() {
     clearClientSession();
 
@@ -481,6 +663,8 @@ export default function ProfilClientPage() {
         color: "#172033",
       }}
     >
+      {/* HEADER */}
+
       <header
         style={{
           background: "white",
@@ -538,6 +722,19 @@ export default function ProfilClientPage() {
             Rezervările mele
           </a>
 
+          <a
+            href="/"
+            style={{
+              textDecoration:
+                "none",
+              color: "#485267",
+              fontWeight: "800",
+              padding: "10px",
+            }}
+          >
+            Restaurante
+          </a>
+
           <button
             type="button"
             onClick={
@@ -545,16 +742,17 @@ export default function ProfilClientPage() {
             }
             style={{
               border:
-                "1px solid #E4E7EC",
+                "1px solid #FFD4CC",
               background:
-                "white",
-              color: "#667085",
+                "#FFF5F2",
+              color:
+                "#B42318",
               borderRadius:
                 "10px",
               padding:
                 "10px 14px",
               fontWeight:
-                "800",
+                "900",
               cursor:
                 "pointer",
             }}
@@ -564,9 +762,11 @@ export default function ProfilClientPage() {
         </div>
       </header>
 
+      {/* CONTENT */}
+
       <section
         style={{
-          maxWidth: "620px",
+          maxWidth: "650px",
           margin: "0 auto",
           padding:
             "65px 6% 90px",
@@ -600,7 +800,7 @@ export default function ProfilClientPage() {
                 "8px 0 8px",
             }}
           >
-            Profil
+            Profilul meu
           </h1>
 
           <p
@@ -610,10 +810,12 @@ export default function ProfilClientPage() {
               lineHeight: 1.6,
             }}
           >
-            Salvează-ți datele pentru
-            rezervări mai rapide.
+            Gestionează datele contului
+            tău Masago.
           </p>
         </div>
+
+        {/* DATE PROFIL */}
 
         <div
           style={{
@@ -627,6 +829,29 @@ export default function ProfilClientPage() {
               "0 12px 35px rgba(23,32,51,0.07)",
           }}
         >
+          <h2
+            style={{
+              margin:
+                "0 0 8px",
+            }}
+          >
+            Date personale
+          </h2>
+
+          <p
+            style={{
+              margin:
+                "0 0 25px",
+              color:
+                "#737C8D",
+              lineHeight:
+                1.5,
+            }}
+          >
+            Aceste date sunt folosite
+            pentru rezervările tale.
+          </p>
+
           {loading ? (
             <div
               style={{
@@ -856,6 +1081,293 @@ export default function ProfilClientPage() {
               {message}
             </div>
           )}
+        </div>
+
+        {/* PAROLA */}
+
+        <div
+          style={{
+            marginTop:
+              "22px",
+            background:
+              "white",
+            border:
+              "1px solid #E7E9ED",
+            borderRadius:
+              "22px",
+            padding:
+              "30px",
+            boxShadow:
+              "0 12px 35px rgba(23,32,51,0.05)",
+          }}
+        >
+          <h2
+            style={{
+              margin:
+                "0 0 8px",
+            }}
+          >
+            Schimbă parola
+          </h2>
+
+          <p
+            style={{
+              margin:
+                "0 0 25px",
+              color:
+                "#737C8D",
+              lineHeight:
+                1.5,
+            }}
+          >
+            Alege o parolă nouă pentru
+            contul tău.
+          </p>
+
+          <form
+            onSubmit={
+              handleChangePassword
+            }
+          >
+            <div
+              style={{
+                marginBottom:
+                  "18px",
+              }}
+            >
+              <label
+                style={{
+                  display:
+                    "block",
+                  marginBottom:
+                    "8px",
+                  fontWeight:
+                    "800",
+                }}
+              >
+                Parolă nouă
+              </label>
+
+              <input
+                type="password"
+                value={
+                  newPassword
+                }
+                onChange={(event) =>
+                  setNewPassword(
+                    event.target.value
+                  )
+                }
+                placeholder="Minimum 6 caractere"
+                autoComplete="new-password"
+                style={{
+                  width: "100%",
+                  boxSizing:
+                    "border-box",
+                  padding:
+                    "14px 15px",
+                  border:
+                    "1px solid #DDE1E6",
+                  borderRadius:
+                    "11px",
+                  background:
+                    "#FAFBFC",
+                  color:
+                    "#172033",
+                  fontSize:
+                    "16px",
+                  outline:
+                    "none",
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                marginBottom:
+                  "22px",
+              }}
+            >
+              <label
+                style={{
+                  display:
+                    "block",
+                  marginBottom:
+                    "8px",
+                  fontWeight:
+                    "800",
+                }}
+              >
+                Confirmă parola nouă
+              </label>
+
+              <input
+                type="password"
+                value={
+                  confirmPassword
+                }
+                onChange={(event) =>
+                  setConfirmPassword(
+                    event.target.value
+                  )
+                }
+                placeholder="Scrie parola din nou"
+                autoComplete="new-password"
+                style={{
+                  width: "100%",
+                  boxSizing:
+                    "border-box",
+                  padding:
+                    "14px 15px",
+                  border:
+                    "1px solid #DDE1E6",
+                  borderRadius:
+                    "11px",
+                  background:
+                    "#FAFBFC",
+                  color:
+                    "#172033",
+                  fontSize:
+                    "16px",
+                  outline:
+                    "none",
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={
+                changingPassword
+              }
+              style={{
+                width:
+                  "100%",
+                border:
+                  "1px solid #DDE1E6",
+                borderRadius:
+                  "11px",
+                padding:
+                  "15px",
+                background:
+                  changingPassword
+                    ? "#E4E7EC"
+                    : "#172033",
+                color:
+                  changingPassword
+                    ? "#667085"
+                    : "white",
+                fontWeight:
+                  "900",
+                fontSize:
+                  "16px",
+                cursor:
+                  changingPassword
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+            >
+              {changingPassword
+                ? "Se schimbă parola..."
+                : "Schimbă parola"}
+            </button>
+          </form>
+
+          {passwordMessage && (
+            <div
+              style={{
+                marginTop:
+                  "18px",
+                padding:
+                  "14px",
+                borderRadius:
+                  "11px",
+                background:
+                  passwordSuccess
+                    ? "#E9F8EF"
+                    : "#FFF0EC",
+                color:
+                  passwordSuccess
+                    ? "#177245"
+                    : "#A33A29",
+                fontWeight:
+                  "800",
+                lineHeight:
+                  1.5,
+              }}
+            >
+              {passwordMessage}
+            </div>
+          )}
+        </div>
+
+        {/* LOGOUT */}
+
+        <div
+          style={{
+            marginTop:
+              "22px",
+            background:
+              "#FFF5F2",
+            border:
+              "1px solid #FFD8CF",
+            borderRadius:
+              "22px",
+            padding:
+              "25px",
+          }}
+        >
+          <h3
+            style={{
+              margin:
+                "0 0 8px",
+            }}
+          >
+            Sesiunea ta
+          </h3>
+
+          <p
+            style={{
+              margin:
+                "0 0 18px",
+              color:
+                "#667085",
+              lineHeight:
+                1.5,
+            }}
+          >
+            Poți ieși din cont de pe
+            acest dispozitiv.
+          </p>
+
+          <button
+            type="button"
+            onClick={
+              handleLogout
+            }
+            style={{
+              width:
+                "100%",
+              border:
+                "1px solid #FFB7A8",
+              borderRadius:
+                "11px",
+              padding:
+                "14px",
+              background:
+                "white",
+              color:
+                "#B42318",
+              fontWeight:
+                "900",
+              fontSize:
+                "15px",
+              cursor:
+                "pointer",
+            }}
+          >
+            Ieși din cont
+          </button>
         </div>
       </section>
     </main>
