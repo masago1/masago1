@@ -226,7 +226,7 @@ export default function Home() {
           }}
         >
           <a
-            href="#contact"
+            href="/login"
             style={{
               textDecoration:
                 "none",
@@ -259,7 +259,7 @@ export default function Home() {
           </a>
 
           <a
-            href="/login"
+            href="/cont"
             style={{
               textDecoration:
                 "none",
