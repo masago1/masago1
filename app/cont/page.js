@@ -41,6 +41,10 @@ export default function ContClientPage() {
     setLoading(true);
 
     try {
+      /*
+        1. LOGIN NORMAL ÎN SUPABASE
+      */
+
       const response = await fetch(
         `${supabaseUrl}/auth/v1/token?grant_type=password`,
         {
@@ -70,12 +74,14 @@ export default function ContClientPage() {
           setMessage(
             "Trebuie să confirmi adresa de email înainte să intri în cont."
           );
+
           return;
         }
 
         setMessage(
           "Email sau parolă incorectă."
         );
+
         return;
       }
 
@@ -83,12 +89,86 @@ export default function ContClientPage() {
         setMessage(
           "Autentificarea nu a putut fi finalizată."
         );
+
         return;
       }
 
+      const accessToken =
+        data.access_token;
+
+      /*
+        2. VERIFICĂM DACĂ ESTE CONT DE RESTAURANT
+      */
+
+      const restaurantCheckResponse =
+        await fetch(
+          `${supabaseUrl}/rest/v1/rpc/is_restaurant_user`,
+          {
+            method: "POST",
+
+            headers: {
+              apikey: supabaseKey,
+
+              Authorization:
+                `Bearer ${accessToken}`,
+
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({}),
+          }
+        );
+
+      const isRestaurant =
+        await restaurantCheckResponse.json();
+
+      if (!restaurantCheckResponse.ok) {
+        console.error(
+          "Restaurant check error:",
+          isRestaurant
+        );
+
+        setMessage(
+          "Nu am putut verifica tipul contului."
+        );
+
+        return;
+      }
+
+      /*
+        3. DACĂ ESTE RESTAURANT,
+           NU ÎL LĂSĂM PE LOGIN CLIENT
+      */
+
+      if (isRestaurant === true) {
+        localStorage.removeItem(
+          "masago_client_access_token"
+        );
+
+        localStorage.removeItem(
+          "masago_client_refresh_token"
+        );
+
+        localStorage.removeItem(
+          "masago_client_user"
+        );
+
+        setMessage(
+          "Acest cont aparține unui restaurant. Folosește „Pentru restaurante” din pagina principală."
+        );
+
+        return;
+      }
+
+      /*
+        4. ESTE CLIENT NORMAL
+           SALVĂM SESIUNEA CLIENTULUI
+      */
+
       localStorage.setItem(
         "masago_client_access_token",
-        data.access_token
+        accessToken
       );
 
       if (data.refresh_token) {
@@ -102,6 +182,10 @@ export default function ContClientPage() {
         "masago_client_user",
         JSON.stringify(data.user)
       );
+
+      /*
+        5. MERGEM LA REZERVĂRILE CLIENTULUI
+      */
 
       window.location.href =
         "/rezervarile-mele";
@@ -205,7 +289,7 @@ export default function ContClientPage() {
               fontSize: "34px",
             }}
           >
-            Intră în cont
+            Login client
           </h1>
 
           <p
@@ -216,8 +300,8 @@ export default function ContClientPage() {
             }}
           >
             Autentifică-te pentru a-ți
-            accesa contul Masago și
-            rezervările.
+            accesa profilul și rezervările
+            Masago.
           </p>
 
           <form onSubmit={handleLogin}>
@@ -319,8 +403,8 @@ export default function ContClientPage() {
               }}
             >
               {loading
-                ? "Se autentifică..."
-                : "Intră în cont"}
+                ? "Se verifică..."
+                : "Intră în contul de client"}
             </button>
           </form>
 
@@ -360,7 +444,29 @@ export default function ContClientPage() {
                 textDecoration: "none",
               }}
             >
-              Creează cont
+              Creează cont client
+            </a>
+          </div>
+
+          <div
+            style={{
+              marginTop: "16px",
+              textAlign: "center",
+              color: "#667085",
+              fontSize: "14px",
+            }}
+          >
+            Reprezinți un restaurant?{" "}
+
+            <a
+              href="/login"
+              style={{
+                color: "#172033",
+                fontWeight: "900",
+                textDecoration: "none",
+              }}
+            >
+              Login restaurant
             </a>
           </div>
         </div>
