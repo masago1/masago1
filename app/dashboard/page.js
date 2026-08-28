@@ -229,62 +229,62 @@ export default function DashboardPage() {
   ========================= */
 
   async function loadReservations(
-  accessToken,
-  supabaseUrl,
-  supabaseKey
-) {
-  try {
-    const response = await fetch(
-      `${supabaseUrl}/rest/v1/rpc/get_my_restaurant_reservations`,
-      {
-        method: "POST",
+    accessToken,
+    supabaseUrl,
+    supabaseKey
+  ) {
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/get_my_restaurant_reservations`,
+        {
+          method: "POST",
 
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
 
-        body: JSON.stringify({}),
+          body: JSON.stringify({}),
+        }
+      );
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
       }
-    );
 
-    if (response.status === 401) {
-      handleLogout();
-      return;
-    }
+      const data = await response.json();
 
-    const data = await response.json();
+      if (!response.ok) {
+        console.error(
+          "Reservations error:",
+          data
+        );
 
-    if (!response.ok) {
+        setMessage(
+          data?.message ||
+            data?.error ||
+            "Nu am putut încărca rezervările restaurantului."
+        );
+
+        return;
+      }
+
+      setReservations(data || []);
+    } catch (error) {
       console.error(
-        "Reservations error:",
-        data
+        "Load reservations error:",
+        error
       );
 
       setMessage(
-        data?.message ||
-          data?.error ||
-          "Nu am putut încărca rezervările restaurantului."
+        "A apărut o eroare la încărcarea rezervărilor."
       );
-
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setReservations(data || []);
-  } catch (error) {
-    console.error(
-      "Load reservations error:",
-      error
-    );
-
-    setMessage(
-      "A apărut o eroare la încărcarea rezervărilor."
-    );
-  } finally {
-    setLoading(false);
   }
-}
 
   /* =========================
      OFFERS
@@ -937,6 +937,61 @@ export default function DashboardPage() {
   }
 
   /* =========================
+     EMAIL CLIENT
+  ========================= */
+
+  async function sendReservationEmail(
+    reservationId,
+    accessToken,
+    supabaseUrl,
+    supabaseKey
+  ) {
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/send-reservation-email`,
+        {
+          method: "POST",
+
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            reservation_id: reservationId,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Email client error:",
+          data
+        );
+
+        return false;
+      }
+
+      console.log(
+        "Email client:",
+        data
+      );
+
+      return true;
+    } catch (error) {
+      console.error(
+        "Email client error:",
+        error
+      );
+
+      return false;
+    }
+  }
+
+  /* =========================
      UPDATE RESERVATION
   ========================= */
 
@@ -1052,6 +1107,20 @@ export default function DashboardPage() {
             )
         );
 
+        const emailSent =
+          await sendReservationEmail(
+            id,
+            accessToken,
+            supabaseUrl,
+            supabaseKey
+          );
+
+        if (!emailSent) {
+          console.error(
+            "Rezervarea a fost acceptată, dar emailul nu a putut fi trimis."
+          );
+        }
+
         if (
           data?.offer === true &&
           typeof data
@@ -1152,6 +1221,20 @@ export default function DashboardPage() {
         newStatus ===
         "rejected"
       ) {
+        const emailSent =
+          await sendReservationEmail(
+            id,
+            accessToken,
+            supabaseUrl,
+            supabaseKey
+          );
+
+        if (!emailSent) {
+          console.error(
+            "Rezervarea a fost respinsă, dar emailul nu a putut fi trimis."
+          );
+        }
+
         setMessage(
           "Rezervarea a fost respinsă."
         );
@@ -1787,7 +1870,7 @@ export default function DashboardPage() {
                   <span
                     style={{
                       color:
-                        "#737C8D",
+                                                "#737C8D",
 
                       fontWeight:
                         "700",
@@ -3661,3 +3744,4 @@ const formInput = {
   outline:
     "none",
 };
+                        
