@@ -107,6 +107,25 @@ export default function RestaurantPage() {
 
   /*
     =========================
+    RECENZII
+    =========================
+  */
+
+  const [reviews, setReviews] =
+    useState([]);
+
+  const [
+    reviewsLoading,
+    setReviewsLoading,
+  ] = useState(true);
+
+  const [
+    reviewsError,
+    setReviewsError,
+  ] = useState("");
+
+  /*
+    =========================
     START
     =========================
   */
@@ -130,6 +149,7 @@ export default function RestaurantPage() {
 
     loadRestaurantImages();
     loadOffers();
+    loadReviews();
   }, [restaurant?.id]);
 
   /*
@@ -328,6 +348,104 @@ export default function RestaurantPage() {
     } finally {
       setImagesLoading(false);
     }
+  }
+
+  /*
+    =========================
+    RECENZII
+    =========================
+  */
+
+  async function loadReviews() {
+    if (!restaurant?.id) {
+      return;
+    }
+
+    const supabaseUrl =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      setReviewsLoading(false);
+      return;
+    }
+
+    setReviewsLoading(true);
+    setReviewsError("");
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/reviews?restaurant_id=eq.${restaurant.id}&select=id,rating,comment,created_at&order=created_at.desc`,
+        {
+          headers: {
+            apikey: supabaseKey,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Reviews load error:",
+          data
+        );
+
+        setReviews([]);
+        setReviewsError(
+          "Recenziile nu au putut fi încărcate."
+        );
+        return;
+      }
+
+      setReviews(data || []);
+    } catch (error) {
+      console.error(
+        "Reviews error:",
+        error
+      );
+
+      setReviews([]);
+      setReviewsError(
+        "Recenziile nu au putut fi încărcate."
+      );
+    } finally {
+      setReviewsLoading(false);
+    }
+  }
+
+  const reviewStats = useMemo(() => {
+    if (!reviews.length) {
+      return {
+        average: 0,
+        total: 0,
+      };
+    }
+
+    const totalRating = reviews.reduce(
+      (sum, review) =>
+        sum + Number(review.rating || 0),
+      0
+    );
+
+    return {
+      average:
+        totalRating / reviews.length,
+      total: reviews.length,
+    };
+  }, [reviews]);
+
+  function scrollToReviews() {
+    document
+      .getElementById("recenzii")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
   }
 
   /*
@@ -1076,10 +1194,6 @@ export default function RestaurantPage() {
     setLoading(true);
 
     try {
-      /*
-        REZERVARE CU OFERTĂ
-      */
-
       if (selectedOffer) {
         const response =
           await fetch(
@@ -1149,10 +1263,6 @@ export default function RestaurantPage() {
           return;
         }
       } else {
-        /*
-          REZERVARE FĂRĂ OFERTĂ
-        */
-
         const response =
           await fetch(
             `${supabaseUrl}/rest/v1/reservations`,
@@ -1304,8 +1414,7 @@ export default function RestaurantPage() {
     setConfirmation(null);
     setMessage("");
   }
-
-  /*
+    /*
     =========================
     STILURI
     =========================
@@ -1583,7 +1692,6 @@ export default function RestaurantPage() {
           }}
         >
           Masago
-
           <span
             style={{
               color:
@@ -1696,6 +1804,176 @@ export default function RestaurantPage() {
             >
               {restaurant.name}
             </h1>
+
+            {/* RATING + BUTON RECENZII */}
+
+            <div
+              style={{
+                display:
+                  "flex",
+
+                alignItems:
+                  "center",
+
+                gap:
+                  "10px",
+
+                flexWrap:
+                  "wrap",
+
+                marginTop:
+                  "13px",
+              }}
+            >
+              {reviewsLoading ? (
+                <span
+                  style={{
+                    color:
+                      "#cbd2dd",
+
+                    fontSize:
+                      "14px",
+
+                    fontWeight:
+                      "700",
+                  }}
+                >
+                  Se încarcă recenziile...
+                </span>
+              ) : reviewStats.total >
+                0 ? (
+                <>
+                  <span
+                    style={{
+                      color:
+                        "#FFD166",
+
+                      fontSize:
+                        "19px",
+
+                      letterSpacing:
+                        "1px",
+                    }}
+                  >
+                    ★★★★★
+                  </span>
+
+                  <strong
+                    style={{
+                      fontSize:
+                        "16px",
+                    }}
+                  >
+                    {reviewStats.average.toFixed(
+                      1
+                    )}
+                  </strong>
+
+                  <span
+                    style={{
+                      color:
+                        "#AEB7C6",
+
+                      fontSize:
+                        "14px",
+                    }}
+                  >
+                    (
+                    {reviewStats.total}{" "}
+                    {reviewStats.total ===
+                    1
+                      ? "recenzie"
+                      : "recenzii"}
+                    )
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={
+                      scrollToReviews
+                    }
+                    style={{
+                      border:
+                        "1px solid rgba(255,255,255,0.22)",
+
+                      background:
+                        "rgba(255,255,255,0.08)",
+
+                      color:
+                        "white",
+
+                      borderRadius:
+                        "999px",
+
+                      padding:
+                        "7px 11px",
+
+                      cursor:
+                        "pointer",
+
+                      fontWeight:
+                        "800",
+
+                      fontSize:
+                        "12px",
+                    }}
+                  >
+                    Vezi recenziile ↓
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span
+                    style={{
+                      color:
+                        "#AEB7C6",
+
+                      fontSize:
+                        "14px",
+
+                      fontWeight:
+                        "700",
+                    }}
+                  >
+                    Fără recenzii încă
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={
+                      scrollToReviews
+                    }
+                    style={{
+                      border:
+                        "1px solid rgba(255,255,255,0.22)",
+
+                      background:
+                        "rgba(255,255,255,0.08)",
+
+                      color:
+                        "white",
+
+                      borderRadius:
+                        "999px",
+
+                      padding:
+                        "7px 11px",
+
+                      cursor:
+                        "pointer",
+
+                      fontWeight:
+                        "800",
+
+                      fontSize:
+                        "12px",
+                    }}
+                  >
+                    Vezi recenziile ↓
+                  </button>
+                </>
+              )}
+            </div>
 
             <p
               style={{
@@ -2028,7 +2306,7 @@ export default function RestaurantPage() {
             "0 auto",
 
           padding:
-            "55px 6% 80px",
+            "55px 6% 30px",
 
           display:
             "grid",
@@ -3391,6 +3669,458 @@ export default function RestaurantPage() {
                 </div>
               )}
             </>
+          )}
+        </div>
+      </section>
+
+      {/* =========================
+          RECENZII
+          ========================= */}
+
+      <section
+        id="recenzii"
+        style={{
+          maxWidth:
+            "1180px",
+
+          margin:
+            "0 auto",
+
+          padding:
+            "25px 6% 80px",
+
+          scrollMarginTop:
+            "100px",
+        }}
+      >
+        <div
+          style={{
+            background:
+              "white",
+
+            border:
+              "1px solid #E7E9ED",
+
+            borderRadius:
+              "22px",
+
+            padding:
+              "30px",
+
+            boxShadow:
+              "0 12px 35px rgba(23,32,51,0.06)",
+          }}
+        >
+          <div
+            style={{
+              display:
+                "flex",
+
+              justifyContent:
+                "space-between",
+
+              alignItems:
+                "flex-start",
+
+              gap:
+                "20px",
+
+              flexWrap:
+                "wrap",
+
+              marginBottom:
+                "28px",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  margin:
+                    0,
+
+                  color:
+                    "#FF5A3C",
+
+                  fontWeight:
+                    "900",
+
+                  fontSize:
+                    "13px",
+
+                  textTransform:
+                    "uppercase",
+
+                  letterSpacing:
+                    "1px",
+                }}
+              >
+                Experiențele clienților
+              </p>
+
+              <h2
+                style={{
+                  margin:
+                    "7px 0 5px",
+
+                  fontSize:
+                    "30px",
+                }}
+              >
+                Recenzii
+              </h2>
+
+              <p
+                style={{
+                  margin:
+                    0,
+
+                  color:
+                    "#667085",
+                }}
+              >
+                Vezi ce spun clienții despre{" "}
+                <strong>
+                  {restaurant.name}
+                </strong>
+                .
+              </p>
+            </div>
+
+            {reviewStats.total >
+              0 && (
+              <div
+                style={{
+                  minWidth:
+                    "145px",
+
+                  background:
+                    "#FFF8E8",
+
+                  border:
+                    "1px solid #FDE6A8",
+
+                  borderRadius:
+                    "16px",
+
+                  padding:
+                    "15px 18px",
+
+                  textAlign:
+                    "center",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize:
+                      "32px",
+
+                    fontWeight:
+                      "900",
+
+                    color:
+                      "#172033",
+                  }}
+                >
+                  {reviewStats.average.toFixed(
+                    1
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      "#F5A623",
+
+                    fontSize:
+                      "18px",
+
+                    margin:
+                      "2px 0",
+                  }}
+                >
+                  ★★★★★
+                </div>
+
+                <div
+                  style={{
+                    color:
+                      "#667085",
+
+                    fontSize:
+                      "12px",
+
+                    fontWeight:
+                      "700",
+                  }}
+                >
+                  {reviewStats.total}{" "}
+                  {reviewStats.total ===
+                  1
+                    ? "recenzie"
+                    : "recenzii"}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {reviewsLoading ? (
+            <div
+              style={{
+                padding:
+                  "25px",
+
+                background:
+                  "#F8F9FA",
+
+                borderRadius:
+                  "14px",
+
+                color:
+                  "#667085",
+
+                fontWeight:
+                  "800",
+
+                textAlign:
+                  "center",
+              }}
+            >
+              Se încarcă recenziile...
+            </div>
+          ) : reviewsError ? (
+            <div
+              style={{
+                padding:
+                  "20px",
+
+                background:
+                  "#FFF0EC",
+
+                borderRadius:
+                  "14px",
+
+                color:
+                  "#A33A29",
+
+                fontWeight:
+                  "800",
+              }}
+            >
+              {reviewsError}
+            </div>
+          ) : reviews.length ===
+            0 ? (
+            <div
+              style={{
+                padding:
+                  "30px",
+
+                background:
+                  "#F8F9FA",
+
+                border:
+                  "1px solid #EAECF0",
+
+                borderRadius:
+                  "16px",
+
+                textAlign:
+                  "center",
+              }}
+            >
+              <div
+                style={{
+                  fontSize:
+                    "35px",
+
+                  marginBottom:
+                    "10px",
+                }}
+              >
+                ⭐
+              </div>
+
+              <strong
+                style={{
+                  display:
+                    "block",
+
+                  fontSize:
+                    "18px",
+
+                  marginBottom:
+                    "6px",
+                }}
+              >
+                Încă nu există recenzii
+              </strong>
+
+              <span
+                style={{
+                  color:
+                    "#667085",
+                }}
+              >
+                Primele recenzii vor apărea aici.
+              </span>
+            </div>
+          ) : (
+            <div
+              style={{
+                display:
+                  "grid",
+
+                gap:
+                  "14px",
+              }}
+            >
+              {reviews.map(
+                (review) => (
+                  <div
+                    key={
+                      review.id
+                    }
+                    style={{
+                      border:
+                        "1px solid #EAECF0",
+
+                      borderRadius:
+                        "16px",
+
+                      padding:
+                        "20px",
+
+                      background:
+                        "#FFFFFF",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display:
+                          "flex",
+
+                        justifyContent:
+                          "space-between",
+
+                        gap:
+                          "15px",
+
+                        alignItems:
+                          "center",
+
+                        flexWrap:
+                          "wrap",
+                      }}
+                    >
+                      <div
+                        style={{
+                          color:
+                            "#F5A623",
+
+                          fontSize:
+                            "18px",
+
+                          letterSpacing:
+                            "2px",
+                        }}
+                      >
+                        {"★".repeat(
+                          Math.max(
+                            0,
+                            Math.min(
+                              5,
+                              Number(
+                                review.rating ||
+                                  0
+                              )
+                            )
+                          )
+                        )}
+                        <span
+                          style={{
+                            color:
+                              "#D0D5DD",
+                          }}
+                        >
+                          {"★".repeat(
+                            Math.max(
+                              0,
+                              5 -
+                                Math.min(
+                                  5,
+                                  Number(
+                                    review.rating ||
+                                      0
+                                  )
+                                )
+                            )
+                          )}
+                        </span>
+                      </div>
+
+                      {review.created_at && (
+                        <span
+                          style={{
+                            color:
+                              "#98A2B3",
+
+                            fontSize:
+                              "12px",
+
+                            fontWeight:
+                              "700",
+                          }}
+                        >
+                          {new Date(
+                            review.created_at
+                          ).toLocaleDateString(
+                            "ro-RO"
+                          )}
+                        </span>
+                      )}
+                    </div>
+
+                    {review.comment ? (
+                      <p
+                        style={{
+                          margin:
+                            "14px 0 0",
+
+                          color:
+                            "#475467",
+
+                          lineHeight:
+                            1.65,
+
+                          fontSize:
+                            "15px",
+                        }}
+                      >
+                        {review.comment}
+                      </p>
+                    ) : (
+                      <p
+                        style={{
+                          margin:
+                            "14px 0 0",
+
+                          color:
+                            "#98A2B3",
+
+                          fontStyle:
+                            "italic",
+
+                          fontSize:
+                            "14px",
+                        }}
+                      >
+                        Clientul a acordat doar un rating.
+                      </p>
+                    )}
+                  </div>
+                )
+              )}
+            </div>
           )}
         </div>
       </section>
