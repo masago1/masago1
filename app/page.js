@@ -717,7 +717,7 @@ export default function Home() {
                 "1px solid #dcdfe5",
 
               background:
-                "#FFF5F2",
+                "#white",
 
               padding:
                 "11px 17px",
