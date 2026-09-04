@@ -26,17 +26,46 @@ export default function RootLayout({
       lang="ro"
       className={`${inter.variable} ${manrope.variable}`}
     >
+      <head>
+        <style>{`
+          html {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+          }
+
+          body,
+          body *,
+          button,
+          input,
+          select,
+          textarea {
+            font-family: var(--font-inter), sans-serif !important;
+          }
+
+          h1,
+          h2,
+          h3,
+          h4,
+          h5,
+          h6 {
+            font-family: var(--font-manrope), sans-serif !important;
+            letter-spacing: -0.03em;
+          }
+
+          button,
+          input,
+          select,
+          textarea {
+            font-feature-settings: "kern";
+          }
+        `}</style>
+      </head>
+
       <body
         style={{
           margin: 0,
-          fontFamily:
-            "var(--font-inter), sans-serif",
-          WebkitFontSmoothing:
-            "antialiased",
-          MozOsxFontSmoothing:
-            "grayscale",
-          textRendering:
-            "optimizeLegibility",
+          background: "#FAFAF8",
         }}
       >
         {children}
