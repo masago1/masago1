@@ -1251,20 +1251,14 @@ export default function Home() {
                     restaurant.name
                   }
                   style={{
-                    background:
-                      "white",
-
-                    borderRadius:
-                      "22px",
-
-                    overflow:
-                      "hidden",
-
-                    border:
-                      "1px solid #ebedf0",
-
-                    boxShadow:
-                      "0 12px 35px rgba(23,32,51,0.07)",
+  background: "rgba(255,255,255,0.96)",
+  borderRadius: "24px",
+  overflow: "hidden",
+  border: "1px solid rgba(23,32,51,0.08)",
+  boxShadow:
+    "0 18px 50px rgba(23,32,51,0.08)",
+  transition:
+    "transform 0.22s ease, box-shadow 0.22s ease",
                   }}
                 >
                   {/* IMAGINE */}
@@ -1272,7 +1266,7 @@ export default function Home() {
                   <div
                     style={{
                       height:
-                        "220px",
+                        "240px",
 
                       background:
                         "linear-gradient(135deg, #f1f2f4, #e8eaed)",
