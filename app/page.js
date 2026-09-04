@@ -1567,30 +1567,18 @@ boxShadow:
 
                     <a
                       href={`/restaurant/${restaurant.slug}`}
-                      style={{
-                        display:
-                          "block",
-
-                        background:
-                          "#172033",
-
-                        color:
-                          "white",
-
-                        textDecoration:
-                          "none",
-
-                        textAlign:
-                          "center",
-
-                        padding:
-                          "14px",
-
-                        borderRadius:
-                          "11px",
-
-                        fontWeight:
-                          "800",
+                     style={{
+  display: "block",
+  background: "#172033",
+  color: "white",
+  textDecoration: "none",
+  textAlign: "center",
+  padding: "15px 18px",
+  borderRadius: "14px",
+  fontWeight: "800",
+  fontSize: "15px",
+  letterSpacing: "-0.1px",
+  boxShadow: "0 8px 20px rgba(23,32,51,0.16)",
                       }}
                     >
                       {offersCount >
