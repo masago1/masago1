@@ -570,7 +570,6 @@ export default function Home() {
   return (
     <main
       style={{
-        
         background:
           "#FAFAF8",
 
@@ -715,7 +714,7 @@ export default function Home() {
                 "1px solid #dcdfe5",
 
               background:
-                "#white",
+                "white",
 
               padding:
                 "11px 17px",
@@ -1251,14 +1250,23 @@ export default function Home() {
                     restaurant.name
                   }
                   style={{
-  background: "rgba(255,255,255,0.96)",
-  borderRadius: "24px",
-  overflow: "hidden",
-  border: "1px solid rgba(23,32,51,0.08)",
-  boxShadow:
-    "0 18px 50px rgba(23,32,51,0.08)",
-  transition:
-    "transform 0.22s ease, box-shadow 0.22s ease",
+                    background:
+                      "rgba(255,255,255,0.96)",
+
+                    borderRadius:
+                      "24px",
+
+                    overflow:
+                      "hidden",
+
+                    border:
+                      "1px solid rgba(23,32,51,0.08)",
+
+                    boxShadow:
+                      "0 18px 50px rgba(23,32,51,0.08)",
+
+                    transition:
+                      "transform 0.22s ease, box-shadow 0.22s ease",
                   }}
                 >
                   {/* IMAGINE */}
@@ -1361,10 +1369,13 @@ export default function Home() {
                           "13px",
 
                         padding:
-                          "9px 12px",
+                          "8px 12px",
 
                         borderRadius:
-                          "10px",
+                          "999px",
+
+                        backdropFilter:
+                          "blur(8px)",
 
                         boxShadow:
                           offersCount >
@@ -1401,21 +1412,22 @@ export default function Home() {
                             "16px",
 
                           background:
-                            "rgba(255,255,255,0.94)",
+                            "rgba(255,255,255,0.92)",
 
                           padding:
                             "8px 10px",
 
                           borderRadius:
                             "10px",
+
                           backdropFilter:
-  "blur(10px)",
+                            "blur(10px)",
 
-border:
-  "1px solid rgba(255,255,255,0.7)",
+                          border:
+                            "1px solid rgba(255,255,255,0.7)",
 
-boxShadow:
-  "0 6px 20px rgba(0,0,0,0.10)",
+                          boxShadow:
+                            "0 6px 20px rgba(0,0,0,0.10)",
 
                           fontWeight:
                             "800",
@@ -1434,7 +1446,7 @@ boxShadow:
                   <div
                     style={{
                       padding:
-                        "22px",
+                        "24px",
                     }}
                   >
                     <h3
@@ -1443,10 +1455,13 @@ boxShadow:
                           0,
 
                         fontSize:
-                          "24px",
+                          "25px",
 
                         letterSpacing:
-                          "-0.5px",
+                          "-0.7px",
+
+                        lineHeight:
+                          1.15,
                       }}
                     >
                       {
@@ -1460,7 +1475,7 @@ boxShadow:
                           "#7a8393",
 
                         margin:
-                          "8px 0 12px",
+                          "9px 0 14px",
                       }}
                     >
                       {
@@ -1480,8 +1495,11 @@ boxShadow:
                         lineHeight:
                           1.5,
 
+                        fontSize:
+                          "15px",
+
                         minHeight:
-                          "48px",
+                          "46px",
                       }}
                     >
                       {
@@ -1567,18 +1585,39 @@ boxShadow:
 
                     <a
                       href={`/restaurant/${restaurant.slug}`}
-                     style={{
-  display: "block",
-  background: "#172033",
-  color: "white",
-  textDecoration: "none",
-  textAlign: "center",
-  padding: "15px 18px",
-  borderRadius: "14px",
-  fontWeight: "800",
-  fontSize: "15px",
-  letterSpacing: "-0.1px",
-  boxShadow: "0 8px 20px rgba(23,32,51,0.16)",
+                      style={{
+                        display:
+                          "block",
+
+                        background:
+                          "#172033",
+
+                        color:
+                          "white",
+
+                        textDecoration:
+                          "none",
+
+                        textAlign:
+                          "center",
+
+                        padding:
+                          "15px 18px",
+
+                        borderRadius:
+                          "14px",
+
+                        fontWeight:
+                          "800",
+
+                        fontSize:
+                          "15px",
+
+                        letterSpacing:
+                          "-0.1px",
+
+                        boxShadow:
+                          "0 8px 20px rgba(23,32,51,0.16)",
                       }}
                     >
                       {offersCount >
