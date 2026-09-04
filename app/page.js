@@ -692,7 +692,7 @@ export default function Home() {
                 "10px",
 
               fontWeight:
-                "700",
+                "800",
             }}
           >
             {sessionLoading
