@@ -6,6 +6,10 @@ export default function DashboardPage() {
   const [reservations, setReservations] = useState([]);
   const [offers, setOffers] = useState([]);
 
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsMessage, setReviewsMessage] = useState("");
+
   const [restaurantName, setRestaurantName] =
     useState("Restaurant");
 
@@ -231,6 +235,15 @@ export default function DashboardPage() {
 
         restaurant?.id
           ? loadRestaurantImages(
+              accessToken,
+              supabaseUrl,
+              supabaseKey,
+              restaurant.id
+            )
+          : Promise.resolve(),
+
+        restaurant?.id
+          ? loadReviews(
               accessToken,
               supabaseUrl,
               supabaseKey,
@@ -1087,6 +1100,64 @@ export default function DashboardPage() {
 
   /*
     =========================
+    REVIEWS
+    =========================
+  */
+
+  async function loadReviews(
+    accessToken,
+    supabaseUrl,
+    supabaseKey,
+    currentRestaurantId = restaurantId
+  ) {
+    if (!currentRestaurantId) return;
+
+    setReviewsLoading(true);
+    setReviewsMessage("");
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/reviews?restaurant_id=eq.${currentRestaurantId}&select=id,reservation_id,restaurant_id,user_id,rating,comment,created_at&order=created_at.desc`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Reviews error:", data);
+
+        setReviewsMessage(
+          data?.message ||
+            "Nu am putut încărca recenziile."
+        );
+
+        return;
+      }
+
+      setReviews(data || []);
+    } catch (error) {
+      console.error(error);
+
+      setReviewsMessage(
+        "A apărut o eroare la încărcarea recenziilor."
+      );
+    } finally {
+      setReviewsLoading(false);
+    }
+  }
+
+  /*
+    =========================
     RESERVATIONS
     =========================
   */
@@ -1883,8 +1954,7 @@ export default function DashboardPage() {
       setUpdatingId(null);
     }
   }
-
-  async function validateReservationCode(
+    async function validateReservationCode(
     event
   ) {
     event.preventDefault();
@@ -2165,6 +2235,22 @@ export default function DashboardPage() {
       ) || null
     );
   }
+
+  const reviewStats = useMemo(() => {
+    if (!reviews.length) {
+      return { average: 0, total: 0 };
+    }
+
+    const totalRating = reviews.reduce(
+      (sum, review) => sum + Number(review.rating || 0),
+      0
+    );
+
+    return {
+      average: totalRating / reviews.length,
+      total: reviews.length,
+    };
+  }, [reviews]);
 
   const stats =
     useMemo(() => {
@@ -3127,6 +3213,162 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        {/* RECENZII */}
+
+        <section
+          style={{
+            ...sectionCard,
+            marginBottom: "40px",
+          }}
+        >
+          <div style={sectionHeader}>
+            <div>
+              <p style={orangeLabel}>FEEDBACK CLIENȚI</p>
+              <h2 style={{ marginBottom: "6px" }}>⭐ Recenzii</h2>
+              <p style={description}>
+                Vezi părerile clienților care au folosit o rezervare la restaurant.
+              </p>
+            </div>
+
+            <div style={{ textAlign: "right", minWidth: "130px" }}>
+              <div
+                style={{
+                  fontSize: "32px",
+                  fontWeight: "900",
+                  color: "#172033",
+                }}
+              >
+                {reviewStats.total > 0
+                  ? reviewStats.average.toFixed(1)
+                  : "—"}
+                <span style={{ fontSize: "17px", color: "#737C8D" }}>
+                  {" "}/ 5
+                </span>
+              </div>
+
+              <div
+                style={{
+                  color: "#FFB020",
+                  fontSize: "20px",
+                  letterSpacing: "2px",
+                  marginTop: "3px",
+                }}
+              >
+                {reviewStats.total > 0
+                  ? "★".repeat(Math.round(reviewStats.average)) +
+                    "☆".repeat(5 - Math.round(reviewStats.average))
+                  : "☆☆☆☆☆"}
+              </div>
+
+              <div
+                style={{
+                  color: "#737C8D",
+                  fontSize: "13px",
+                  marginTop: "5px",
+                }}
+              >
+                {reviewStats.total}{" "}
+                {reviewStats.total === 1 ? "recenzie" : "recenzii"}
+              </div>
+            </div>
+          </div>
+
+          {reviewsMessage && <MessageBox text={reviewsMessage} />}
+
+          {reviewsLoading ? (
+            <p>Se încarcă recenziile...</p>
+          ) : reviews.length === 0 ? (
+            <div style={emptyBox}>
+              ⭐ Restaurantul nu are încă recenzii.
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gap: "14px",
+                marginTop: "22px",
+              }}
+            >
+              {reviews.map((review) => (
+                <article
+                  key={review.id}
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid #E7E9ED",
+                    borderRadius: "16px",
+                    padding: "20px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: "20px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          color: "#FFB020",
+                          fontSize: "21px",
+                          letterSpacing: "2px",
+                        }}
+                      >
+                        {"★".repeat(Number(review.rating) || 0)}
+                        {"☆".repeat(5 - (Number(review.rating) || 0))}
+                      </div>
+
+                      <strong
+                        style={{
+                          display: "block",
+                          marginTop: "5px",
+                          fontSize: "15px",
+                        }}
+                      >
+                        {review.rating} / 5
+                      </strong>
+                    </div>
+
+                    <span style={{ color: "#818997", fontSize: "13px" }}>
+                      {review.created_at
+                        ? new Date(review.created_at).toLocaleDateString("ro-RO")
+                        : ""}
+                    </span>
+                  </div>
+
+                  <p
+                    style={{
+                      margin: "16px 0 0 0",
+                      color: "#4B5565",
+                      lineHeight: "1.6",
+                      fontSize: "15px",
+                    }}
+                  >
+                    {review.comment?.trim()
+                      ? review.comment
+                      : "Clientul nu a lăsat un comentariu."}
+                  </p>
+
+                  <div
+                    style={{
+                      marginTop: "15px",
+                      paddingTop: "12px",
+                      borderTop: "1px solid #F0F1F3",
+                      color: "#98A0AD",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    ✓ RECENZIE DE LA O REZERVARE MASAGO
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* REZERVĂRI */}
 
         <section>
@@ -3655,3 +3897,4 @@ const codeBadge = {
   fontWeight: "900",
   letterSpacing: "1px",
 };
+  
