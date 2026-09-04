@@ -9,6 +9,9 @@ export default function Home() {
   const [restaurantImageByName, setRestaurantImageByName] =
     useState({});
 
+  const [restaurants, setRestaurants] =
+    useState([]);
+
   const [offersLoading, setOffersLoading] =
     useState(true);
 
@@ -20,41 +23,6 @@ export default function Home() {
 
   const [sessionLoading, setSessionLoading] =
     useState(true);
-
-  /*
-    Momentan păstrăm informațiile de bază
-    ale restaurantelor aici.
-
-    POZELE însă vin automat din Supabase.
-
-    Casa Bunicii păstrează /image.png doar
-    ca fallback până verificăm că totul merge.
-  */
-
-  const restaurants = [
-    {
-      name: "Casa Bunicii",
-      type: "Românesc",
-      rating: "9.2",
-      location: "Timișoara",
-      image: "/image.png",
-      emoji: "🍲",
-      href: "/restaurant",
-      description:
-        "Bucătărie românească și preparate tradiționale.",
-    },
-    {
-      name: "Boom Pub",
-      type: "Pub",
-      rating: "9.1",
-      location: "Timișoara",
-      image: null,
-      emoji: "🍻",
-      href: "/restaurant/boom-pub",
-      description:
-        "Atmosferă relaxată, băuturi și preparate de pub.",
-    },
-  ];
 
   useEffect(() => {
     loadHomepageData();
@@ -243,12 +211,23 @@ export default function Home() {
 
     try {
       /*
-        1. Restaurante
+        1. RESTAURANTE
+
+        IMPORTANT:
+        Restaurantele NU mai sunt scrise manual
+        în cod.
+
+        Vin automat din Supabase.
+
+        slug este folosit automat pentru:
+        /restaurant/casabunicii
+        /restaurant/boompub
+        etc.
       */
 
       const restaurantsResponse =
         await fetch(
-          `${supabaseUrl}/rest/v1/restaurants?select=id,name`,
+          `${supabaseUrl}/rest/v1/restaurants?select=id,name,slug`,
           {
             headers: {
               apikey:
@@ -272,14 +251,148 @@ export default function Home() {
       }
 
       /*
-        2. Pozele principale
+        Construim restaurantele pentru homepage.
+
+        Momentan informațiile care nu există
+        încă în tabel (type, rating etc.)
+        primesc valori implicite.
+
+        Mai târziu le putem muta și pe acestea
+        în Supabase.
+      */
+
+      const homepageRestaurants =
+        (
+          restaurantRows || []
+        ).map(
+          (dbRestaurant) => {
+            /*
+              Păstrăm momentan informațiile
+              cunoscute pentru restaurantele
+              existente.
+
+              IMPORTANT:
+              URL-ul NU mai este hardcodat.
+            */
+
+            if (
+              dbRestaurant.name ===
+              "Casa Bunicii"
+            ) {
+              return {
+                id:
+                  dbRestaurant.id,
+
+                name:
+                  dbRestaurant.name,
+
+                slug:
+                  dbRestaurant.slug,
+
+                type:
+                  "Românesc",
+
+                rating:
+                  "9.2",
+
+                location:
+                  "Timișoara",
+
+                image:
+                  "/image.png",
+
+                emoji:
+                  "🍲",
+
+                description:
+                  "Bucătărie românească și preparate tradiționale.",
+              };
+            }
+
+            if (
+              dbRestaurant.name ===
+              "Boom Pub"
+            ) {
+              return {
+                id:
+                  dbRestaurant.id,
+
+                name:
+                  dbRestaurant.name,
+
+                slug:
+                  dbRestaurant.slug,
+
+                type:
+                  "Pub",
+
+                rating:
+                  "9.1",
+
+                location:
+                  "Timișoara",
+
+                image:
+                  null,
+
+                emoji:
+                  "🍻",
+
+                description:
+                  "Atmosferă relaxată, băuturi și preparate de pub.",
+              };
+            }
+
+            /*
+              ORICE RESTAURANT NOU
+
+              Apare automat fără să mai
+              modificăm app/page.js.
+            */
+
+            return {
+              id:
+                dbRestaurant.id,
+
+              name:
+                dbRestaurant.name,
+
+              slug:
+                dbRestaurant.slug,
+
+              type:
+                "Restaurant",
+
+              rating:
+                null,
+
+              location:
+                "Timișoara",
+
+              image:
+                null,
+
+              emoji:
+                "🍽️",
+
+              description:
+                "Descoperă restaurantul și ofertele disponibile.",
+            };
+          }
+        );
+
+      setRestaurants(
+        homepageRestaurants
+      );
+
+      /*
+        2. POZELE PRINCIPALE
 
         Luăm doar imaginile unde:
         is_cover = true
 
-        Asta înseamnă că restaurantul
-        controlează singur poza care apare
-        pe homepage.
+        Restaurantul controlează singur
+        poza care apare pe homepage.
       */
 
       const imagesResponse =
@@ -305,8 +418,6 @@ export default function Home() {
         );
       } else {
         /*
-          Construim:
-
           restaurant UUID
           ->
           URL fotografie
@@ -332,13 +443,9 @@ export default function Home() {
         );
 
         /*
-          Apoi transformăm în:
+          Transformăm apoi:
 
-          Casa Bunicii
-          ->
-          URL fotografie
-
-          Boom Pub
+          nume restaurant
           ->
           URL fotografie
         */
@@ -346,7 +453,9 @@ export default function Home() {
         const mappedImages =
           {};
 
-        restaurantRows.forEach(
+        (
+          restaurantRows || []
+        ).forEach(
           (dbRestaurant) => {
             const imageUrl =
               imageByRestaurantId[
@@ -368,7 +477,7 @@ export default function Home() {
       }
 
       /*
-        3. Oferte disponibile
+        3. OFERTE DISPONIBILE
 
         Azi + următoarele 3 zile.
       */
@@ -412,7 +521,9 @@ export default function Home() {
       const mappedCounts =
         {};
 
-      restaurantRows.forEach(
+      (
+        restaurantRows || []
+      ).forEach(
         (dbRestaurant) => {
           const count =
             (
@@ -1138,6 +1249,7 @@ export default function Home() {
               return (
                 <article
                   key={
+                    restaurant.id ||
                     restaurant.name
                   }
                   style={{
@@ -1284,35 +1396,37 @@ export default function Home() {
 
                     {/* RATING */}
 
-                    <div
-                      style={{
-                        position:
-                          "absolute",
+                    {restaurant.rating && (
+                      <div
+                        style={{
+                          position:
+                            "absolute",
 
-                        right:
-                          "16px",
+                          right:
+                            "16px",
 
-                        top:
-                          "16px",
+                          top:
+                            "16px",
 
-                        background:
-                          "rgba(255,255,255,0.94)",
+                          background:
+                            "rgba(255,255,255,0.94)",
 
-                        padding:
-                          "8px 10px",
+                          padding:
+                            "8px 10px",
 
-                        borderRadius:
-                          "10px",
+                          borderRadius:
+                            "10px",
 
-                        fontWeight:
-                          "800",
-                      }}
-                    >
-                      ⭐{" "}
-                      {
-                        restaurant.rating
-                      }
-                    </div>
+                          fontWeight:
+                            "800",
+                        }}
+                      >
+                        ⭐{" "}
+                        {
+                          restaurant.rating
+                        }
+                      </div>
+                    )}
                   </div>
 
                   {/* INFO */}
@@ -1449,12 +1563,10 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* BUTON */}
+                    {/* BUTON DINAMIC */}
 
                     <a
-                      href={
-                        restaurant.href
-                      }
+                      href={`/restaurant/${restaurant.slug}`}
                       style={{
                         display:
                           "block",
