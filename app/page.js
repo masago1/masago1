@@ -570,9 +570,7 @@ export default function Home() {
   return (
     <main
       style={{
-        fontFamily:
-          "Arial, sans-serif",
-
+        
         background:
           "#FAFAF8",
 
