@@ -3,17 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 
 export default function RezervarileMelePage() {
-  const [reservations, setReservations] =
-    useState([]);
+  const [reservations, setReservations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [loggedIn, setLoggedIn] = useState(true);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [reviewReservationId, setReviewReservationId] =
+    useState(null);
 
-  const [message, setMessage] =
-    useState("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
 
-  const [loggedIn, setLoggedIn] =
-    useState(true);
+  const [
+    reviewedReservationIds,
+    setReviewedReservationIds,
+  ] = useState([]);
 
   useEffect(() => {
     loadReservations();
@@ -24,11 +29,7 @@ export default function RezervarileMelePage() {
       return "-";
     }
 
-    const [
-      year,
-      month,
-      day,
-    ] = date.split("-");
+    const [year, month, day] = date.split("-");
 
     return `${day}/${month}/${year}`;
   }
@@ -47,6 +48,14 @@ export default function RezervarileMelePage() {
         label: "Confirmată",
         background: "#E9F8EF",
         color: "#16865C",
+      };
+    }
+
+    if (status === "used") {
+      return {
+        label: "Folosită",
+        background: "#EEF2FF",
+        color: "#3448A5",
       };
     }
 
@@ -85,61 +94,44 @@ export default function RezervarileMelePage() {
     }
   }
 
-  function getReservationDateTime(
-    reservation
-  ) {
+  function getReservationDateTime(reservation) {
     if (!reservation?.reservation_date) {
       return null;
     }
 
-    const time =
-      reservation.reservation_time
-        ? String(
-            reservation.reservation_time
-          ).slice(0, 5)
-        : "23:59";
+    const time = reservation.reservation_time
+      ? String(reservation.reservation_time).slice(0, 5)
+      : "23:59";
 
     const value = new Date(
       `${reservation.reservation_date}T${time}:00`
     );
 
-    if (
-      Number.isNaN(
-        value.getTime()
-      )
-    ) {
+    if (Number.isNaN(value.getTime())) {
       return null;
     }
 
     return value;
   }
 
-  function isReservationPast(
-    reservation
-  ) {
+  function isReservationPast(reservation) {
     const reservationDateTime =
-      getReservationDateTime(
-        reservation
-      );
+      getReservationDateTime(reservation);
 
     if (!reservationDateTime) {
       return false;
     }
 
-    return (
-      reservationDateTime.getTime() <
-      Date.now()
-    );
+    return reservationDateTime.getTime() < Date.now();
   }
 
   async function refreshSession(
     supabaseUrl,
     supabaseKey
   ) {
-    const refreshToken =
-      localStorage.getItem(
-        "masago_client_refresh_token"
-      );
+    const refreshToken = localStorage.getItem(
+      "masago_client_refresh_token"
+    );
 
     if (!refreshToken) {
       return null;
@@ -153,24 +145,18 @@ export default function RezervarileMelePage() {
 
           headers: {
             apikey: supabaseKey,
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
 
           body: JSON.stringify({
-            refresh_token:
-              refreshToken,
+            refresh_token: refreshToken,
           }),
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
-      if (
-        !response.ok ||
-        !data?.access_token
-      ) {
+      if (!response.ok || !data?.access_token) {
         return null;
       }
 
@@ -216,16 +202,11 @@ export default function RezervarileMelePage() {
 
         headers: {
           apikey: supabaseKey,
-
-          Authorization:
-            `Bearer ${accessToken}`,
-
-          "Content-Type":
-            "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
 
-        body:
-          JSON.stringify({}),
+        body: JSON.stringify({}),
       }
     );
   }
@@ -238,7 +219,8 @@ export default function RezervarileMelePage() {
       process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
       setMessage(
@@ -249,10 +231,9 @@ export default function RezervarileMelePage() {
       return;
     }
 
-    let accessToken =
-      localStorage.getItem(
-        "masago_client_access_token"
-      );
+    let accessToken = localStorage.getItem(
+      "masago_client_access_token"
+    );
 
     if (!accessToken) {
       setLoggedIn(false);
@@ -262,16 +243,13 @@ export default function RezervarileMelePage() {
     }
 
     try {
-      let response =
-        await requestReservations(
-          supabaseUrl,
-          supabaseKey,
-          accessToken
-        );
+      let response = await requestReservations(
+        supabaseUrl,
+        supabaseKey,
+        accessToken
+      );
 
-      if (
-        response.status === 401
-      ) {
+      if (response.status === 401) {
         const newAccessToken =
           await refreshSession(
             supabaseUrl,
@@ -288,19 +266,16 @@ export default function RezervarileMelePage() {
           return;
         }
 
-        accessToken =
-          newAccessToken;
+        accessToken = newAccessToken;
 
-        response =
-          await requestReservations(
-            supabaseUrl,
-            supabaseKey,
-            accessToken
-          );
+        response = await requestReservations(
+          supabaseUrl,
+          supabaseKey,
+          accessToken
+        );
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         console.error(
@@ -320,19 +295,62 @@ export default function RezervarileMelePage() {
       const hiddenCodes =
         getHiddenReservationCodes();
 
-      const visibleReservations =
-        (data || []).filter(
-          (reservation) =>
-            !hiddenCodes.includes(
-              reservation.reservation_code
-            )
-        );
-
-      setReservations(
-        visibleReservations
+      const visibleReservations = (
+        data || []
+      ).filter(
+        (reservation) =>
+          !hiddenCodes.includes(
+            reservation.reservation_code
+          )
       );
 
+      setReservations(visibleReservations);
       setLoggedIn(true);
+
+      /*
+        Încărcăm review-urile deja trimise
+        de utilizator.
+      */
+
+      try {
+        const clientUser = JSON.parse(
+          localStorage.getItem(
+            "masago_client_user"
+          ) || "{}"
+        );
+
+        if (clientUser?.id) {
+          const reviewsResponse = await fetch(
+            `${supabaseUrl}/rest/v1/reviews?user_id=eq.${encodeURIComponent(
+              clientUser.id
+            )}&select=reservation_id`,
+            {
+              headers: {
+                apikey: supabaseKey,
+                Authorization:
+                  `Bearer ${accessToken}`,
+              },
+            }
+          );
+
+          if (reviewsResponse.ok) {
+            const reviewsData =
+              await reviewsResponse.json();
+
+            setReviewedReservationIds(
+              (reviewsData || []).map(
+                (review) =>
+                  review.reservation_id
+              )
+            );
+          }
+        }
+      } catch (reviewLoadError) {
+        console.error(
+          "Load reviews error:",
+          reviewLoadError
+        );
+      }
     } catch (error) {
       console.error(
         "Load reservations error:",
@@ -362,10 +380,9 @@ export default function RezervarileMelePage() {
   function removeReservationFromList(
     reservationCode
   ) {
-    const confirmed =
-      window.confirm(
-        "Vrei să elimini această rezervare din lista ta?"
-      );
+    const confirmed = window.confirm(
+      "Vrei să elimini această rezervare din lista ta?"
+    );
 
     if (!confirmed) {
       return;
@@ -387,9 +404,7 @@ export default function RezervarileMelePage() {
 
     localStorage.setItem(
       "masago_hidden_reservation_codes",
-      JSON.stringify(
-        hiddenCodes
-      )
+      JSON.stringify(hiddenCodes)
     );
 
     const lastReservationCode =
@@ -433,8 +448,286 @@ export default function RezervarileMelePage() {
   function handleLogout() {
     clearClientSession();
 
-    window.location.href =
-      "/";
+    window.location.href = "/";
+  }
+
+  function openReviewForm(
+    reservation
+  ) {
+    setMessage("");
+    setReviewReservationId(
+      reservation.id
+    );
+    setReviewRating(5);
+    setReviewComment("");
+  }
+
+  function closeReviewForm() {
+    setReviewReservationId(null);
+    setReviewRating(5);
+    setReviewComment("");
+  }
+
+  async function submitReview(
+    reservation
+  ) {
+    if (!reservation?.id) {
+      setMessage(
+        "Rezervarea nu a putut fi identificată."
+      );
+      return;
+    }
+
+    if (!reservation?.restaurant_id) {
+      setMessage(
+        "Restaurantul nu a putut fi identificat."
+      );
+      return;
+    }
+
+    if (!reservation?.used_at) {
+      setMessage(
+        "Poți lăsa un review doar după ce rezervarea a fost folosită la restaurant."
+      );
+      return;
+    }
+
+    if (
+      reviewedReservationIds.includes(
+        reservation.id
+      )
+    ) {
+      setMessage(
+        "Ai trimis deja un review pentru această rezervare."
+      );
+      return;
+    }
+
+    if (
+      reviewRating < 1 ||
+      reviewRating > 5
+    ) {
+      setMessage(
+        "Alege un rating între 1 și 5 stele."
+      );
+      return;
+    }
+
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    let accessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      setMessage(
+        "Trebuie să fii autentificat pentru a lăsa un review."
+      );
+      return;
+    }
+
+    let clientUser = {};
+
+    try {
+      clientUser = JSON.parse(
+        localStorage.getItem(
+          "masago_client_user"
+        ) || "{}"
+      );
+    } catch {
+      clientUser = {};
+    }
+
+    if (!clientUser?.id) {
+      setMessage(
+        "Nu am putut identifica utilizatorul autentificat."
+      );
+      return;
+    }
+
+    setReviewLoading(true);
+    setMessage("");
+
+    try {
+      let response = await fetch(
+        `${supabaseUrl}/rest/v1/reviews`,
+        {
+          method: "POST",
+
+          headers: {
+            apikey: supabaseKey,
+            Authorization:
+              `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+            Prefer:
+              "return=representation",
+          },
+
+          body: JSON.stringify({
+            reservation_id:
+              reservation.id,
+
+            restaurant_id:
+              reservation.restaurant_id,
+
+            user_id:
+              clientUser.id,
+
+            rating:
+              reviewRating,
+
+            comment:
+              reviewComment.trim() ||
+              null,
+          }),
+        }
+      );
+
+      /*
+        Dacă tokenul a expirat,
+        încercăm refresh automat.
+      */
+
+      if (response.status === 401) {
+        const newAccessToken =
+          await refreshSession(
+            supabaseUrl,
+            supabaseKey
+          );
+
+        if (!newAccessToken) {
+          clearClientSession();
+          setLoggedIn(false);
+
+          setMessage(
+            "Sesiunea a expirat. Intră din nou în cont."
+          );
+
+          return;
+        }
+
+        accessToken = newAccessToken;
+
+        response = await fetch(
+          `${supabaseUrl}/rest/v1/reviews`,
+          {
+            method: "POST",
+
+            headers: {
+              apikey: supabaseKey,
+              Authorization:
+                `Bearer ${accessToken}`,
+              "Content-Type":
+                "application/json",
+              Prefer:
+                "return=representation",
+            },
+
+            body: JSON.stringify({
+              reservation_id:
+                reservation.id,
+
+              restaurant_id:
+                reservation.restaurant_id,
+
+              user_id:
+                clientUser.id,
+
+              rating:
+                reviewRating,
+
+              comment:
+                reviewComment.trim() ||
+                null,
+            }),
+          }
+        );
+      }
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        console.error(
+          "Create review error:",
+          data
+        );
+
+        if (
+          response.status === 409 ||
+          data?.code === "23505"
+        ) {
+          setReviewedReservationIds(
+            (current) => [
+              ...new Set([
+                ...current,
+                reservation.id,
+              ]),
+            ]
+          );
+
+          setReviewReservationId(null);
+
+          setMessage(
+            "Ai trimis deja un review pentru această rezervare."
+          );
+
+          return;
+        }
+
+        setMessage(
+          data?.message ||
+            data?.error ||
+            "Nu am putut trimite review-ul."
+        );
+
+        return;
+      }
+
+      setReviewedReservationIds(
+        (current) => [
+          ...new Set([
+            ...current,
+            reservation.id,
+          ]),
+        ]
+      );
+
+      setReviewReservationId(null);
+      setReviewRating(5);
+      setReviewComment("");
+
+      setMessage(
+        "Review-ul a fost trimis cu succes."
+      );
+    } catch (error) {
+      console.error(
+        "Submit review error:",
+        error
+      );
+
+      setMessage(
+        "A apărut o eroare la trimiterea review-ului."
+      );
+    } finally {
+      setReviewLoading(false);
+    }
   }
 
   const activeReservations =
@@ -446,7 +739,8 @@ export default function RezervarileMelePage() {
 
           if (
             status === "cancelled" ||
-            status === "rejected"
+            status === "rejected" ||
+            status === "used"
           ) {
             return false;
           }
@@ -489,6 +783,7 @@ export default function RezervarileMelePage() {
             reservation.status;
 
           return (
+            status === "used" ||
             status === "cancelled" ||
             status === "rejected" ||
             isReservationPast(
@@ -525,10 +820,22 @@ export default function RezervarileMelePage() {
   function renderReservationCard(
     reservation
   ) {
-    const status =
-      getStatusData(
-        reservation.status
+    const status = getStatusData(
+      reservation.status
+    );
+
+    const reviewAlreadySent =
+      reviewedReservationIds.includes(
+        reservation.id
       );
+
+    const canReview =
+      Boolean(reservation.used_at) &&
+      !reviewAlreadySent;
+
+    const reviewFormOpen =
+      reviewReservationId ===
+      reservation.id;
 
     return (
       <article
@@ -615,9 +922,7 @@ export default function RezervarileMelePage() {
                 "900",
             }}
           >
-            {
-              status.label
-            }
+            {status.label}
           </span>
         </div>
 
@@ -663,6 +968,301 @@ export default function RezervarileMelePage() {
             }
           />
         </div>
+
+        {reviewAlreadySent && (
+          <div
+            style={{
+              marginTop: "20px",
+              padding:
+                "14px 16px",
+              borderRadius:
+                "12px",
+              background:
+                "#E9F8EF",
+              color:
+                "#16865C",
+              fontWeight:
+                "900",
+            }}
+          >
+            ✓ Ai trimis deja un review
+            pentru această rezervare.
+          </div>
+        )}
+
+        {canReview &&
+          !reviewFormOpen && (
+            <button
+              type="button"
+              onClick={() =>
+                openReviewForm(
+                  reservation
+                )
+              }
+              style={{
+                width: "100%",
+                marginTop:
+                  "20px",
+                border:
+                  "1px solid #FFD0C6",
+                borderRadius:
+                  "11px",
+                padding:
+                  "14px",
+                background:
+                  "#FFF4F1",
+                color:
+                  "#FF5A3C",
+                fontWeight:
+                  "900",
+                fontSize:
+                  "15px",
+                cursor:
+                  "pointer",
+              }}
+            >
+              ⭐ Lasă un review
+            </button>
+          )}
+
+        {canReview &&
+          reviewFormOpen && (
+            <div
+              style={{
+                marginTop:
+                  "20px",
+                padding:
+                  "20px",
+                background:
+                  "#FAFAF8",
+                border:
+                  "1px solid #E7E9ED",
+                borderRadius:
+                  "16px",
+              }}
+            >
+              <h3
+                style={{
+                  margin:
+                    "0 0 6px",
+                  fontSize:
+                    "20px",
+                }}
+              >
+                Cum a fost experiența?
+              </h3>
+
+              <p
+                style={{
+                  margin:
+                    "0 0 16px",
+                  color:
+                    "#737C8D",
+                  lineHeight:
+                    1.5,
+                }}
+              >
+                Acordă un rating
+                restaurantului și,
+                opțional, scrie câteva
+                cuvinte despre experiență.
+              </p>
+
+              <div
+                style={{
+                  display:
+                    "flex",
+                  gap:
+                    "6px",
+                  marginBottom:
+                    "16px",
+                  flexWrap:
+                    "wrap",
+                }}
+              >
+                {[1, 2, 3, 4, 5].map(
+                  (star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() =>
+                        setReviewRating(
+                          star
+                        )
+                      }
+                      style={{
+                        border:
+                          "none",
+                        background:
+                          "transparent",
+                        padding: "2px",
+                        cursor:
+                          "pointer",
+                        fontSize:
+                          "30px",
+                        lineHeight: 1,
+                        opacity:
+                          star <=
+                          reviewRating
+                            ? 1
+                            : 0.3,
+                      }}
+                      aria-label={`${star} stele`}
+                    >
+                      ⭐
+                    </button>
+                  )
+                )}
+              </div>
+
+              <div
+                style={{
+                  marginBottom:
+                    "8px",
+                  fontWeight:
+                    "900",
+                }}
+              >
+                {reviewRating} din 5
+                stele
+              </div>
+
+              <textarea
+                value={
+                  reviewComment
+                }
+                onChange={(event) =>
+                  setReviewComment(
+                    event.target.value
+                  )
+                }
+                placeholder="Scrie experiența ta..."
+                maxLength={1000}
+                style={{
+                  width: "100%",
+                  minHeight:
+                    "110px",
+                  resize:
+                    "vertical",
+                  boxSizing:
+                    "border-box",
+                  border:
+                    "1px solid #D8DDE5",
+                  borderRadius:
+                    "11px",
+                  padding:
+                    "13px",
+                  fontFamily:
+                    "inherit",
+                  fontSize:
+                    "15px",
+                  outline:
+                    "none",
+                }}
+              />
+
+              <div
+                style={{
+                  marginTop:
+                    "6px",
+                  color:
+                    "#8A92A0",
+                  fontSize:
+                    "12px",
+                  textAlign:
+                    "right",
+                }}
+              >
+                {
+                  reviewComment.length
+                }
+                /1000
+              </div>
+
+              <div
+                style={{
+                  display:
+                    "flex",
+                  gap:
+                    "10px",
+                  marginTop:
+                    "14px",
+                  flexWrap:
+                    "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  disabled={
+                    reviewLoading
+                  }
+                  onClick={() =>
+                    submitReview(
+                      reservation
+                    )
+                  }
+                  style={{
+                    flex: "1 1 220px",
+                    border:
+                      "none",
+                    borderRadius:
+                      "11px",
+                    padding:
+                      "14px",
+                    background:
+                      "#FF5A3C",
+                    color:
+                      "white",
+                    fontWeight:
+                      "900",
+                    cursor:
+                      reviewLoading
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity:
+                      reviewLoading
+                        ? 0.65
+                        : 1,
+                  }}
+                >
+                  {reviewLoading
+                    ? "Se trimite..."
+                    : "Trimite review-ul"}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    reviewLoading
+                  }
+                  onClick={
+                    closeReviewForm
+                  }
+                  style={{
+                    flex: "0 1 150px",
+                    border:
+                      "1px solid #E4E7EC",
+                    borderRadius:
+                      "11px",
+                    padding:
+                      "14px",
+                    background:
+                      "white",
+                    color:
+                      "#667085",
+                    fontWeight:
+                      "900",
+                    cursor:
+                      reviewLoading
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  Renunță
+                </button>
+              </div>
+            </div>
+          )}
 
         <button
           type="button"
@@ -722,144 +1322,165 @@ export default function RezervarileMelePage() {
       </article>
     );
   }
-
   return (
     <main
       style={{
         minHeight: "100vh",
-        background: "#FAFAF8",
-        fontFamily:
-          "Arial, sans-serif",
+        background: "#F7F7F4",
+        fontFamily: "Arial, sans-serif",
         color: "#172033",
       }}
     >
       {/* HEADER */}
-
       <header
         style={{
           background: "white",
-          borderBottom:
-            "1px solid #ececec",
-          padding: "18px 6%",
-          display: "flex",
-          justifyContent:
-            "space-between",
-          alignItems: "center",
-          gap: "20px",
-          flexWrap: "wrap",
+          borderBottom: "1px solid #ECEEF1",
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
         }}
       >
-        <a
-          href="/"
-          style={{
-            textDecoration:
-              "none",
-            color: "#172033",
-            fontSize: "29px",
-            fontWeight: "900",
-            letterSpacing:
-              "-1px",
-          }}
-        >
-          Masago
-
-          <span
-            style={{
-              color: "#FF5A3C",
-            }}
-          >
-            .
-          </span>
-        </a>
-
         <div
           style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            padding: "18px 20px",
             display: "flex",
             alignItems: "center",
-            gap: "10px",
+            justifyContent: "space-between",
+            gap: "20px",
             flexWrap: "wrap",
           }}
         >
-          <a
-            href="/"
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = "/";
+            }}
             style={{
-              textDecoration:
-                "none",
-              color: "#485267",
-              fontWeight: "700",
-              padding:
-                "10px 12px",
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
             }}
           >
-            ← Restaurante
-          </a>
-
-          {loggedIn && (
-            <button
-              type="button"
-              onClick={
-                handleLogout
-              }
+            <div
               style={{
-                border:
-                  "1px solid #E4E7EC",
-                background:
-                  "white",
-                color:
-                  "#667085",
-                borderRadius:
-                  "10px",
-                padding:
-                  "10px 14px",
-                fontWeight:
-                  "800",
-                cursor:
-                  "pointer",
+                width: "38px",
+                height: "38px",
+                borderRadius: "12px",
+                background: "#FF5A3C",
+                color: "white",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "900",
+                fontSize: "18px",
               }}
             >
-              Ieși din cont
+              M
+            </div>
+
+            <div
+              style={{
+                fontSize: "22px",
+                fontWeight: "900",
+                color: "#172033",
+              }}
+            >
+              Masago
+            </div>
+          </button>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = "/";
+              }}
+              style={{
+                border: "1px solid #E4E7EC",
+                background: "white",
+                color: "#172033",
+                borderRadius: "10px",
+                padding: "11px 16px",
+                fontWeight: "800",
+                cursor: "pointer",
+              }}
+            >
+              Restaurante
             </button>
-          )}
+
+            {loggedIn && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{
+                  border: "none",
+                  background: "#172033",
+                  color: "white",
+                  borderRadius: "10px",
+                  padding: "11px 16px",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                }}
+              >
+                Ieși din cont
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       {/* CONTENT */}
-
-      <section
+      <div
         style={{
-          maxWidth: "950px",
+          maxWidth: "1000px",
           margin: "0 auto",
-          padding:
-            "65px 6% 90px",
+          padding: "48px 20px 80px",
         }}
       >
         <div
           style={{
-            marginBottom:
-              "32px",
+            marginBottom: "34px",
           }}
         >
-          <p
+          <div
             style={{
-              margin: 0,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "#FFF0EC",
               color: "#FF5A3C",
-              fontSize: "13px",
+              padding: "8px 12px",
+              borderRadius: "999px",
+              fontSize: "12px",
               fontWeight: "900",
-              textTransform:
-                "uppercase",
-              letterSpacing:
-                "1px",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              marginBottom: "14px",
             }}
           >
-            Contul meu Masago
-          </p>
+            Contul meu
+          </div>
 
           <h1
             style={{
-              fontSize:
-                "42px",
-              margin:
-                "8px 0",
+              margin: 0,
+              fontSize: "clamp(32px, 5vw, 48px)",
+              lineHeight: 1.05,
+              letterSpacing: "-1.5px",
             }}
           >
             Rezervările mele
@@ -867,442 +1488,298 @@ export default function RezervarileMelePage() {
 
           <p
             style={{
+              margin: "14px 0 0",
               color: "#737C8D",
-              fontSize: "17px",
-              lineHeight: 1.6,
-              margin: 0,
+              fontSize: "16px",
+              lineHeight: 1.7,
+              maxWidth: "650px",
             }}
           >
-            Vezi rezervările asociate
-            contului tău Masago.
+            Vezi rezervările tale active, istoricul
+            vizitelor și lasă un review după ce ai
+            folosit o rezervare.
           </p>
         </div>
 
-        {/* NECONECTAT */}
-
-        {!loading &&
-          !loggedIn && (
-            <div
-              style={{
-                background:
-                  "white",
-                border:
-                  "1px solid #E7E9ED",
-                borderRadius:
-                  "22px",
-                padding:
-                  "50px 30px",
-                textAlign:
-                  "center",
-                boxShadow:
-                  "0 10px 30px rgba(23,32,51,0.05)",
-              }}
-            >
-              <div
-                style={{
-                  fontSize:
-                    "48px",
-                  marginBottom:
-                    "15px",
-                }}
-              >
-                👤
-              </div>
-
-              <h2
-                style={{
-                  margin:
-                    "0 0 10px",
-                  fontSize:
-                    "27px",
-                }}
-              >
-                Intră în cont
-              </h2>
-
-              <p
-                style={{
-                  color:
-                    "#737C8D",
-                  lineHeight:
-                    1.6,
-                  maxWidth:
-                    "480px",
-                  margin:
-                    "0 auto",
-                }}
-              >
-                Autentifică-te pentru
-                a vedea rezervările
-                asociate contului tău.
-              </p>
-
-              <a
-                href="/cont"
-                style={{
-                  display:
-                    "inline-block",
-                  marginTop:
-                    "22px",
-                  textDecoration:
-                    "none",
-                  background:
-                    "#FF5A3C",
-                  color:
-                    "white",
-                  padding:
-                    "14px 22px",
-                  borderRadius:
-                    "11px",
-                  fontWeight:
-                    "900",
-                }}
-              >
-                Intră în cont
-              </a>
-
-              <div
-                style={{
-                  marginTop:
-                    "18px",
-                  color:
-                    "#667085",
-                }}
-              >
-                Nu ai cont?{" "}
-
-                <a
-                  href="/cont/inregistrare"
-                  style={{
-                    color:
-                      "#FF5A3C",
-                    textDecoration:
-                      "none",
-                    fontWeight:
-                      "900",
-                  }}
-                >
-                  Creează cont
-                </a>
-              </div>
-            </div>
-          )}
-
-        {/* LOADING */}
-
-        {loading && (
-          <div
-            style={{
-              background:
-                "white",
-              border:
-                "1px solid #E7E9ED",
-              borderRadius:
-                "18px",
-              padding:
-                "30px",
-              fontWeight:
-                "800",
-            }}
-          >
-            Se încarcă rezervările...
-          </div>
-        )}
-
-        {/* EROARE */}
-
+        {/* MESAJ GENERAL */}
         {message && (
           <div
             style={{
-              background:
-                "#FFF0EC",
-              color:
-                "#A33A29",
-              border:
-                "1px solid #FFD8CF",
-              borderRadius:
-                "14px",
-              padding:
-                "16px",
-              fontWeight:
-                "800",
-              marginBottom:
-                "20px",
+              marginBottom: "24px",
+              padding: "15px 17px",
+              background: "#FFF4DD",
+              border: "1px solid #F5D99B",
+              borderRadius: "12px",
+              color: "#7A5A00",
+              fontWeight: "800",
+              lineHeight: 1.5,
             }}
           >
             {message}
           </div>
         )}
 
-        {/* FĂRĂ REZERVĂRI */}
+        {/* LOADING */}
+        {loading && (
+          <div
+            style={{
+              background: "white",
+              border: "1px solid #E7E9ED",
+              borderRadius: "20px",
+              padding: "40px 24px",
+              textAlign: "center",
+              color: "#737C8D",
+              fontWeight: "800",
+            }}
+          >
+            Se încarcă rezervările...
+          </div>
+        )}
 
-        {!loading &&
-          loggedIn &&
-          !message &&
-          reservations.length ===
-            0 && (
+        {/* NU ESTE LOGAT */}
+        {!loading && !loggedIn && (
+          <div
+            style={{
+              background: "white",
+              border: "1px solid #E7E9ED",
+              borderRadius: "22px",
+              padding: "40px 28px",
+              textAlign: "center",
+              boxShadow:
+                "0 10px 30px rgba(23,32,51,0.04)",
+            }}
+          >
             <div
               style={{
-                background:
-                  "white",
-                border:
-                  "1px solid #E7E9ED",
-                borderRadius:
-                  "20px",
-                padding:
-                  "50px 30px",
-                textAlign:
-                  "center",
+                width: "58px",
+                height: "58px",
+                margin: "0 auto 18px",
+                borderRadius: "18px",
+                background: "#FFF0EC",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "25px",
               }}
             >
-              <div
-                style={{
-                  fontSize:
-                    "45px",
-                  marginBottom:
-                    "15px",
-                }}
-              >
-                🍽️
-              </div>
-
-              <h2
-                style={{
-                  margin:
-                    "0 0 10px",
-                }}
-              >
-                Nu ai rezervări
-              </h2>
-
-              <p
-                style={{
-                  color:
-                    "#737C8D",
-                  lineHeight:
-                    1.6,
-                  maxWidth:
-                    "500px",
-                  margin:
-                    "0 auto",
-                }}
-              >
-                Rezervările făcute
-                în timp ce ești
-                autentificat în contul
-                Masago vor apărea aici.
-              </p>
-
-              <a
-                href="/"
-                style={{
-                  display:
-                    "inline-block",
-                  marginTop:
-                    "20px",
-                  textDecoration:
-                    "none",
-                  background:
-                    "#FF5A3C",
-                  color:
-                    "white",
-                  padding:
-                    "13px 18px",
-                  borderRadius:
-                    "11px",
-                  fontWeight:
-                    "900",
-                }}
-              >
-                Vezi restaurantele
-              </a>
+              👤
             </div>
-          )}
 
-        {/* REZERVĂRI ACTIVE */}
-
-        {!loading &&
-          loggedIn &&
-          activeReservations.length >
-            0 && (
-            <section
+            <h2
               style={{
-                marginBottom:
-                  "42px",
+                margin: "0 0 10px",
+                fontSize: "25px",
               }}
             >
-              <div
-                style={{
-                  marginBottom:
-                    "18px",
-                }}
-              >
-                <p
-                  style={{
-                    margin:
-                      "0 0 5px",
-                    color:
-                      "#16865C",
-                    fontSize:
-                      "12px",
-                    fontWeight:
-                      "900",
-                    textTransform:
-                      "uppercase",
-                    letterSpacing:
-                      "1px",
-                  }}
-                >
-                  Următoarele rezervări
-                </p>
+              Intră în cont
+            </h2>
 
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize:
-                      "28px",
-                  }}
-                >
-                  Rezervări active
-                </h2>
-
-                <p
-                  style={{
-                    margin:
-                      "7px 0 0",
-                    color:
-                      "#737C8D",
-                  }}
-                >
-                  Rezervările viitoare
-                  și cele care așteaptă
-                  confirmarea restaurantului.
-                </p>
-              </div>
-
-              <div
-                style={{
-                  display:
-                    "grid",
-                  gap:
-                    "16px",
-                }}
-              >
-                {activeReservations.map(
-                  renderReservationCard
-                )}
-              </div>
-            </section>
-          )}
-
-        {/* DACĂ NU MAI SUNT ACTIVE */}
-
-        {!loading &&
-          loggedIn &&
-          reservations.length > 0 &&
-          activeReservations.length ===
-            0 && (
-            <div
+            <p
               style={{
-                marginBottom:
-                  "35px",
-                background:
-                  "#F2F4F7",
-                border:
-                  "1px solid #E4E7EC",
-                borderRadius:
-                  "16px",
-                padding:
-                  "20px",
-                color:
-                  "#667085",
-                fontWeight:
-                  "800",
+                margin: "0 auto",
+                maxWidth: "500px",
+                color: "#737C8D",
+                lineHeight: 1.7,
               }}
             >
-              Nu ai rezervări active în
-              acest moment.
-            </div>
-          )}
+              Trebuie să fii autentificat pentru a
+              vedea rezervările tale.
+            </p>
 
-        {/* ISTORIC */}
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = "/login";
+              }}
+              style={{
+                marginTop: "22px",
+                border: "none",
+                borderRadius: "11px",
+                padding: "14px 22px",
+                background: "#FF5A3C",
+                color: "white",
+                fontWeight: "900",
+                cursor: "pointer",
+                fontSize: "15px",
+              }}
+            >
+              Intră în cont
+            </button>
+          </div>
+        )}
 
-        {!loading &&
-          loggedIn &&
-          historyReservations.length >
-            0 && (
+        {/* UTILIZATOR LOGAT */}
+        {!loading && loggedIn && (
+          <>
+            {/* REZERVĂRI ACTIVE */}
             <section>
               <div
                 style={{
-                  marginBottom:
-                    "18px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                  flexWrap: "wrap",
+                  marginBottom: "18px",
                 }}
               >
-                <p
-                  style={{
-                    margin:
-                      "0 0 5px",
-                    color:
-                      "#8A92A0",
-                    fontSize:
-                      "12px",
-                    fontWeight:
-                      "900",
-                    textTransform:
-                      "uppercase",
-                    letterSpacing:
-                      "1px",
-                  }}
-                >
-                  Rezervări anterioare
-                </p>
+                <div>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: "25px",
+                    }}
+                  >
+                    Rezervări active
+                  </h2>
 
-                <h2
-                  style={{
-                    margin: 0,
-                    fontSize:
-                      "28px",
-                  }}
-                >
-                  Istoric
-                </h2>
+                  <p
+                    style={{
+                      margin: "6px 0 0",
+                      color: "#8A92A0",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Rezervările care urmează.
+                  </p>
+                </div>
 
-                <p
+                <div
                   style={{
-                    margin:
-                      "7px 0 0",
-                    color:
-                      "#737C8D",
+                    minWidth: "38px",
+                    height: "38px",
+                    padding: "0 12px",
+                    borderRadius: "999px",
+                    background: "#172033",
+                    color: "white",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: "900",
                   }}
                 >
-                  Rezervări trecute,
-                  anulate sau respinse.
-                </p>
+                  {activeReservations.length}
+                </div>
               </div>
 
+              {activeReservations.length === 0 ? (
+                <div
+                  style={{
+                    background: "white",
+                    border: "1px solid #E7E9ED",
+                    borderRadius: "20px",
+                    padding: "30px 24px",
+                    color: "#737C8D",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Nu ai nicio rezervare activă în
+                  acest moment.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "18px",
+                  }}
+                >
+                  {activeReservations.map(
+                    renderReservationCard
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* ISTORIC */}
+            <section
+              style={{
+                marginTop: "50px",
+              }}
+            >
               <div
                 style={{
-                  display:
-                    "grid",
-                  gap:
-                    "16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                  flexWrap: "wrap",
+                  marginBottom: "18px",
                 }}
               >
-                {historyReservations.map(
-                  renderReservationCard
-                )}
+                <div>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: "25px",
+                    }}
+                  >
+                    Istoric
+                  </h2>
+
+                  <p
+                    style={{
+                      margin: "6px 0 0",
+                      color: "#8A92A0",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Rezervările trecute, folosite,
+                    anulate sau respinse.
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    minWidth: "38px",
+                    height: "38px",
+                    padding: "0 12px",
+                    borderRadius: "999px",
+                    background: "#EEF0F3",
+                    color: "#667085",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: "900",
+                  }}
+                >
+                  {historyReservations.length}
+                </div>
               </div>
+
+              {historyReservations.length === 0 ? (
+                <div
+                  style={{
+                    background: "white",
+                    border: "1px solid #E7E9ED",
+                    borderRadius: "20px",
+                    padding: "30px 24px",
+                    color: "#737C8D",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Istoricul tău este momentan gol.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "18px",
+                  }}
+                >
+                  {historyReservations.map(
+                    renderReservationCard
+                  )}
+                </div>
+              )}
             </section>
-          )}
-      </section>
+          </>
+        )}
+      </div>
     </main>
   );
 }
 
-function Info({
-  label,
-  value,
-}) {
+function Info({ label, value }) {
   return (
     <div>
       <div
@@ -1310,20 +1787,23 @@ function Info({
           color: "#8A92A0",
           fontSize: "11px",
           fontWeight: "900",
-          textTransform:
-            "uppercase",
-          letterSpacing:
-            "0.6px",
-          marginBottom:
-            "6px",
+          textTransform: "uppercase",
+          letterSpacing: "0.5px",
+          marginBottom: "6px",
         }}
       >
         {label}
       </div>
 
-      <strong>
+      <div
+        style={{
+          color: "#172033",
+          fontSize: "15px",
+          fontWeight: "900",
+        }}
+      >
         {value}
-      </strong>
+      </div>
     </div>
   );
 }
