@@ -20,6 +20,10 @@ export default function RezervarileMelePage() {
     setReviewedReservationIds,
   ] = useState([]);
 
+  // NOU - rezervarea care se anulează acum
+  const [cancellingReservationId, setCancellingReservationId] =
+    useState(null);
+
   useEffect(() => {
     loadReservations();
   }, []);
@@ -451,6 +455,219 @@ export default function RezervarileMelePage() {
     window.location.href = "/";
   }
 
+  /*
+    =====================================
+    NOU - ANULARE REZERVARE
+    =====================================
+  */
+
+  async function cancelReservation(
+    reservation
+  ) {
+    if (!reservation?.id) {
+      setMessage(
+        "Rezervarea nu a putut fi identificată."
+      );
+      return;
+    }
+
+    if (
+      reservation.status !== "pending" &&
+      reservation.status !== "accepted"
+    ) {
+      setMessage(
+        "Această rezervare nu mai poate fi anulată."
+      );
+      return;
+    }
+
+    const restaurantName =
+      reservation.restaurant_name ||
+      "restaurant";
+
+    const confirmed = window.confirm(
+      `Sigur vrei să anulezi rezervarea la ${restaurantName} din ${formatDate(
+        reservation.reservation_date
+      )}, ora ${formatTime(
+        reservation.reservation_time
+      )}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    let accessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      setMessage(
+        "Trebuie să fii autentificat pentru a anula rezervarea."
+      );
+      return;
+    }
+
+    setCancellingReservationId(
+      reservation.id
+    );
+
+    setMessage("");
+
+    try {
+      let response = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/cancel_my_reservation`,
+        {
+          method: "POST",
+
+          headers: {
+            apikey: supabaseKey,
+            Authorization:
+              `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            p_reservation_id:
+              reservation.id,
+          }),
+        }
+      );
+
+      /*
+        Dacă tokenul clientului a expirat,
+        facem refresh și încercăm din nou.
+      */
+
+      if (response.status === 401) {
+        const newAccessToken =
+          await refreshSession(
+            supabaseUrl,
+            supabaseKey
+          );
+
+        if (!newAccessToken) {
+          clearClientSession();
+
+          setLoggedIn(false);
+
+          setMessage(
+            "Sesiunea a expirat. Intră din nou în cont."
+          );
+
+          return;
+        }
+
+        accessToken =
+          newAccessToken;
+
+        response = await fetch(
+          `${supabaseUrl}/rest/v1/rpc/cancel_my_reservation`,
+          {
+            method: "POST",
+
+            headers: {
+              apikey: supabaseKey,
+              Authorization:
+                `Bearer ${accessToken}`,
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              p_reservation_id:
+                reservation.id,
+            }),
+          }
+        );
+      }
+
+      let data = null;
+
+      try {
+        const responseText =
+          await response.text();
+
+        if (responseText) {
+          data = JSON.parse(
+            responseText
+          );
+        }
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        console.error(
+          "Cancel reservation error:",
+          data
+        );
+
+        setMessage(
+          data?.message ||
+            data?.error ||
+            "Rezervarea nu a putut fi anulată."
+        );
+
+        return;
+      }
+
+      /*
+        Actualizăm imediat UI-ul.
+        Pentru că activeReservations și
+        historyReservations sunt calculate
+        din reservations, cardul va dispărea
+        automat de la Active și va apărea
+        la Istoric.
+      */
+
+      setReservations(
+        (currentReservations) =>
+          currentReservations.map(
+            (currentReservation) =>
+              currentReservation.id ===
+              reservation.id
+                ? {
+                    ...currentReservation,
+                    status:
+                      "cancelled",
+                  }
+                : currentReservation
+          )
+      );
+
+      setMessage(
+        `Rezervarea la ${restaurantName} a fost anulată cu succes.`
+      );
+    } catch (error) {
+      console.error(
+        "Cancel reservation error:",
+        error
+      );
+
+      setMessage(
+        "A apărut o eroare la anularea rezervării."
+      );
+    } finally {
+      setCancellingReservationId(
+        null
+      );
+    }
+  }
+
   function openReviewForm(
     reservation
   ) {
@@ -594,11 +811,6 @@ export default function RezervarileMelePage() {
         }
       );
 
-      /*
-        Dacă tokenul a expirat,
-        încercăm refresh automat.
-      */
-
       if (response.status === 401) {
         const newAccessToken =
           await refreshSession(
@@ -658,7 +870,8 @@ export default function RezervarileMelePage() {
       let data = null;
 
       try {
-        data = await response.json();
+        data =
+          await response.json();
       } catch {
         data = null;
       }
@@ -682,7 +895,9 @@ export default function RezervarileMelePage() {
             ]
           );
 
-          setReviewReservationId(null);
+          setReviewReservationId(
+            null
+          );
 
           setMessage(
             "Ai trimis deja un review pentru această rezervare."
@@ -837,6 +1052,18 @@ export default function RezervarileMelePage() {
       reviewReservationId ===
       reservation.id;
 
+    // NOU
+    const canCancel =
+      (reservation.status === "pending" ||
+        reservation.status === "accepted") &&
+      !isReservationPast(
+        reservation
+      );
+
+    const isCancelling =
+      cancellingReservationId ===
+      reservation.id;
+
     return (
       <article
         key={reservation.id}
@@ -968,6 +1195,53 @@ export default function RezervarileMelePage() {
             }
           />
         </div>
+
+        {/* NOU - BUTON ANULARE */}
+
+        {canCancel && (
+          <button
+            type="button"
+            disabled={isCancelling}
+            onClick={() =>
+              cancelReservation(
+                reservation
+              )
+            }
+            style={{
+              width: "100%",
+              marginTop: "20px",
+              border:
+                "1px solid #F04438",
+              borderRadius:
+                "11px",
+              padding: "14px",
+              background:
+                isCancelling
+                  ? "#F2F4F7"
+                  : "#FFF5F4",
+              color:
+                isCancelling
+                  ? "#98A2B3"
+                  : "#D92D20",
+              fontWeight:
+                "900",
+              fontSize:
+                "15px",
+              cursor:
+                isCancelling
+                  ? "not-allowed"
+                  : "pointer",
+              opacity:
+                isCancelling
+                  ? 0.75
+                  : 1,
+            }}
+          >
+            {isCancelling
+              ? "Se anulează..."
+              : "Anulează rezervarea"}
+          </button>
+        )}
 
         {reviewAlreadySent && (
           <div
@@ -1292,33 +1566,37 @@ export default function RezervarileMelePage() {
           Vezi rezervarea
         </button>
 
-        <button
-          type="button"
-          onClick={() =>
-            removeReservationFromList(
-              reservation.reservation_code
-            )
-          }
-          style={{
-            width: "100%",
-            marginTop: "10px",
-            border:
-              "1px solid #E4E7EC",
-            borderRadius:
-              "11px",
-            padding: "13px",
-            background: "white",
-            color: "#667085",
-            fontWeight:
-              "800",
-            fontSize:
-              "14px",
-            cursor:
-              "pointer",
-          }}
-        >
-          Șterge din lista mea
-        </button>
+        {/* Ștergerea locală rămâne doar pentru istoric */}
+
+        {!canCancel && (
+          <button
+            type="button"
+            onClick={() =>
+              removeReservationFromList(
+                reservation.reservation_code
+              )
+            }
+            style={{
+              width: "100%",
+              marginTop: "10px",
+              border:
+                "1px solid #E4E7EC",
+              borderRadius:
+                "11px",
+              padding: "13px",
+              background: "white",
+              color: "#667085",
+              fontWeight:
+                "800",
+              fontSize:
+                "14px",
+              cursor:
+                "pointer",
+            }}
+          >
+            Șterge din lista mea
+          </button>
+        )}
       </article>
     );
   }
