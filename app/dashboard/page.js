@@ -156,6 +156,43 @@ export default function DashboardPage() {
     setDeactivatingOfferId,
   ] = useState(null);
 
+  /*
+    =========================
+    PROGRAM RESTAURANT
+    =========================
+  */
+
+  const dayNames = [
+    "Luni",
+    "Marți",
+    "Miercuri",
+    "Joi",
+    "Vineri",
+    "Sâmbătă",
+    "Duminică",
+  ];
+
+  const createDefaultHours = () =>
+    dayNames.map((day, index) => ({
+      day_of_week: index,
+      day_name: day,
+      opening_time: "10:00",
+      closing_time: "22:00",
+      is_closed: false,
+    }));
+
+  const [restaurantHours, setRestaurantHours] =
+    useState(createDefaultHours);
+
+  const [hoursLoading, setHoursLoading] =
+    useState(false);
+
+  const [savingHours, setSavingHours] =
+    useState(false);
+
+  const [hoursMessage, setHoursMessage] =
+    useState("");
+
   useEffect(() => {
     checkAuth();
   }, []);
@@ -244,6 +281,15 @@ export default function DashboardPage() {
 
         restaurant?.id
           ? loadReviews(
+              accessToken,
+              supabaseUrl,
+              supabaseKey,
+              restaurant.id
+            )
+          : Promise.resolve(),
+
+        restaurant?.id
+          ? loadRestaurantHours(
               accessToken,
               supabaseUrl,
               supabaseKey,
@@ -362,6 +408,278 @@ export default function DashboardPage() {
       );
 
       return null;
+    }
+  }
+
+  /*
+    =========================
+    PROGRAM RESTAURANT
+    =========================
+  */
+
+  async function loadRestaurantHours(
+    accessToken,
+    supabaseUrl,
+    supabaseKey,
+    currentRestaurantId = restaurantId
+  ) {
+    if (!currentRestaurantId) {
+      return;
+    }
+
+    setHoursLoading(true);
+    setHoursMessage("");
+
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/restaurant_hours?restaurant_id=eq.${currentRestaurantId}&select=id,restaurant_id,day_of_week,opening_time,closing_time,is_closed,created_at,updated_at&order=day_of_week.asc`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Restaurant hours error:",
+          data
+        );
+
+        setHoursMessage(
+          "Nu am putut încărca programul restaurantului."
+        );
+
+        return;
+      }
+
+      const rowsByDay = new Map(
+        (data || []).map((row) => [
+          Number(row.day_of_week),
+          row,
+        ])
+      );
+
+      setRestaurantHours(
+        dayNames.map((day, index) => {
+          const row = rowsByDay.get(index);
+
+          return {
+            id: row?.id || null,
+            day_of_week: index,
+            day_name: day,
+
+            opening_time: row?.opening_time
+              ? formatTime(row.opening_time)
+              : "10:00",
+
+            closing_time: row?.closing_time
+              ? formatTime(row.closing_time)
+              : "22:00",
+
+            is_closed:
+              Boolean(row?.is_closed),
+          };
+        })
+      );
+    } catch (error) {
+      console.error(
+        "Load restaurant hours error:",
+        error
+      );
+
+      setHoursMessage(
+        "A apărut o eroare la încărcarea programului."
+      );
+    } finally {
+      setHoursLoading(false);
+    }
+  }
+
+  function updateRestaurantHour(
+    dayOfWeek,
+    field,
+    value
+  ) {
+    setHoursMessage("");
+
+    setRestaurantHours((current) =>
+      current.map((day) =>
+        day.day_of_week === dayOfWeek
+          ? {
+              ...day,
+              [field]: value,
+            }
+          : day
+      )
+    );
+  }
+
+  async function saveRestaurantHours() {
+    if (!restaurantId) {
+      setHoursMessage(
+        "Restaurantul nu este identificat."
+      );
+      return;
+    }
+
+    for (const day of restaurantHours) {
+      if (day.is_closed) {
+        continue;
+      }
+
+      if (
+        !day.opening_time ||
+        !day.closing_time
+      ) {
+        setHoursMessage(
+          `Completează orele pentru ${day.day_name}.`
+        );
+        return;
+      }
+
+      if (
+        day.closing_time <=
+        day.opening_time
+      ) {
+        setHoursMessage(
+          `Ora de închidere trebuie să fie după ora de deschidere pentru ${day.day_name}.`
+        );
+        return;
+      }
+    }
+
+    const supabaseUrl =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const accessToken =
+      localStorage.getItem(
+        "masago_access_token"
+      );
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      setHoursMessage(
+        "Conexiunea cu Supabase nu este disponibilă."
+      );
+      return;
+    }
+
+    setSavingHours(true);
+    setHoursMessage("");
+
+    try {
+      const payload =
+        restaurantHours.map(
+          (day) => ({
+            restaurant_id:
+              restaurantId,
+
+            day_of_week:
+              day.day_of_week,
+
+            opening_time:
+              day.is_closed
+                ? null
+                : day.opening_time,
+
+            closing_time:
+              day.is_closed
+                ? null
+                : day.closing_time,
+
+            is_closed:
+              day.is_closed,
+
+            updated_at:
+              new Date().toISOString(),
+          })
+        );
+
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/restaurant_hours?on_conflict=restaurant_id,day_of_week`,
+        {
+          method: "POST",
+
+          headers: {
+            apikey:
+              supabaseKey,
+
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            "Content-Type":
+              "application/json",
+
+            Prefer:
+              "resolution=merge-duplicates,return=representation",
+          },
+
+          body:
+            JSON.stringify(payload),
+        }
+      );
+
+      let data = null;
+
+      try {
+        data =
+          await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        console.error(
+          "Save restaurant hours error:",
+          data
+        );
+
+        setHoursMessage(
+          data?.message ||
+            "Nu am putut salva programul."
+        );
+
+        return;
+      }
+
+      setHoursMessage(
+        "✓ Programul restaurantului a fost salvat."
+      );
+
+      await loadRestaurantHours(
+        accessToken,
+        supabaseUrl,
+        supabaseKey,
+        restaurantId
+      );
+    } catch (error) {
+      console.error(
+        "Save restaurant hours error:",
+        error
+      );
+
+      setHoursMessage(
+        "A apărut o eroare la salvarea programului."
+      );
+    } finally {
+      setSavingHours(false);
     }
   }
 
@@ -957,101 +1275,104 @@ export default function DashboardPage() {
       setCoverImageId(null);
     }
   }
-
-  async function deleteRestaurantImage(
-    image
-  ) {
+    async function deleteRestaurantImage(image) {
     if (!image?.id) {
       return;
     }
 
-    const confirmed =
-      window.confirm(
-        image.is_cover
-          ? "Aceasta este fotografia principală. Vrei să o ștergi?"
-          : "Vrei să ștergi această fotografie?"
-      );
+    const confirmed = window.confirm(
+      image.is_cover
+        ? "Aceasta este fotografia principală. Vrei să o ștergi?"
+        : "Vrei să ștergi această fotografie?"
+    );
 
     if (!confirmed) {
       return;
     }
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const accessToken =
       localStorage.getItem(
         "masago_access_token"
       );
 
-    setDeletingImageId(
-      image.id
-    );
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken ||
+      !restaurantId
+    ) {
+      setImageMessage(
+        "Conexiunea cu Supabase nu este disponibilă."
+      );
 
+      return;
+    }
+
+    setDeletingImageId(image.id);
     setImageMessage("");
 
     try {
-      if (
-        image.storage_path
-      ) {
-        const storageResponse =
-          await fetch(
-            `${supabaseUrl}/storage/v1/object/restaurant-images/${image.storage_path}`,
-            {
-              method:
-                "DELETE",
-
-              headers: {
-                apikey:
-                  supabaseKey,
-
-                Authorization:
-                  `Bearer ${accessToken}`,
-              },
-            }
-          );
-
-        if (
-          !storageResponse.ok &&
-          storageResponse.status !==
-            404
-        ) {
-          throw new Error();
-        }
-      }
-
-      const deleteResponse =
-        await fetch(
-          `${supabaseUrl}/rest/v1/restaurant_images?id=eq.${image.id}&restaurant_id=eq.${restaurantId}`,
+      if (image.storage_path) {
+        const storageResponse = await fetch(
+          `${supabaseUrl}/storage/v1/object/restaurant-images/${image.storage_path}`,
           {
-            method:
-              "DELETE",
+            method: "DELETE",
 
             headers: {
-              apikey:
-                supabaseKey,
-
-              Authorization:
-                `Bearer ${accessToken}`,
-
-              Prefer:
-                "return=minimal",
+              apikey: supabaseKey,
+              Authorization: `Bearer ${accessToken}`,
             },
           }
         );
 
-      if (
-        !deleteResponse.ok
-      ) {
-        throw new Error();
+        if (
+          !storageResponse.ok &&
+          storageResponse.status !== 404
+        ) {
+          const errorText =
+            await storageResponse.text();
+
+          console.error(
+            "Storage delete:",
+            errorText
+          );
+        }
       }
 
-      const remaining =
+      const deleteResponse = await fetch(
+        `${supabaseUrl}/rest/v1/restaurant_images?id=eq.${image.id}&restaurant_id=eq.${restaurantId}`,
+        {
+          method: "DELETE",
+
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            Prefer: "return=minimal",
+          },
+        }
+      );
+
+      if (!deleteResponse.ok) {
+        const errorText =
+          await deleteResponse.text();
+
+        console.error(
+          "Image row delete:",
+          errorText
+        );
+
+        throw new Error(
+          "Fotografia nu a putut fi ștearsă."
+        );
+      }
+
+      const remainingImages =
         restaurantImages
           .filter(
             (item) =>
@@ -1065,26 +1386,54 @@ export default function DashboardPage() {
           );
 
       setRestaurantImages(
-        remaining
+        remainingImages
       );
 
       if (
         image.is_cover &&
-        remaining.length
+        remainingImages.length
       ) {
-        await setCoverImage(
-          remaining[0]
-        );
-      } else {
-        setImageMessage(
-          "✓ Fotografia a fost ștearsă."
-        );
+        const nextCover =
+          remainingImages[0];
+
+        const coverResponse =
+          await fetch(
+            `${supabaseUrl}/rest/v1/restaurant_images?id=eq.${nextCover.id}&restaurant_id=eq.${restaurantId}`,
+            {
+              method: "PATCH",
+
+              headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${accessToken}`,
+                "Content-Type":
+                  "application/json",
+                Prefer:
+                  "return=minimal",
+              },
+
+              body: JSON.stringify({
+                is_cover: true,
+              }),
+            }
+          );
+
+        if (coverResponse.ok) {
+          setRestaurantImages(
+            remainingImages.map(
+              (item) => ({
+                ...item,
+
+                is_cover:
+                  String(item.id) ===
+                  String(nextCover.id),
+              })
+            )
+          );
+        }
       }
-    } catch (error) {
-      console.error(error);
 
       setImageMessage(
-        "Nu am putut șterge fotografia."
+        "✓ Fotografia a fost ștearsă."
       );
 
       await loadRestaurantImages(
@@ -1092,6 +1441,14 @@ export default function DashboardPage() {
         supabaseUrl,
         supabaseKey,
         restaurantId
+      );
+    } catch (error) {
+      console.error(error);
+
+      setImageMessage(
+        error instanceof Error
+          ? error.message
+          : "Nu am putut șterge fotografia."
       );
     } finally {
       setDeletingImageId(null);
@@ -1110,7 +1467,9 @@ export default function DashboardPage() {
     supabaseKey,
     currentRestaurantId = restaurantId
   ) {
-    if (!currentRestaurantId) return;
+    if (!currentRestaurantId) {
+      return;
+    }
 
     setReviewsLoading(true);
     setReviewsMessage("");
@@ -1134,7 +1493,10 @@ export default function DashboardPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error("Reviews error:", data);
+        console.error(
+          "Reviews error:",
+          data
+        );
 
         setReviewsMessage(
           data?.message ||
@@ -1168,43 +1530,31 @@ export default function DashboardPage() {
     supabaseKey
   ) {
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/rpc/get_my_restaurant_reservations`,
-          {
-            method:
-              "POST",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/get_my_restaurant_reservations`,
+        {
+          method: "POST",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
+          body: JSON.stringify({}),
+        }
+      );
 
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify({}),
-          }
-        );
-
-      if (
-        response.status === 401
-      ) {
+      if (response.status === 401) {
         handleLogout();
         return;
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
-        console.error(
-          data
-        );
+        console.error(data);
 
         setMessage(
           data?.message ||
@@ -1214,9 +1564,7 @@ export default function DashboardPage() {
         return;
       }
 
-      setReservations(
-        data || []
-      );
+      setReservations(data || []);
     } catch (error) {
       console.error(error);
 
@@ -1238,10 +1586,8 @@ export default function DashboardPage() {
     accessToken,
     supabaseUrl,
     supabaseKey,
-    currentRestaurantId =
-      restaurantId,
-    currentRestaurantName =
-      restaurantName
+    currentRestaurantId = restaurantId,
+    currentRestaurantName = restaurantName
   ) {
     if (
       !currentRestaurantId ||
@@ -1253,44 +1599,42 @@ export default function DashboardPage() {
     }
 
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/rpc/get_offer_availability`,
-          {
-            method:
-              "POST",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/get_offer_availability`,
+        {
+          method: "POST",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
+          body: JSON.stringify({
+            p_restaurant_name:
+              currentRestaurantName,
 
-              "Content-Type":
-                "application/json",
-            },
+            p_from_date:
+              getTodayISO(),
 
-            body:
-              JSON.stringify({
-                p_restaurant_name:
-                  currentRestaurantName,
+            p_to_date:
+              "2099-12-31",
+          }),
+        }
+      );
 
-                p_from_date:
-                  getTodayISO(),
-
-                p_to_date:
-                  "2099-12-31",
-              }),
-          }
-        );
-
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
+        console.error(
+          "Offers error:",
+          data
+        );
+
         setOfferMessage(
-          "Nu am putut încărca ofertele."
+          data?.message ||
+            "Nu am putut încărca ofertele."
         );
 
         return;
@@ -1327,17 +1671,13 @@ export default function DashboardPage() {
     }
   }
 
-  async function createOffer(
-    event
-  ) {
+  async function createOffer(event) {
     event.preventDefault();
 
     setOfferMessage("");
 
     const discount =
-      Number(
-        discountPercent
-      );
+      Number(discountPercent);
 
     const offerCapacity =
       Number(capacity);
@@ -1396,71 +1736,78 @@ export default function DashboardPage() {
     }
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const accessToken =
       localStorage.getItem(
         "masago_access_token"
       );
 
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      setOfferMessage(
+        "Conexiunea cu Supabase nu este disponibilă."
+      );
+
+      return;
+    }
+
     setCreatingOffer(true);
 
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/offers`,
-          {
-            method:
-              "POST",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers`,
+        {
+          method: "POST",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+            Prefer:
+              "return=minimal",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
+          body: JSON.stringify({
+            restaurant_id:
+              restaurantId,
 
-              "Content-Type":
-                "application/json",
+            offer_date:
+              offerDate,
 
-              Prefer:
-                "return=minimal",
-            },
+            start_time:
+              startTime,
 
-            body:
-              JSON.stringify({
-                restaurant_id:
-                  restaurantId,
+            end_time:
+              endTime,
 
-                offer_date:
-                  offerDate,
+            discount_percent:
+              discount,
 
-                start_time:
-                  startTime,
+            capacity:
+              offerCapacity,
 
-                end_time:
-                  endTime,
-
-                discount_percent:
-                  discount,
-
-                capacity:
-                  offerCapacity,
-
-                active:
-                  true,
-              }),
-          }
-        );
+            active:
+              true,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorText =
           await response.text();
+
+        console.error(
+          "Create offer:",
+          errorText
+        );
 
         setOfferMessage(
           `Eroare la crearea ofertei: ${errorText}`
@@ -1486,6 +1833,12 @@ export default function DashboardPage() {
         restaurantId,
         restaurantName
       );
+    } catch (error) {
+      console.error(error);
+
+      setOfferMessage(
+        "A apărut o eroare la crearea ofertei."
+      );
     } finally {
       setCreatingOffer(false);
     }
@@ -1499,8 +1852,7 @@ export default function DashboardPage() {
     );
 
     setEditOfferDate(
-      offer.offer_date ||
-        ""
+      offer.offer_date || ""
     );
 
     setEditStartTime(
@@ -1534,6 +1886,7 @@ export default function DashboardPage() {
 
   function cancelEditingOffer() {
     setEditingOfferId(null);
+    setOfferMessage("");
   }
 
   async function saveOffer(
@@ -1554,79 +1907,137 @@ export default function DashboardPage() {
         offer.reserved_places
       ) || 0;
 
+    if (!editOfferDate) {
+      setOfferMessage(
+        "Alege data ofertei."
+      );
+
+      return;
+    }
+
+    if (
+      !editStartTime ||
+      !editEndTime ||
+      editEndTime <=
+        editStartTime
+    ) {
+      setOfferMessage(
+        "Intervalul orar nu este valid."
+      );
+
+      return;
+    }
+
+    if (
+      Number.isNaN(discount) ||
+      discount < 1 ||
+      discount > 100
+    ) {
+      setOfferMessage(
+        "Reducerea trebuie să fie între 1% și 100%."
+      );
+
+      return;
+    }
+
+    if (
+      Number.isNaN(
+        newCapacity
+      ) ||
+      newCapacity < 1
+    ) {
+      setOfferMessage(
+        "Capacitatea trebuie să fie cel puțin 1."
+      );
+
+      return;
+    }
+
     if (
       newCapacity <
       alreadyReserved
     ) {
       setOfferMessage(
-        `Capacitatea nu poate fi mai mică de ${alreadyReserved}.`
+        `Capacitatea nu poate fi mai mică de ${alreadyReserved}, deoarece există deja ${alreadyReserved} locuri rezervate.`
       );
 
       return;
     }
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const accessToken =
       localStorage.getItem(
         "masago_access_token"
       );
 
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      setOfferMessage(
+        "Conexiunea cu Supabase nu este disponibilă."
+      );
+
+      return;
+    }
+
     setSavingOfferId(
       offer.id
     );
 
+    setOfferMessage("");
+
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/offers?id=eq.${offer.id}&restaurant_id=eq.${restaurantId}`,
-          {
-            method:
-              "PATCH",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers?id=eq.${offer.id}&restaurant_id=eq.${restaurantId}`,
+        {
+          method: "PATCH",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+            Prefer:
+              "return=minimal",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
+          body: JSON.stringify({
+            offer_date:
+              editOfferDate,
 
-              "Content-Type":
-                "application/json",
+            start_time:
+              editStartTime,
 
-              Prefer:
-                "return=minimal",
-            },
+            end_time:
+              editEndTime,
 
-            body:
-              JSON.stringify({
-                offer_date:
-                  editOfferDate,
+            discount_percent:
+              discount,
 
-                start_time:
-                  editStartTime,
-
-                end_time:
-                  editEndTime,
-
-                discount_percent:
-                  discount,
-
-                capacity:
-                  newCapacity,
-              }),
-          }
-        );
+            capacity:
+              newCapacity,
+          }),
+        }
+      );
 
       if (!response.ok) {
+        const errorText =
+          await response.text();
+
+        console.error(
+          "Save offer:",
+          errorText
+        );
+
         setOfferMessage(
-          "Nu am putut salva oferta."
+          `Nu am putut salva oferta: ${errorText}`
         );
 
         return;
@@ -1636,7 +2047,7 @@ export default function DashboardPage() {
         "✓ Oferta a fost actualizată."
       );
 
-      cancelEditingOffer();
+      setEditingOfferId(null);
 
       await loadOffers(
         accessToken,
@@ -1644,6 +2055,12 @@ export default function DashboardPage() {
         supabaseKey,
         restaurantId,
         restaurantName
+      );
+    } catch (error) {
+      console.error(error);
+
+      setOfferMessage(
+        "A apărut o eroare la actualizarea ofertei."
       );
     } finally {
       setSavingOfferId(null);
@@ -1663,50 +2080,60 @@ export default function DashboardPage() {
     }
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const accessToken =
       localStorage.getItem(
         "masago_access_token"
       );
 
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      return;
+    }
+
     setDeactivatingOfferId(
       offer.id
     );
 
+    setOfferMessage("");
+
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/offers?id=eq.${offer.id}&restaurant_id=eq.${restaurantId}`,
-          {
-            method:
-              "PATCH",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/offers?id=eq.${offer.id}&restaurant_id=eq.${restaurantId}`,
+        {
+          method: "PATCH",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+            Prefer:
+              "return=minimal",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
-
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify({
-                active:
-                  false,
-              }),
-          }
-        );
+          body: JSON.stringify({
+            active: false,
+          }),
+        }
+      );
 
       if (!response.ok) {
+        const errorText =
+          await response.text();
+
+        console.error(
+          "Deactivate offer:",
+          errorText
+        );
+
         setOfferMessage(
           "Nu am putut dezactiva oferta."
         );
@@ -1718,12 +2145,29 @@ export default function DashboardPage() {
         "✓ Oferta a fost dezactivată."
       );
 
+      if (
+        String(
+          editingOfferId
+        ) ===
+        String(offer.id)
+      ) {
+        setEditingOfferId(
+          null
+        );
+      }
+
       await loadOffers(
         accessToken,
         supabaseUrl,
         supabaseKey,
         restaurantId,
         restaurantName
+      );
+    } catch (error) {
+      console.error(error);
+
+      setOfferMessage(
+        "A apărut o eroare la dezactivarea ofertei."
       );
     } finally {
       setDeactivatingOfferId(
@@ -1732,6 +2176,12 @@ export default function DashboardPage() {
     }
   }
 
+  /*
+    =========================
+    EMAIL REZERVARE
+    =========================
+  */
+
   async function sendReservationEmail(
     reservationId,
     accessToken,
@@ -1739,37 +2189,53 @@ export default function DashboardPage() {
     supabaseKey
   ) {
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/functions/v1/send-reservation-email`,
-          {
-            method:
-              "POST",
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/send-reservation-email`,
+        {
+          method: "POST",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
+          body: JSON.stringify({
+            reservation_id:
+              reservationId,
+          }),
+        }
+      );
 
-              "Content-Type":
-                "application/json",
-            },
+      if (!response.ok) {
+        const errorText =
+          await response.text();
 
-            body:
-              JSON.stringify({
-                reservation_id:
-                  reservationId,
-              }),
-          }
+        console.error(
+          "Email reservation:",
+          errorText
         );
 
-      return response.ok;
-    } catch {
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error(
+        "Email reservation:",
+        error
+      );
+
       return false;
     }
   }
+
+  /*
+    =========================
+    ACCEPT / REJECT
+    =========================
+  */
 
   async function updateReservation(
     id,
@@ -1779,17 +2245,28 @@ export default function DashboardPage() {
     setMessage("");
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const accessToken =
       localStorage.getItem(
         "masago_access_token"
       );
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      setMessage(
+        "Conexiunea cu Supabase nu este disponibilă."
+      );
+
+      setUpdatingId(null);
+      return;
+    }
 
     try {
       if (
@@ -1826,8 +2303,14 @@ export default function DashboardPage() {
           await response.json();
 
         if (!response.ok) {
+          console.error(
+            "Accept reservation:",
+            data
+          );
+
           setMessage(
             data?.message ||
+              data?.error ||
               "Nu am putut accepta rezervarea."
           );
 
@@ -1838,8 +2321,10 @@ export default function DashboardPage() {
           (current) =>
             current.map(
               (reservation) =>
-                reservation.id ===
-                id
+                String(
+                  reservation.id
+                ) ===
+                String(id)
                   ? {
                       ...reservation,
 
@@ -1850,20 +2335,28 @@ export default function DashboardPage() {
             )
         );
 
-        await sendReservationEmail(
-          id,
-          accessToken,
-          supabaseUrl,
-          supabaseKey
-        );
+        const emailSent =
+          await sendReservationEmail(
+            id,
+            accessToken,
+            supabaseUrl,
+            supabaseKey
+          );
 
         setMessage(
-          data?.offer ===
-            true &&
+          data?.offer === true &&
             typeof data?.remaining_places !==
               "undefined"
-            ? `✓ Rezervarea a fost acceptată. Au rămas ${data.remaining_places} locuri.`
-            : "✓ Rezervarea a fost acceptată."
+            ? `✓ Rezervarea a fost acceptată. Au rămas ${data.remaining_places} locuri.${
+                emailSent
+                  ? " Clientul a fost notificat."
+                  : ""
+              }`
+            : `✓ Rezervarea a fost acceptată.${
+                emailSent
+                  ? " Clientul a fost notificat."
+                  : ""
+              }`
         );
 
         await loadOffers(
@@ -1877,33 +2370,36 @@ export default function DashboardPage() {
         return;
       }
 
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/reservations?id=eq.${id}`,
-          {
-            method:
-              "PATCH",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/reservations?id=eq.${id}`,
+        {
+          method: "PATCH",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+            Prefer:
+              "return=minimal",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
-
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify({
-                status:
-                  newStatus,
-              }),
-          }
-        );
+          body: JSON.stringify({
+            status:
+              newStatus,
+          }),
+        }
+      );
 
       if (!response.ok) {
+        const errorText =
+          await response.text();
+
+        console.error(
+          "Update reservation:",
+          errorText
+        );
+
         setMessage(
           "Nu am putut actualiza rezervarea."
         );
@@ -1915,8 +2411,10 @@ export default function DashboardPage() {
         (current) =>
           current.map(
             (reservation) =>
-              reservation.id ===
-                id
+              String(
+                reservation.id
+              ) ===
+              String(id)
                 ? {
                     ...reservation,
 
@@ -1927,20 +2425,30 @@ export default function DashboardPage() {
           )
       );
 
+      let emailSent = false;
+
       if (
         newStatus ===
         "rejected"
       ) {
-        await sendReservationEmail(
-          id,
-          accessToken,
-          supabaseUrl,
-          supabaseKey
-        );
+        emailSent =
+          await sendReservationEmail(
+            id,
+            accessToken,
+            supabaseUrl,
+            supabaseKey
+          );
       }
 
       setMessage(
-        "Rezervarea a fost respinsă."
+        newStatus ===
+          "rejected"
+          ? `Rezervarea a fost respinsă.${
+              emailSent
+                ? " Clientul a fost notificat."
+                : ""
+            }`
+          : "Rezervarea a fost actualizată."
       );
 
       await loadOffers(
@@ -1950,16 +2458,30 @@ export default function DashboardPage() {
         restaurantId,
         restaurantName
       );
+    } catch (error) {
+      console.error(error);
+
+      setMessage(
+        "A apărut o eroare la actualizarea rezervării."
+      );
     } finally {
       setUpdatingId(null);
     }
   }
-    async function validateReservationCode(
+
+  /*
+    =========================
+    VALIDARE COD MASAGO
+    =========================
+  */
+
+  async function validateReservationCode(
     event
   ) {
     event.preventDefault();
 
     setValidationMessage("");
+    setValidatedReservation(null);
 
     const code =
       validationCode
@@ -1975,51 +2497,59 @@ export default function DashboardPage() {
     }
 
     const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
     const accessToken =
       localStorage.getItem(
         "masago_access_token"
       );
 
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      setValidationMessage(
+        "Conexiunea cu Supabase nu este disponibilă."
+      );
+
+      return;
+    }
+
     setValidatingCode(true);
 
     try {
-      const response =
-        await fetch(
-          `${supabaseUrl}/rest/v1/rpc/use_reservation_code`,
-          {
-            method:
-              "POST",
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/use_reservation_code`,
+        {
+          method: "POST",
 
-            headers: {
-              apikey:
-                supabaseKey,
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+          },
 
-              Authorization:
-                `Bearer ${accessToken}`,
-
-              "Content-Type":
-                "application/json",
-            },
-
-            body:
-              JSON.stringify({
-                p_reservation_code:
-                  code,
-              }),
-          }
-        );
+          body: JSON.stringify({
+            p_reservation_code:
+              code,
+          }),
+        }
+      );
 
       const data =
         await response.json();
 
       if (!response.ok) {
+        console.error(
+          "Validate code:",
+          data
+        );
+
         setValidationMessage(
           data?.message ||
             data?.error ||
@@ -2039,10 +2569,26 @@ export default function DashboardPage() {
 
       setValidationCode("");
 
-      await loadReservations(
-        accessToken,
-        supabaseUrl,
-        supabaseKey
+      await Promise.all([
+        loadReservations(
+          accessToken,
+          supabaseUrl,
+          supabaseKey
+        ),
+
+        loadOffers(
+          accessToken,
+          supabaseUrl,
+          supabaseKey,
+          restaurantId,
+          restaurantName
+        ),
+      ]);
+    } catch (error) {
+      console.error(error);
+
+      setValidationMessage(
+        "A apărut o eroare la validarea codului."
       );
     } finally {
       setValidatingCode(false);
@@ -2072,29 +2618,36 @@ export default function DashboardPage() {
       "/login";
   }
 
-  function formatDate(
-    date
-  ) {
-    if (!date) return "-";
+  function formatDate(date) {
+    if (!date) {
+      return "-";
+    }
 
     const [
       year,
       month,
       day,
-    ] =
-      date.split("-");
+    ] = String(date)
+      .slice(0, 10)
+      .split("-");
+
+    if (
+      !year ||
+      !month ||
+      !day
+    ) {
+      return date;
+    }
 
     return `${day}/${month}/${year}`;
   }
 
-  function formatTime(
-    time
-  ) {
-    if (!time) return "-";
+  function formatTime(time) {
+    if (!time) {
+      return "-";
+    }
 
-    return String(
-      time
-    ).slice(
+    return String(time).slice(
       0,
       5
     );
@@ -2196,7 +2749,8 @@ export default function DashboardPage() {
     }
 
     if (
-      status === "cancelled"
+      status ===
+      "cancelled"
     ) {
       return {
         background:
@@ -2236,21 +2790,47 @@ export default function DashboardPage() {
     );
   }
 
-  const reviewStats = useMemo(() => {
-    if (!reviews.length) {
-      return { average: 0, total: 0 };
-    }
+  /*
+    =========================
+    REVIEW STATS
+    =========================
+  */
 
-    const totalRating = reviews.reduce(
-      (sum, review) => sum + Number(review.rating || 0),
-      0
-    );
+  const reviewStats =
+    useMemo(() => {
+      if (!reviews.length) {
+        return {
+          average: 0,
+          total: 0,
+        };
+      }
 
-    return {
-      average: totalRating / reviews.length,
-      total: reviews.length,
-    };
-  }, [reviews]);
+      const totalRating =
+        reviews.reduce(
+          (sum, review) =>
+            sum +
+            Number(
+              review.rating ||
+                0
+            ),
+          0
+        );
+
+      return {
+        average:
+          totalRating /
+          reviews.length,
+
+        total:
+          reviews.length,
+      };
+    }, [reviews]);
+
+  /*
+    =========================
+    RESERVATION STATS
+    =========================
+  */
 
   const stats =
     useMemo(() => {
@@ -2260,40 +2840,48 @@ export default function DashboardPage() {
       return {
         today:
           reservations.filter(
-            (r) =>
-              r.reservation_date ===
+            (reservation) =>
+              String(
+                reservation.reservation_date
+              ).slice(0, 10) ===
               today
           ).length,
 
         pending:
           reservations.filter(
-            (r) =>
-              r.status ===
+            (reservation) =>
+              reservation.status ===
               "pending"
           ).length,
 
         accepted:
           reservations.filter(
-            (r) =>
-              r.status ===
+            (reservation) =>
+              reservation.status ===
               "accepted"
           ).length,
 
         rejected:
           reservations.filter(
-            (r) =>
-              r.status ===
+            (reservation) =>
+              reservation.status ===
               "rejected"
           ).length,
 
         used:
           reservations.filter(
-            (r) =>
-              r.status ===
+            (reservation) =>
+              reservation.status ===
               "used"
           ).length,
       };
     }, [reservations]);
+
+  /*
+    =========================
+    LOADING SCREEN
+    =========================
+  */
 
   if (authChecking) {
     return (
@@ -2303,14 +2891,51 @@ export default function DashboardPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          background: "#F6F7F9",
+          color: "#172033",
           fontFamily:
             "Arial, sans-serif",
         }}
       >
-        Se verifică autentificarea...
+        <div
+          style={{
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "34px",
+              fontWeight: "900",
+              marginBottom: "12px",
+            }}
+          >
+            Masago
+            <span
+              style={{
+                color: "#FF5A3C",
+              }}
+            >
+              .
+            </span>
+          </div>
+
+          <p
+            style={{
+              color: "#737C8D",
+            }}
+          >
+            Se verifică autentificarea...
+          </p>
+        </div>
       </main>
     );
   }
+
+  /*
+    =========================
+    PAGE
+    =========================
+  */
 
   return (
     <main
@@ -2327,18 +2952,20 @@ export default function DashboardPage() {
           background: "#172033",
           color: "white",
           padding: "18px 5%",
+          boxShadow:
+            "0 8px 25px rgba(23,32,51,0.15)",
         }}
       >
         <div
           style={{
             maxWidth: "1250px",
-            margin: "auto",
+            margin: "0 auto",
             display: "flex",
             justifyContent:
               "space-between",
             alignItems: "center",
             flexWrap: "wrap",
-            gap: "20px",
+            gap: "18px",
           }}
         >
           <a
@@ -2349,6 +2976,8 @@ export default function DashboardPage() {
                 "none",
               fontSize: "28px",
               fontWeight: "900",
+              letterSpacing:
+                "-1px",
             }}
           >
             Masago
@@ -2364,21 +2993,41 @@ export default function DashboardPage() {
           <div
             style={{
               display: "flex",
-              gap: "12px",
               alignItems: "center",
+              gap: "14px",
+              flexWrap: "wrap",
             }}
           >
-            <span
-              style={{
-                color: "#BCC5D3",
-              }}
-            >
-              {userEmail}
-            </span>
+            {userEmail && (
+              <span
+                style={{
+                  color: "#BCC5D3",
+                  fontSize: "14px",
+                }}
+              >
+                {userEmail}
+              </span>
+            )}
 
             <button
-              onClick={handleLogout}
-              style={secondaryDarkButton}
+              onClick={
+                handleLogout
+              }
+              style={{
+                border:
+                  "1px solid rgba(255,255,255,0.25)",
+                background:
+                  "rgba(255,255,255,0.08)",
+                color: "white",
+                borderRadius:
+                  "10px",
+                padding:
+                  "10px 16px",
+                cursor:
+                  "pointer",
+                fontWeight:
+                  "800",
+              }}
             >
               Deconectare
             </button>
@@ -2389,13 +3038,15 @@ export default function DashboardPage() {
       <div
         style={{
           maxWidth: "1250px",
-          margin: "auto",
-          padding: "42px 5% 70px",
+          margin: "0 auto",
+          padding:
+            "42px 5% 70px",
         }}
       >
         <section
           style={{
-            marginBottom: "30px",
+            marginBottom:
+              "30px",
           }}
         >
           <p
@@ -2403,6 +3054,9 @@ export default function DashboardPage() {
               color: "#FF5A3C",
               fontWeight: "900",
               margin: 0,
+              fontSize: "13px",
+              letterSpacing:
+                "1.2px",
             }}
           >
             DASHBOARD RESTAURANT
@@ -2410,30 +3064,44 @@ export default function DashboardPage() {
 
           <h1
             style={{
-              fontSize: "42px",
+              fontSize:
+                "clamp(32px, 5vw, 46px)",
               margin:
-                "8px 0",
+                "8px 0 10px",
+              letterSpacing:
+                "-1.5px",
             }}
           >
-            Bun venit, {restaurantName}
+            Bun venit,{" "}
+            {restaurantName}
           </h1>
 
           <p
             style={{
               color: "#737C8D",
+              margin: 0,
+              maxWidth:
+                "700px",
+              lineHeight: 1.6,
             }}
           >
-            Gestionează rezervările, ofertele și fotografiile restaurantului.
+            Gestionează rezervările,
+            ofertele, programul,
+            fotografiile și recenziile
+            restaurantului tău.
           </p>
         </section>
+
+        {/* STATISTICI */}
 
         <section
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
+              "repeat(auto-fit, minmax(170px, 1fr))",
             gap: "16px",
-            marginBottom: "35px",
+            marginBottom:
+              "34px",
           }}
         >
           {[
@@ -2470,15 +3138,40 @@ export default function DashboardPage() {
             ]) => (
               <div
                 key={label}
-                style={statCard}
+                style={{
+                  background:
+                    "white",
+                  borderRadius:
+                    "18px",
+                  padding:
+                    "20px",
+                  boxShadow:
+                    "0 10px 30px rgba(23,32,51,0.07)",
+                  border:
+                    "1px solid #ECEEF2",
+                }}
               >
-                <div>
-                  {icon} {label}
+                <div
+                  style={{
+                    color:
+                      "#737C8D",
+                    fontSize:
+                      "14px",
+                    fontWeight:
+                      "700",
+                    marginBottom:
+                      "10px",
+                  }}
+                >
+                  {icon}{" "}
+                  {label}
                 </div>
 
                 <strong
                   style={{
-                    fontSize: "34px",
+                    fontSize:
+                      "34px",
+                    lineHeight: 1,
                   }}
                 >
                   {value}
@@ -2488,6 +3181,341 @@ export default function DashboardPage() {
           )}
         </section>
 
+        {/* PROGRAM RESTAURANT */}
+
+        <section
+          style={{
+            background: "white",
+            borderRadius: "22px",
+            padding: "26px",
+            boxShadow:
+              "0 12px 35px rgba(23,32,51,0.07)",
+            border:
+              "1px solid #ECEEF2",
+            marginBottom:
+              "34px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems:
+                "flex-start",
+              gap: "20px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  color:
+                    "#FF5A3C",
+                  fontWeight:
+                    "900",
+                  fontSize:
+                    "12px",
+                  letterSpacing:
+                    "1px",
+                  margin:
+                    "0 0 7px",
+                }}
+              >
+                DISPONIBILITATE
+              </p>
+
+              <h2
+                style={{
+                  margin:
+                    "0 0 7px",
+                  fontSize:
+                    "25px",
+                }}
+              >
+                🕐 Program restaurant
+              </h2>
+
+              <p
+                style={{
+                  color:
+                    "#737C8D",
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                Setează programul
+                Luni–Duminică. Acesta
+                va fi folosit ulterior
+                pentru a bloca
+                rezervările în afara
+                orelor de funcționare.
+              </p>
+            </div>
+          </div>
+
+          {hoursLoading ? (
+            <p
+              style={{
+                marginTop:
+                  "22px",
+                color:
+                  "#737C8D",
+              }}
+            >
+              Se încarcă programul...
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gap: "11px",
+                marginTop:
+                  "24px",
+              }}
+            >
+              {restaurantHours.map(
+                (day) => (
+                  <div
+                    key={
+                      day.day_of_week
+                    }
+                    style={{
+                      display:
+                        "grid",
+
+                      gridTemplateColumns:
+                        "minmax(105px, 1fr) minmax(105px, 130px) minmax(125px, 160px) minmax(125px, 160px)",
+
+                      alignItems:
+                        "center",
+
+                      gap: "12px",
+
+                      border:
+                        "1px solid #E7E9ED",
+
+                      borderRadius:
+                        "14px",
+
+                      padding:
+                        "13px 14px",
+
+                      background:
+                        day.is_closed
+                          ? "#F8F9FB"
+                          : "#FFFFFF",
+                    }}
+                  >
+                    <strong
+                      style={{
+                        fontSize:
+                          "15px",
+                      }}
+                    >
+                      {day.day_name}
+                    </strong>
+
+                    <label
+                      style={{
+                        display:
+                          "flex",
+                        alignItems:
+                          "center",
+                        gap: "8px",
+                        cursor:
+                          "pointer",
+                        fontSize:
+                          "14px",
+                        fontWeight:
+                          "800",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          !day.is_closed
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          updateRestaurantHour(
+                            day.day_of_week,
+                            "is_closed",
+                            !event
+                              .target
+                              .checked
+                          )
+                        }
+                      />
+
+                      {day.is_closed
+                        ? "Închis"
+                        : "Deschis"}
+                    </label>
+
+                    <input
+                      type="time"
+                      value={
+                        day.opening_time ||
+                        ""
+                      }
+                      disabled={
+                        day.is_closed
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        updateRestaurantHour(
+                          day.day_of_week,
+                          "opening_time",
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      style={{
+                        width:
+                          "100%",
+                        boxSizing:
+                          "border-box",
+                        padding:
+                          "11px 12px",
+                        border:
+                          "1px solid #DDE1E7",
+                        borderRadius:
+                          "10px",
+                        background:
+                          day.is_closed
+                            ? "#F1F3F5"
+                            : "white",
+                        color:
+                          "#172033",
+                        opacity:
+                          day.is_closed
+                            ? 0.55
+                            : 1,
+                      }}
+                    />
+
+                    <input
+                      type="time"
+                      value={
+                        day.closing_time ||
+                        ""
+                      }
+                      disabled={
+                        day.is_closed
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        updateRestaurantHour(
+                          day.day_of_week,
+                          "closing_time",
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                      style={{
+                        width:
+                          "100%",
+                        boxSizing:
+                          "border-box",
+                        padding:
+                          "11px 12px",
+                        border:
+                          "1px solid #DDE1E7",
+                        borderRadius:
+                          "10px",
+                        background:
+                          day.is_closed
+                            ? "#F1F3F5"
+                            : "white",
+                        color:
+                          "#172033",
+                        opacity:
+                          day.is_closed
+                            ? 0.55
+                            : 1,
+                      }}
+                    />
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              alignItems:
+                "center",
+              gap: "14px",
+              flexWrap: "wrap",
+              marginTop:
+                "20px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={
+                saveRestaurantHours
+              }
+              disabled={
+                savingHours ||
+                hoursLoading
+              }
+              style={{
+                border: "none",
+                borderRadius:
+                  "11px",
+                padding:
+                  "12px 18px",
+                background:
+                  savingHours ||
+                  hoursLoading
+                    ? "#A9B0BA"
+                    : "#177245",
+                color: "white",
+                fontWeight:
+                  "900",
+                cursor:
+                  savingHours ||
+                  hoursLoading
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+            >
+              {savingHours
+                ? "Se salvează..."
+                : "✓ Salvează programul"}
+            </button>
+
+            {hoursMessage && (
+              <span
+                style={{
+                  color:
+                    hoursMessage.startsWith(
+                      "✓"
+                    )
+                      ? "#177245"
+                      : "#B42318",
+
+                  fontWeight:
+                    "800",
+                  fontSize:
+                    "14px",
+                }}
+              >
+                {hoursMessage}
+              </span>
+            )}
+          </div>
+        </section>
+
+        {/* PARTEA 3 CONTINUĂ DE AICI */}
         {/* FOTOGRAFII */}
 
         <section
@@ -3224,13 +4252,22 @@ export default function DashboardPage() {
           <div style={sectionHeader}>
             <div>
               <p style={orangeLabel}>FEEDBACK CLIENȚI</p>
-              <h2 style={{ marginBottom: "6px" }}>⭐ Recenzii</h2>
+
+              <h2 style={{ marginBottom: "6px" }}>
+                ⭐ Recenzii
+              </h2>
+
               <p style={description}>
                 Vezi părerile clienților care au folosit o rezervare la restaurant.
               </p>
             </div>
 
-            <div style={{ textAlign: "right", minWidth: "130px" }}>
+            <div
+              style={{
+                textAlign: "right",
+                minWidth: "130px",
+              }}
+            >
               <div
                 style={{
                   fontSize: "32px",
@@ -3241,7 +4278,13 @@ export default function DashboardPage() {
                 {reviewStats.total > 0
                   ? reviewStats.average.toFixed(1)
                   : "—"}
-                <span style={{ fontSize: "17px", color: "#737C8D" }}>
+
+                <span
+                  style={{
+                    fontSize: "17px",
+                    color: "#737C8D",
+                  }}
+                >
                   {" "}/ 5
                 </span>
               </div>
@@ -3255,8 +4298,17 @@ export default function DashboardPage() {
                 }}
               >
                 {reviewStats.total > 0
-                  ? "★".repeat(Math.round(reviewStats.average)) +
-                    "☆".repeat(5 - Math.round(reviewStats.average))
+                  ? "★".repeat(
+                      Math.round(
+                        reviewStats.average
+                      )
+                    ) +
+                    "☆".repeat(
+                      5 -
+                        Math.round(
+                          reviewStats.average
+                        )
+                    )
                   : "☆☆☆☆☆"}
               </div>
 
@@ -3268,15 +4320,23 @@ export default function DashboardPage() {
                 }}
               >
                 {reviewStats.total}{" "}
-                {reviewStats.total === 1 ? "recenzie" : "recenzii"}
+                {reviewStats.total === 1
+                  ? "recenzie"
+                  : "recenzii"}
               </div>
             </div>
           </div>
 
-          {reviewsMessage && <MessageBox text={reviewsMessage} />}
+          {reviewsMessage && (
+            <MessageBox
+              text={reviewsMessage}
+            />
+          )}
 
           {reviewsLoading ? (
-            <p>Se încarcă recenziile...</p>
+            <p>
+              Se încarcă recenziile...
+            </p>
           ) : reviews.length === 0 ? (
             <div style={emptyBox}>
               ⭐ Restaurantul nu are încă recenzii.
@@ -3289,82 +4349,150 @@ export default function DashboardPage() {
                 marginTop: "22px",
               }}
             >
-              {reviews.map((review) => (
-                <article
-                  key={review.id}
-                  style={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E7E9ED",
-                    borderRadius: "16px",
-                    padding: "20px",
-                  }}
-                >
-                  <div
+              {reviews.map(
+                (review) => (
+                  <article
+                    key={review.id}
                     style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: "20px",
-                      flexWrap: "wrap",
+                      background:
+                        "#FFFFFF",
+
+                      border:
+                        "1px solid #E7E9ED",
+
+                      borderRadius:
+                        "16px",
+
+                      padding:
+                        "20px",
                     }}
                   >
-                    <div>
-                      <div
-                        style={{
-                          color: "#FFB020",
-                          fontSize: "21px",
-                          letterSpacing: "2px",
-                        }}
-                      >
-                        {"★".repeat(Number(review.rating) || 0)}
-                        {"☆".repeat(5 - (Number(review.rating) || 0))}
+                    <div
+                      style={{
+                        display:
+                          "flex",
+
+                        justifyContent:
+                          "space-between",
+
+                        alignItems:
+                          "flex-start",
+
+                        gap:
+                          "20px",
+
+                        flexWrap:
+                          "wrap",
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            color:
+                              "#FFB020",
+
+                            fontSize:
+                              "21px",
+
+                            letterSpacing:
+                              "2px",
+                          }}
+                        >
+                          {"★".repeat(
+                            Number(
+                              review.rating
+                            ) || 0
+                          )}
+
+                          {"☆".repeat(
+                            5 -
+                              (Number(
+                                review.rating
+                              ) || 0)
+                          )}
+                        </div>
+
+                        <strong
+                          style={{
+                            display:
+                              "block",
+
+                            marginTop:
+                              "5px",
+
+                            fontSize:
+                              "15px",
+                          }}
+                        >
+                          {review.rating} / 5
+                        </strong>
                       </div>
 
-                      <strong
+                      <span
                         style={{
-                          display: "block",
-                          marginTop: "5px",
-                          fontSize: "15px",
+                          color:
+                            "#818997",
+
+                          fontSize:
+                            "13px",
                         }}
                       >
-                        {review.rating} / 5
-                      </strong>
+                        {review.created_at
+                          ? new Date(
+                              review.created_at
+                            ).toLocaleDateString(
+                              "ro-RO"
+                            )
+                          : ""}
+                      </span>
                     </div>
 
-                    <span style={{ color: "#818997", fontSize: "13px" }}>
-                      {review.created_at
-                        ? new Date(review.created_at).toLocaleDateString("ro-RO")
-                        : ""}
-                    </span>
-                  </div>
+                    <p
+                      style={{
+                        margin:
+                          "16px 0 0 0",
 
-                  <p
-                    style={{
-                      margin: "16px 0 0 0",
-                      color: "#4B5565",
-                      lineHeight: "1.6",
-                      fontSize: "15px",
-                    }}
-                  >
-                    {review.comment?.trim()
-                      ? review.comment
-                      : "Clientul nu a lăsat un comentariu."}
-                  </p>
+                        color:
+                          "#4B5565",
 
-                  <div
-                    style={{
-                      marginTop: "15px",
-                      paddingTop: "12px",
-                      borderTop: "1px solid #F0F1F3",
-                      color: "#98A0AD",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                    }}
-                  >
-                    ✓ RECENZIE DE LA O REZERVARE MASAGO
-                  </div>
-                </article>
-              ))}
+                        lineHeight:
+                          "1.6",
+
+                        fontSize:
+                          "15px",
+                      }}
+                    >
+                      {review.comment?.trim()
+                        ? review.comment
+                        : "Clientul nu a lăsat un comentariu."}
+                    </p>
+
+                    <div
+                      style={{
+                        marginTop:
+                          "15px",
+
+                        paddingTop:
+                          "12px",
+
+                        borderTop:
+                          "1px solid #F0F1F3",
+
+                        color:
+                          "#98A0AD",
+
+                        fontSize:
+                          "12px",
+
+                        fontWeight:
+                          "700",
+                      }}
+                    >
+                      ✓ RECENZIE DE LA O REZERVARE MASAGO
+                    </div>
+                  </article>
+                )
+              )}
             </div>
           )}
         </section>
@@ -3398,8 +4526,7 @@ export default function DashboardPage() {
               style={{
                 display:
                   "grid",
-
-                gap:
+                                gap:
                   "18px",
               }}
             >
@@ -3897,4 +5024,3 @@ const codeBadge = {
   fontWeight: "900",
   letterSpacing: "1px",
 };
-  
