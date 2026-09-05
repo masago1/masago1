@@ -24,6 +24,12 @@ export default function Home() {
   const [sessionLoading, setSessionLoading] =
     useState(true);
 
+  const [favoriteRestaurantIds, setFavoriteRestaurantIds] =
+    useState([]);
+
+  const [favoriteSavingByRestaurant, setFavoriteSavingByRestaurant] =
+    useState({});
+
   useEffect(() => {
     loadHomepageData();
     checkSessions();
@@ -76,9 +82,20 @@ export default function Home() {
               }
             );
 
-          setClientLoggedIn(
-            clientResponse.ok
-          );
+          if (clientResponse.ok) {
+            const clientUser =
+              await clientResponse.json();
+
+            setClientLoggedIn(true);
+
+            await loadFavorites(
+              clientUser.id,
+              clientAccessToken
+            );
+          } else {
+            setClientLoggedIn(false);
+            setFavoriteRestaurantIds([]);
+          }
         } catch (error) {
           console.error(
             "Client session check error:",
@@ -86,9 +103,11 @@ export default function Home() {
           );
 
           setClientLoggedIn(false);
+          setFavoriteRestaurantIds([]);
         }
       } else {
         setClientLoggedIn(false);
+        setFavoriteRestaurantIds([]);
       }
 
       /*
@@ -139,6 +158,241 @@ export default function Home() {
       }
     } finally {
       setSessionLoading(false);
+    }
+  }
+
+  /*
+    =========================
+    FAVORITE
+    =========================
+  */
+
+  async function loadFavorites(
+    userId,
+    accessToken
+  ) {
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !userId ||
+      !accessToken
+    ) {
+      setFavoriteRestaurantIds([]);
+      return;
+    }
+
+    try {
+      const response =
+        await fetch(
+          `${supabaseUrl}/rest/v1/favorites?select=restaurant_id&user_id=eq.${userId}`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization:
+                `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        console.error(
+          "Favorites load error:",
+          data
+        );
+
+        setFavoriteRestaurantIds([]);
+        return;
+      }
+
+      setFavoriteRestaurantIds(
+        (data || []).map(
+          (favorite) =>
+            favorite.restaurant_id
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Favorites load error:",
+        error
+      );
+
+      setFavoriteRestaurantIds([]);
+    }
+  }
+
+  async function toggleFavorite(
+    restaurantId
+  ) {
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const clientAccessToken =
+      localStorage.getItem(
+        "masago_client_access_token"
+      );
+
+    if (!clientAccessToken) {
+      window.location.href =
+        "/cont";
+      return;
+    }
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !restaurantId ||
+      favoriteSavingByRestaurant[
+        restaurantId
+      ]
+    ) {
+      return;
+    }
+
+    const isFavorite =
+      favoriteRestaurantIds.includes(
+        restaurantId
+      );
+
+    setFavoriteSavingByRestaurant(
+      (current) => ({
+        ...current,
+        [restaurantId]: true,
+      })
+    );
+
+    try {
+      const userResponse =
+        await fetch(
+          `${supabaseUrl}/auth/v1/user`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization:
+                `Bearer ${clientAccessToken}`,
+            },
+          }
+        );
+
+      if (!userResponse.ok) {
+        setClientLoggedIn(false);
+        setFavoriteRestaurantIds([]);
+
+        window.location.href =
+          "/cont";
+        return;
+      }
+
+      const user =
+        await userResponse.json();
+
+      if (isFavorite) {
+        const deleteResponse =
+          await fetch(
+            `${supabaseUrl}/rest/v1/favorites?user_id=eq.${user.id}&restaurant_id=eq.${restaurantId}`,
+            {
+              method: "DELETE",
+
+              headers: {
+                apikey: supabaseKey,
+                Authorization:
+                  `Bearer ${clientAccessToken}`,
+              },
+            }
+          );
+
+        if (!deleteResponse.ok) {
+          const deleteData =
+            await deleteResponse.json();
+
+          console.error(
+            "Favorite delete error:",
+            deleteData
+          );
+
+          return;
+        }
+
+        setFavoriteRestaurantIds(
+          (current) =>
+            current.filter(
+              (id) =>
+                id !== restaurantId
+            )
+        );
+      } else {
+        const insertResponse =
+          await fetch(
+            `${supabaseUrl}/rest/v1/favorites`,
+            {
+              method: "POST",
+
+              headers: {
+                apikey: supabaseKey,
+                Authorization:
+                  `Bearer ${clientAccessToken}`,
+                "Content-Type":
+                  "application/json",
+                Prefer:
+                  "return=minimal",
+              },
+
+              body:
+                JSON.stringify({
+                  user_id: user.id,
+                  restaurant_id:
+                    restaurantId,
+                }),
+            }
+          );
+
+        if (!insertResponse.ok) {
+          const insertData =
+            await insertResponse.json();
+
+          console.error(
+            "Favorite insert error:",
+            insertData
+          );
+
+          return;
+        }
+
+        setFavoriteRestaurantIds(
+          (current) =>
+            current.includes(
+              restaurantId
+            )
+              ? current
+              : [
+                  ...current,
+                  restaurantId,
+                ]
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Favorite toggle error:",
+        error
+      );
+    } finally {
+      setFavoriteSavingByRestaurant(
+        (current) => ({
+          ...current,
+          [restaurantId]: false,
+        })
+      );
     }
   }
 
@@ -1228,6 +1482,16 @@ export default function Home() {
                   restaurant.name
                 ] || 0;
 
+              const isFavorite =
+                favoriteRestaurantIds.includes(
+                  restaurant.id
+                );
+
+              const favoriteSaving =
+                favoriteSavingByRestaurant[
+                  restaurant.id
+                ] === true;
+
               /*
                 ORDINE POZĂ:
 
@@ -1439,191 +1703,215 @@ export default function Home() {
                         }
                       </div>
                     )}
-                  </div>
 
+                    {/* FAVORIT */}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleFavorite(
+                          restaurant.id
+                        )
+                      }
+                      disabled={
+                        favoriteSaving
+                      }
+                      aria-label={
+                        isFavorite
+                          ? "Șterge din favorite"
+                          : "Adaugă la favorite"
+                      }
+                      title={
+                        isFavorite
+                          ? "Șterge din favorite"
+                          : "Adaugă la favorite"
+                      }
+                      style={{
+                        position:
+                          "absolute",
+
+                        right:
+                          "16px",
+
+                        bottom:
+                          "16px",
+
+                        width:
+                          "46px",
+
+                        height:
+                          "46px",
+
+                        borderRadius:
+                          "50%",
+
+                        border:
+                          "1px solid rgba(255,255,255,0.78)",
+
+                        background:
+                          "rgba(255,255,255,0.94)",
+
+                        color:
+                          isFavorite
+                            ? "#FF5A3C"
+                            : "#172033",
+
+                        display:
+                          "flex",
+
+                        alignItems:
+                          "center",
+
+                        justifyContent:
+                          "center",
+
+                        fontSize:
+                          "27px",
+
+                        lineHeight:
+                          1,
+
+                        cursor:
+                          favoriteSaving
+                            ? "wait"
+                            : "pointer",
+
+                        opacity:
+                          favoriteSaving
+                            ? 0.65
+                            : 1,
+
+                        backdropFilter:
+                          "blur(10px)",
+
+                        boxShadow:
+                          "0 6px 20px rgba(0,0,0,0.12)",
+
+                        zIndex:
+                          3,
+                      }}
+                    >
+                      {isFavorite
+                        ? "♥"
+                        : "♡"}
+                    </button>
+                  </div>
                   {/* INFO */}
 
                   <div
                     style={{
-                      padding:
-                        "24px",
+                      padding: "24px",
                     }}
                   >
-                    <h3
+                    <div
                       style={{
-                        margin:
-                          0,
-
-                        fontSize:
-                          "25px",
-
-                        letterSpacing:
-                          "-0.7px",
-
-                        lineHeight:
-                          1.15,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: "15px",
                       }}
                     >
-                      {
-                        restaurant.name
-                      }
-                    </h3>
+                      <div>
+                        <div
+                          style={{
+                            color: "#FF5A3C",
+                            fontSize: "13px",
+                            fontWeight: "900",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.8px",
+                            marginBottom: "7px",
+                          }}
+                        >
+                          {restaurant.type}
+                        </div>
+
+                        <h3
+                          style={{
+                            margin: 0,
+                            fontSize: "25px",
+                            letterSpacing: "-0.5px",
+                          }}
+                        >
+                          {restaurant.name}
+                        </h3>
+                      </div>
+
+                      <span
+                        style={{
+                          background: "#F2F4F7",
+                          color: "#475467",
+                          padding: "7px 10px",
+                          borderRadius: "999px",
+                          fontSize: "12px",
+                          fontWeight: "800",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        📍 {restaurant.location}
+                      </span>
+                    </div>
 
                     <p
                       style={{
-                        color:
-                          "#7a8393",
-
-                        margin:
-                          "9px 0 14px",
+                        color: "#667085",
+                        lineHeight: 1.6,
+                        margin: "15px 0 18px",
+                        minHeight: "50px",
                       }}
                     >
-                      {
-                        restaurant.type
-                      }{" "}
-                      •{" "}
-                      {
-                        restaurant.location
-                      }
+                      {restaurant.description}
                     </p>
-
-                    <p
-                      style={{
-                        color:
-                          "#485267",
-
-                        lineHeight:
-                          1.5,
-
-                        fontSize:
-                          "15px",
-
-                        minHeight:
-                          "46px",
-                      }}
-                    >
-                      {
-                        restaurant.description
-                      }
-                    </p>
-
-                    {/* NUMĂR OFERTE */}
 
                     <div
                       style={{
-                        margin:
-                          "18px 0",
+                        background:
+                          offersCount > 0
+                            ? "#FFF5F2"
+                            : "#F5F6F7",
 
-                        paddingTop:
-                          "16px",
+                        border:
+                          offersCount > 0
+                            ? "1px solid #FFD8CF"
+                            : "1px solid #E4E7EC",
 
-                        borderTop:
-                          "1px solid #eeeeee",
+                        borderRadius: "13px",
+                        padding: "13px 14px",
+                        marginBottom: "18px",
+
+                        color:
+                          offersCount > 0
+                            ? "#A33A29"
+                            : "#667085",
+
+                        fontWeight: "800",
+                        fontSize: "14px",
                       }}
                     >
-                      {offersLoading ? (
-                        <span
-                          style={{
-                            color:
-                              "#667085",
-
-                            fontSize:
-                              "14px",
-
-                            fontWeight:
-                              "700",
-                          }}
-                        >
-                          Se verifică ofertele...
-                        </span>
-                      ) : (
-                        <div
-                          style={{
-                            display:
-                              "flex",
-
-                            alignItems:
-                              "center",
-
-                            gap:
-                              "9px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize:
-                                "20px",
-                            }}
-                          >
-                            {offersCount >
-                            0
-                              ? "🎁"
-                              : "📅"}
-                          </span>
-
-                          <strong
-                            style={{
-                              color:
-                                offersCount >
-                                0
-                                  ? "#172033"
-                                  : "#7A8393",
-
-                              fontSize:
-                                "16px",
-                            }}
-                          >
-                            {offerCountText(
-                              offersCount
-                            )}
-                          </strong>
-                        </div>
-                      )}
+                      {offersLoading
+                        ? "Se verifică ofertele..."
+                        : offerCountText(
+                            offersCount
+                          )}
                     </div>
-
-                    {/* BUTON DINAMIC */}
 
                     <a
                       href={`/restaurant/${restaurant.slug}`}
                       style={{
-                        display:
-                          "block",
-
-                        background:
-                          "#172033",
-
-                        color:
-                          "white",
-
-                        textDecoration:
-                          "none",
-
-                        textAlign:
-                          "center",
-
-                        padding:
-                          "15px 18px",
-
-                        borderRadius:
-                          "14px",
-
-                        fontWeight:
-                          "800",
-
-                        fontSize:
-                          "15px",
-
-                        letterSpacing:
-                          "-0.1px",
-
-                        boxShadow:
-                          "0 8px 20px rgba(23,32,51,0.16)",
+                        display: "block",
+                        width: "100%",
+                        boxSizing: "border-box",
+                        textAlign: "center",
+                        textDecoration: "none",
+                        background: "#172033",
+                        color: "white",
+                        borderRadius: "12px",
+                        padding: "14px 16px",
+                        fontWeight: "900",
+                        transition:
+                          "transform 0.2s ease",
                       }}
                     >
-                      {offersCount >
-                      0
-                        ? "Vezi ofertele"
-                        : "Vezi restaurantul"}
+                      Vezi restaurantul →
                     </a>
                   </div>
                 </article>
@@ -1631,61 +1919,77 @@ export default function Home() {
             }
           )}
         </div>
+
+        {restaurants.length === 0 &&
+          !offersLoading && (
+            <div
+              style={{
+                background: "white",
+                border: "1px solid #E4E7EC",
+                borderRadius: "18px",
+                padding: "35px",
+                textAlign: "center",
+                color: "#667085",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "42px",
+                  marginBottom: "12px",
+                }}
+              >
+                🍽️
+              </div>
+
+              <strong
+                style={{
+                  display: "block",
+                  color: "#172033",
+                  fontSize: "19px",
+                  marginBottom: "7px",
+                }}
+              >
+                Momentan nu există restaurante
+              </strong>
+
+              Restaurantele vor apărea aici
+              automat după ce sunt adăugate.
+            </div>
+          )}
       </section>
 
       {/* =========================
-          HOW IT WORKS
+          CUM FUNCȚIONEAZĂ
       ========================= */}
 
       <section
         style={{
-          background:
-            "#172033",
-
-          color:
-            "white",
-
-          padding:
-            "80px 6%",
+          padding: "75px 6%",
+          background: "white",
+          borderTop: "1px solid #ececec",
+          borderBottom: "1px solid #ececec",
         }}
       >
         <div
           style={{
-            maxWidth:
-              "1180px",
-
-            margin:
-              "auto",
+            maxWidth: "1180px",
+            margin: "0 auto",
           }}
         >
           <div
             style={{
-              textAlign:
-                "center",
-
-              maxWidth:
-                "650px",
-
-              margin:
-                "auto",
+              maxWidth: "650px",
+              marginBottom: "40px",
             }}
           >
             <p
               style={{
-                color:
-                  "#FF8A73",
-
-                textTransform:
-                  "uppercase",
-
-                letterSpacing:
-                  "1px",
-
-                fontWeight:
-                  "800",
-
-                fontSize:
-                  "14px",
+                margin: 0,
+                color: "#FF5A3C",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                fontSize: "13px",
+                letterSpacing: "1px",
               }}
             >
               Simplu și rapid
@@ -1693,11 +1997,9 @@ export default function Home() {
 
             <h2
               style={{
-                fontSize:
-                  "38px",
-
-                margin:
-                  "8px 0 15px",
+                fontSize: "38px",
+                margin: "8px 0 12px",
+                letterSpacing: "-1px",
               }}
             >
               Cum funcționează Masago?
@@ -1705,171 +2007,121 @@ export default function Home() {
 
             <p
               style={{
-                color:
-                  "#b8c0ce",
-
-                lineHeight:
-                  1.6,
-
-                fontSize:
-                  "17px",
+                color: "#667085",
+                lineHeight: 1.6,
+                fontSize: "17px",
               }}
             >
-              De la descoperirea restaurantului până la
-              masă rezervată, în doar câțiva pași.
+              Alegi restaurantul, găsești oferta
+              potrivită și trimiți rezervarea direct
+              către restaurant.
             </p>
           </div>
 
           <div
             style={{
-              marginTop:
-                "50px",
-
-              display:
-                "grid",
-
+              display: "grid",
               gridTemplateColumns:
-                "repeat(auto-fit, minmax(220px, 1fr))",
-
-              gap:
-                "20px",
+                "repeat(auto-fit, minmax(230px, 1fr))",
+              gap: "20px",
             }}
           >
             {[
               {
-                number:
-                  "01",
-
-                icon:
-                  "🔎",
-
-                title:
-                  "Alege restaurantul",
-
-                text:
-                  "Descoperă restaurante și vezi câte oferte sunt disponibile.",
+                number: "01",
+                icon: "🍽️",
+                title: "Alege restaurantul",
+                text: "Descoperă restaurantele disponibile în Timișoara.",
               },
 
               {
-                number:
-                  "02",
-
-                icon:
-                  "📅",
-
-                title:
-                  "Alege ziua și oferta",
-
-                text:
-                  "Vezi ofertele pe zile și selectează intervalul potrivit.",
+                number: "02",
+                icon: "💸",
+                title: "Alege oferta",
+                text: "Vezi reducerile disponibile pentru ziua și intervalul dorit.",
               },
 
               {
-                number:
-                  "03",
-
-                icon:
-                  "✅",
-
-                title:
-                  "Primește confirmarea",
-
-                text:
-                  "Restaurantul vede rezervarea și o poate confirma.",
+                number: "03",
+                icon: "📅",
+                title: "Rezervă masa",
+                text: "Completează rapid data, ora și numărul de persoane.",
               },
 
               {
-                number:
-                  "04",
-
-                icon:
-                  "💸",
-
-                title:
-                  "Primește reducerea",
-
-                text:
-                  "Oferta aleasă rămâne legată de rezervarea ta.",
+                number: "04",
+                icon: "✅",
+                title: "Primești confirmarea",
+                text: "Restaurantul acceptă rezervarea și masa ta este confirmată.",
               },
             ].map(
-              (
-                item
-              ) => (
+              (step) => (
                 <div
-                  key={
-                    item.number
-                  }
+                  key={step.number}
                   style={{
-                    background:
-                      "#202c43",
-
-                    padding:
-                      "26px",
-
-                    borderRadius:
-                      "18px",
-
                     border:
-                      "1px solid #2c3952",
+                      "1px solid #E7E9ED",
+                    borderRadius: "18px",
+                    padding: "25px",
+                    background: "#FAFAF8",
                   }}
                 >
                   <div
                     style={{
-                      color:
-                        "#FF5A3C",
-
-                      fontWeight:
-                        "900",
-
-                      fontSize:
-                        "13px",
+                      display: "flex",
+                      justifyContent:
+                        "space-between",
+                      alignItems: "center",
+                      marginBottom: "22px",
                     }}
                   >
-                    {
-                      item.number
-                    }
-                  </div>
+                    <div
+                      style={{
+                        width: "48px",
+                        height: "48px",
+                        background: "white",
+                        border:
+                          "1px solid #E4E7EC",
+                        borderRadius: "13px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent:
+                          "center",
+                        fontSize: "23px",
+                      }}
+                    >
+                      {step.icon}
+                    </div>
 
-                  <div
-                    style={{
-                      fontSize:
-                        "34px",
-
-                      margin:
-                        "18px 0",
-                    }}
-                  >
-                    {
-                      item.icon
-                    }
+                    <span
+                      style={{
+                        color: "#D0D5DD",
+                        fontSize: "24px",
+                        fontWeight: "900",
+                      }}
+                    >
+                      {step.number}
+                    </span>
                   </div>
 
                   <h3
                     style={{
-                      margin:
-                        "0 0 10px",
+                      margin: "0 0 9px",
+                      fontSize: "19px",
                     }}
                   >
-                    {
-                      item.title
-                    }
+                    {step.title}
                   </h3>
 
                   <p
                     style={{
-                      color:
-                        "#b8c0ce",
-
-                      lineHeight:
-                        1.6,
-
-                      margin:
-                        0,
+                      margin: 0,
+                      color: "#667085",
+                      lineHeight: 1.6,
+                      fontSize: "14px",
                     }}
                   >
-                    {
-                      item.text
-                    }
+                    {step.text}
                   </p>
                 </div>
               )
@@ -1879,165 +2131,125 @@ export default function Home() {
       </section>
 
       {/* =========================
-          CONTACT
+          CTA RESTAURANTE
       ========================= */}
 
       <section
-        id="contact"
         style={{
-          padding:
-            "75px 6%",
-
-          background:
-            "#FAFAF8",
+          padding: "75px 6%",
+          background: "#FAFAF8",
         }}
       >
         <div
           style={{
-            maxWidth:
-              "1180px",
-
-            margin:
-              "auto",
-
+            maxWidth: "1180px",
+            margin: "0 auto",
             background:
-              "linear-gradient(135deg, #FF5A3C 0%, #FF684F 100%)",
-
-            color:
-              "white",
-
-            padding:
-              "55px",
-
-            borderRadius:
-              "25px",
-
-            display:
-              "flex",
-
-            justifyContent:
-              "space-between",
-
-            alignItems:
-              "center",
-
-            gap:
-              "30px",
-
-            flexWrap:
-              "wrap",
-
-            boxShadow:
-              "0 18px 45px rgba(255,90,60,0.16)",
+              "linear-gradient(135deg, #172033 0%, #202C43 100%)",
+            borderRadius: "26px",
+            padding: "55px",
+            color: "white",
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: "30px",
+            alignItems: "center",
+            overflow: "hidden",
+            position: "relative",
           }}
         >
           <div
             style={{
-              maxWidth:
-                "650px",
+              position: "relative",
+              zIndex: 2,
             }}
           >
-            <div
+            <p
               style={{
-                width:
-                  "52px",
-
-                height:
-                  "52px",
-
-                borderRadius:
-                  "50%",
-
-                background:
-                  "white",
-
-                color:
-                  "#FF5A3C",
-
-                display:
-                  "flex",
-
-                alignItems:
-                  "center",
-
-                justifyContent:
-                  "center",
-
-                fontSize:
-                  "23px",
-
-                marginBottom:
-                  "20px",
+                margin: 0,
+                color: "#FF8A73",
+                fontWeight: "900",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+                fontSize: "13px",
               }}
             >
-              ☎
-            </div>
+              Pentru restaurante
+            </p>
 
             <h2
               style={{
+                margin: "9px 0 15px",
                 fontSize:
-                  "36px",
-
-                margin:
-                  "0 0 12px",
-
-                letterSpacing:
-                  "-1px",
+                  "clamp(32px, 5vw, 48px)",
+                letterSpacing: "-1.5px",
+                lineHeight: 1.05,
               }}
             >
-              Ai un restaurant?
+              Transformă mesele libere în
+              clienți noi.
             </h2>
 
             <p
               style={{
-                margin:
-                  0,
-
-                color:
-                  "#FFF1ED",
-
-                fontSize:
-                  "18px",
-
-                lineHeight:
-                  1.6,
+                color: "#CBD2DD",
+                fontSize: "17px",
+                lineHeight: 1.65,
+                maxWidth: "600px",
+                marginBottom: 0,
               }}
             >
-              Contactează-ne pentru a afla mai multe
-              despre Masago și posibilitatea unei colaborări.
+              Creează oferte în perioadele mai
+              puțin aglomerate și atrage clienți
+              prin Masago.
             </p>
           </div>
 
-          <a
-            href="mailto:contact@masago.ro"
+          <div
             style={{
-              background:
-                "white",
-
-              color:
-                "#172033",
-
-              textDecoration:
-                "none",
-
-              padding:
-                "16px 24px",
-
-              borderRadius:
-                "11px",
-
-              fontWeight:
-                "900",
-
-              fontSize:
-                "16px",
-
-              boxShadow:
-                "0 8px 20px rgba(0,0,0,0.10)",
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              position: "relative",
+              zIndex: 2,
             }}
           >
-            Contactează-ne →
-          </a>
+            <a
+              href={
+                restaurantLoggedIn
+                  ? "/dashboard"
+                  : "/login"
+              }
+              style={{
+                display: "inline-block",
+                background: "#FF5A3C",
+                color: "white",
+                textDecoration: "none",
+                padding: "15px 22px",
+                borderRadius: "12px",
+                fontWeight: "900",
+                boxShadow:
+                  "0 10px 30px rgba(255,90,60,0.25)",
+              }}
+            >
+              {restaurantLoggedIn
+                ? "Intră în dashboard →"
+                : "Adaugă restaurantul →"}
+            </a>
+          </div>
+
+          <div
+            style={{
+              position: "absolute",
+              width: "300px",
+              height: "300px",
+              borderRadius: "50%",
+              background:
+                "rgba(255,90,60,0.08)",
+              right: "-80px",
+              top: "-120px",
+            }}
+          />
         </div>
       </section>
 
@@ -2047,25 +2259,124 @@ export default function Home() {
 
       <footer
         style={{
-          padding:
-            "30px 6% 45px",
-
-          color:
-            "#7a8393",
-
-          textAlign:
-            "center",
+          background: "#172033",
+          color: "white",
+          padding: "45px 6%",
         }}
       >
-        <strong
+        <div
           style={{
-            color:
-              "#172033",
+            maxWidth: "1180px",
+            margin: "0 auto",
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "25px",
+            flexWrap: "wrap",
+            alignItems: "center",
           }}
         >
-          Masago.
-        </strong>{" "}
-        © 2026
+          <div>
+            <a
+              href="/"
+              style={{
+                textDecoration: "none",
+                color: "white",
+                fontSize: "27px",
+                fontWeight: "900",
+                letterSpacing: "-1px",
+              }}
+            >
+              Masago
+              <span
+                style={{
+                  color: "#FF5A3C",
+                }}
+              >
+                .
+              </span>
+            </a>
+
+            <div
+              style={{
+                color: "#98A2B3",
+                marginTop: "8px",
+                fontSize: "14px",
+              }}
+            >
+              Restaurante bune. Oferte mai bune.
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "20px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <a
+              href="/rezervarile-mele"
+              style={{
+                color: "#CBD2DD",
+                textDecoration: "none",
+                fontWeight: "700",
+                fontSize: "14px",
+              }}
+            >
+              Rezervările mele
+            </a>
+
+            <a
+              href={
+                clientLoggedIn
+                  ? "/cont/profil"
+                  : "/cont"
+              }
+              style={{
+                color: "#CBD2DD",
+                textDecoration: "none",
+                fontWeight: "700",
+                fontSize: "14px",
+              }}
+            >
+              {clientLoggedIn
+                ? "Profilul meu"
+                : "Cont client"}
+            </a>
+
+            <a
+              href={
+                restaurantLoggedIn
+                  ? "/dashboard"
+                  : "/login"
+              }
+              style={{
+                color: "#CBD2DD",
+                textDecoration: "none",
+                fontWeight: "700",
+                fontSize: "14px",
+              }}
+            >
+              Pentru restaurante
+            </a>
+          </div>
+        </div>
+
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "30px auto 0",
+            paddingTop: "22px",
+            borderTop:
+              "1px solid rgba(255,255,255,0.08)",
+            color: "#667085",
+            fontSize: "13px",
+          }}
+        >
+          © {new Date().getFullYear()} Masago.
+          Toate drepturile rezervate.
+        </div>
       </footer>
     </main>
   );
