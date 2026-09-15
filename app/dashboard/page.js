@@ -16,6 +16,30 @@ export default function DashboardPage() {
   const [restaurantId, setRestaurantId] =
     useState(null);
 
+  /*
+    =========================
+    LOCATIE RESTAURANT
+    =========================
+  */
+
+  const [restaurantAddress, setRestaurantAddress] =
+    useState("");
+
+  const [restaurantLatitude, setRestaurantLatitude] =
+    useState(null);
+
+  const [restaurantLongitude, setRestaurantLongitude] =
+    useState(null);
+
+  const [locationLoading, setLocationLoading] =
+    useState(false);
+
+  const [locationSaving, setLocationSaving] =
+    useState(false);
+
+  const [locationMessage, setLocationMessage] =
+    useState("");
+
   const [userEmail, setUserEmail] =
     useState("");
 
@@ -348,7 +372,7 @@ export default function DashboardPage() {
 
       const response =
         await fetch(
-          `${supabaseUrl}/rest/v1/restaurants?name=eq.${encodedName}&select=id,name&limit=1`,
+          `${supabaseUrl}/rest/v1/restaurants?name=eq.${encodedName}&select=id,name,address,latitude,longitude&limit=1`,
           {
             headers: {
               apikey:
@@ -392,6 +416,22 @@ export default function DashboardPage() {
           data[0].name
         );
 
+        setRestaurantAddress(
+          data[0].address || ""
+        );
+
+        setRestaurantLatitude(
+          data[0].latitude != null
+            ? Number(data[0].latitude)
+            : null
+        );
+
+        setRestaurantLongitude(
+          data[0].longitude != null
+            ? Number(data[0].longitude)
+            : null
+        );
+
         return data[0];
       }
 
@@ -408,6 +448,234 @@ export default function DashboardPage() {
       );
 
       return null;
+    }
+  }
+
+  /*
+    =========================
+    LOCATIE RESTAURANT
+    =========================
+  */
+
+  function useCurrentRestaurantLocation() {
+    setLocationMessage("");
+
+    if (!navigator.geolocation) {
+      setLocationMessage(
+        "Browserul tău nu permite accesarea locației."
+      );
+      return;
+    }
+
+    setLocationLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setRestaurantLatitude(
+          position.coords.latitude
+        );
+
+        setRestaurantLongitude(
+          position.coords.longitude
+        );
+
+        setLocationMessage(
+          "✓ Locația a fost identificată. Completează adresa și apasă Salvează locația."
+        );
+
+        setLocationLoading(false);
+      },
+
+      (error) => {
+        console.error(
+          "Geolocation error:",
+          error
+        );
+
+        if (error.code === 1) {
+          setLocationMessage(
+            "Accesul la locație a fost refuzat. Permite accesul la locație din browser și încearcă din nou."
+          );
+        } else if (
+          error.code === 2
+        ) {
+          setLocationMessage(
+            "Locația nu a putut fi determinată."
+          );
+        } else if (
+          error.code === 3
+        ) {
+          setLocationMessage(
+            "Determinarea locației a durat prea mult. Încearcă din nou."
+          );
+        } else {
+          setLocationMessage(
+            "Nu am putut determina locația restaurantului."
+          );
+        }
+
+        setLocationLoading(false);
+      },
+
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  }
+
+  async function saveRestaurantLocation() {
+    setLocationMessage("");
+
+    if (!restaurantId) {
+      setLocationMessage(
+        "Restaurantul nu este identificat."
+      );
+      return;
+    }
+
+    if (!restaurantAddress.trim()) {
+      setLocationMessage(
+        "Completează adresa restaurantului."
+      );
+      return;
+    }
+
+    if (
+      restaurantLatitude == null ||
+      restaurantLongitude == null
+    ) {
+      setLocationMessage(
+        "Apasă mai întâi „Folosește locația actuală” pentru a identifica poziția restaurantului."
+      );
+      return;
+    }
+
+    const supabaseUrl =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseKey =
+      process.env
+        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+    const accessToken =
+      localStorage.getItem(
+        "masago_access_token"
+      );
+
+    if (
+      !supabaseUrl ||
+      !supabaseKey ||
+      !accessToken
+    ) {
+      setLocationMessage(
+        "Conexiunea cu Supabase nu este disponibilă."
+      );
+      return;
+    }
+
+    setLocationSaving(true);
+
+    try {
+      const response =
+        await fetch(
+          `${supabaseUrl}/rest/v1/restaurants?id=eq.${restaurantId}`,
+          {
+            method:
+              "PATCH",
+
+            headers: {
+              apikey:
+                supabaseKey,
+
+              Authorization:
+                `Bearer ${accessToken}`,
+
+              "Content-Type":
+                "application/json",
+
+              Prefer:
+                "return=representation",
+            },
+
+            body:
+              JSON.stringify({
+                address:
+                  restaurantAddress.trim(),
+
+                latitude:
+                  restaurantLatitude,
+
+                longitude:
+                  restaurantLongitude,
+              }),
+          }
+        );
+
+      let data = null;
+
+      try {
+        data =
+          await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (!response.ok) {
+        console.error(
+          "Save restaurant location:",
+          data
+        );
+
+        setLocationMessage(
+          data?.message ||
+            "Nu am putut salva locația restaurantului."
+        );
+
+        return;
+      }
+
+      setRestaurantAddress(
+        data?.[0]?.address ||
+          restaurantAddress.trim()
+      );
+
+      if (
+        data?.[0]?.latitude != null
+      ) {
+        setRestaurantLatitude(
+          Number(
+            data[0].latitude
+          )
+        );
+      }
+
+      if (
+        data?.[0]?.longitude != null
+      ) {
+        setRestaurantLongitude(
+          Number(
+            data[0].longitude
+          )
+        );
+      }
+
+      setLocationMessage(
+        "✓ Locația restaurantului a fost salvată."
+      );
+    } catch (error) {
+      console.error(
+        "Save restaurant location:",
+        error
+      );
+
+      setLocationMessage(
+        "A apărut o eroare la salvarea locației."
+      );
+    } finally {
+      setLocationSaving(false);
     }
   }
 
@@ -1130,8 +1398,7 @@ export default function DashboardPage() {
       setUploadingImages(false);
     }
   }
-
-  async function setCoverImage(
+    async function setCoverImage(
     image
   ) {
     if (
@@ -1275,7 +1542,8 @@ export default function DashboardPage() {
       setCoverImageId(null);
     }
   }
-    async function deleteRestaurantImage(image) {
+
+  async function deleteRestaurantImage(image) {
     if (!image?.id) {
       return;
     }
@@ -2678,8 +2946,7 @@ export default function DashboardPage() {
 
     return `${year}-${month}-${day}`;
   }
-
-  function getStatusLabel(
+    function getStatusLabel(
     status
   ) {
     if (
@@ -3181,6 +3448,280 @@ export default function DashboardPage() {
           )}
         </section>
 
+        {/* LOCATIE RESTAURANT */}
+
+        <section
+          style={{
+            background: "white",
+            borderRadius: "22px",
+            padding: "26px",
+            boxShadow:
+              "0 12px 35px rgba(23,32,51,0.07)",
+            border:
+              "1px solid #ECEEF2",
+            marginBottom: "34px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent:
+                "space-between",
+              alignItems:
+                "flex-start",
+              gap: "20px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  color: "#FF5A3C",
+                  fontWeight: "900",
+                  fontSize: "12px",
+                  letterSpacing: "1px",
+                  margin: "0 0 7px",
+                }}
+              >
+                PROFIL RESTAURANT
+              </p>
+
+              <h2
+                style={{
+                  margin: "0 0 7px",
+                  fontSize: "25px",
+                }}
+              >
+                📍 Locația restaurantului
+              </h2>
+
+              <p
+                style={{
+                  color: "#737C8D",
+                  margin: 0,
+                  lineHeight: 1.5,
+                  maxWidth: "700px",
+                }}
+              >
+                Adaugă adresa restaurantului și
+                poziția exactă. MasaGo va folosi
+                locația pentru a le arăta
+                clienților cât de aproape se află
+                restaurantul.
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: "24px",
+              display: "grid",
+              gap: "16px",
+              maxWidth: "750px",
+            }}
+          >
+            <div>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: "13px",
+                  fontWeight: "900",
+                  marginBottom: "7px",
+                  color: "#172033",
+                }}
+              >
+                Adresa restaurantului
+              </label>
+
+              <input
+                type="text"
+                value={restaurantAddress}
+                onChange={(event) => {
+                  setRestaurantAddress(
+                    event.target.value
+                  );
+                  setLocationMessage("");
+                }}
+                placeholder="Ex: Str. Memorandului 1, Timișoara"
+                style={{
+                  width: "100%",
+                  boxSizing:
+                    "border-box",
+                  padding:
+                    "14px 15px",
+                  border:
+                    "1px solid #DDE1E7",
+                  borderRadius:
+                    "11px",
+                  background:
+                    "#FAFBFC",
+                  color:
+                    "#172033",
+                  fontSize:
+                    "15px",
+                  outline:
+                    "none",
+                }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <button
+                type="button"
+                onClick={
+                  useCurrentRestaurantLocation
+                }
+                disabled={
+                  locationLoading
+                }
+                style={{
+                  border:
+                    "1px solid #DDE1E7",
+                  borderRadius:
+                    "11px",
+                  padding:
+                    "12px 17px",
+                  background:
+                    "white",
+                  color:
+                    "#172033",
+                  fontWeight:
+                    "900",
+                  cursor:
+                    locationLoading
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity:
+                    locationLoading
+                      ? 0.6
+                      : 1,
+                }}
+              >
+                {locationLoading
+                  ? "📍 Se caută locația..."
+                  : "📍 Folosește locația actuală"}
+              </button>
+
+              {restaurantLatitude != null &&
+                restaurantLongitude != null && (
+                  <span
+                    style={{
+                      color:
+                        "#177245",
+                      fontWeight:
+                        "800",
+                      fontSize:
+                        "14px",
+                    }}
+                  >
+                    ✓ Poziție identificată
+                  </span>
+                )}
+            </div>
+
+            <div
+              style={{
+                padding:
+                  "14px 16px",
+                background:
+                  "#F8FAFC",
+                border:
+                  "1px solid #E7E9ED",
+                borderRadius:
+                  "12px",
+                color:
+                  "#667085",
+                fontSize:
+                  "13px",
+                lineHeight:
+                  1.5,
+              }}
+            >
+              🔒 Coordonatele sunt folosite
+              doar de MasaGo pentru calcularea
+              distanței. Clienții vor vedea
+              adresa restaurantului și distanța
+              până la acesta, nu latitudinea sau
+              longitudinea.
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "14px",
+                alignItems:
+                  "center",
+                flexWrap:
+                  "wrap",
+              }}
+            >
+              <button
+                type="button"
+                onClick={
+                  saveRestaurantLocation
+                }
+                disabled={
+                  locationSaving ||
+                  locationLoading
+                }
+                style={{
+                  border: "none",
+                  borderRadius:
+                    "11px",
+                  padding:
+                    "12px 18px",
+                  background:
+                    locationSaving ||
+                    locationLoading
+                      ? "#A9B0BA"
+                      : "#177245",
+                  color:
+                    "white",
+                  fontWeight:
+                    "900",
+                  cursor:
+                    locationSaving ||
+                    locationLoading
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                {locationSaving
+                  ? "Se salvează..."
+                  : "✓ Salvează locația"}
+              </button>
+
+              {locationMessage && (
+                <span
+                  style={{
+                    color:
+                      locationMessage.startsWith(
+                        "✓"
+                      )
+                        ? "#177245"
+                        : "#B42318",
+
+                    fontWeight:
+                      "800",
+
+                    fontSize:
+                      "14px",
+                  }}
+                >
+                  {locationMessage}
+                </span>
+              )}
+            </div>
+          </div>
+        </section>
+
         {/* PROGRAM RESTAURANT */}
 
         <section
@@ -3515,7 +4056,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* PARTEA 3 CONTINUĂ DE AICI */}
         {/* FOTOGRAFII */}
 
         <section
@@ -4251,9 +4791,15 @@ export default function DashboardPage() {
         >
           <div style={sectionHeader}>
             <div>
-              <p style={orangeLabel}>FEEDBACK CLIENȚI</p>
+              <p style={orangeLabel}>
+                FEEDBACK CLIENȚI
+              </p>
 
-              <h2 style={{ marginBottom: "6px" }}>
+              <h2
+                style={{
+                  marginBottom: "6px",
+                }}
+              >
                 ⭐ Recenzii
               </h2>
 
@@ -4526,7 +5072,7 @@ export default function DashboardPage() {
               style={{
                 display:
                   "grid",
-                                gap:
+                gap:
                   "18px",
               }}
             >
