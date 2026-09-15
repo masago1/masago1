@@ -241,7 +241,6 @@ export default function DashboardPage() {
     if (!accessToken) {
       window.location.href =
         "/login";
-
       return;
     }
 
@@ -535,7 +534,10 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!restaurantAddress.trim()) {
+    const cleanAddress =
+      restaurantAddress.trim();
+
+    if (!cleanAddress) {
       setLocationMessage(
         "Completează adresa restaurantului."
       );
@@ -581,7 +583,7 @@ export default function DashboardPage() {
     try {
       const response =
         await fetch(
-          `${supabaseUrl}/rest/v1/restaurants?id=eq.${restaurantId}`,
+          `${supabaseUrl}/rest/v1/restaurants?id=eq.${restaurantId}&select=id,name,address,latitude,longitude`,
           {
             method:
               "PATCH",
@@ -603,13 +605,17 @@ export default function DashboardPage() {
             body:
               JSON.stringify({
                 address:
-                  restaurantAddress.trim(),
+                  cleanAddress,
 
                 latitude:
-                  restaurantLatitude,
+                  Number(
+                    restaurantLatitude
+                  ),
 
                 longitude:
-                  restaurantLongitude,
+                  Number(
+                    restaurantLongitude
+                  ),
               }),
           }
         );
@@ -637,30 +643,66 @@ export default function DashboardPage() {
         return;
       }
 
+      /*
+        IMPORTANT:
+        Supabase poate răspunde 200/204 chiar dacă RLS
+        nu a permis actualizarea niciunui rând.
+        De aceea verificăm explicit dacă PATCH-ul
+        a returnat restaurantul modificat.
+      */
+
+      if (
+        !Array.isArray(data) ||
+        data.length === 0
+      ) {
+        console.error(
+          "Save restaurant location: niciun restaurant nu a fost actualizat.",
+          data
+        );
+
+        setLocationMessage(
+          "Locația NU a fost salvată în Supabase. Update-ul restaurantului este blocat de permisiunile bazei de date."
+        );
+
+        return;
+      }
+
+      const savedRestaurant =
+        data[0];
+
+      if (
+        savedRestaurant.address !==
+          cleanAddress ||
+        savedRestaurant.latitude == null ||
+        savedRestaurant.longitude == null
+      ) {
+        console.error(
+          "Save restaurant location: valorile salvate nu corespund.",
+          savedRestaurant
+        );
+
+        setLocationMessage(
+          "Supabase nu a salvat corect locația restaurantului."
+        );
+
+        return;
+      }
+
       setRestaurantAddress(
-        data?.[0]?.address ||
-          restaurantAddress.trim()
+        savedRestaurant.address
       );
 
-      if (
-        data?.[0]?.latitude != null
-      ) {
-        setRestaurantLatitude(
-          Number(
-            data[0].latitude
-          )
-        );
-      }
+      setRestaurantLatitude(
+        Number(
+          savedRestaurant.latitude
+        )
+      );
 
-      if (
-        data?.[0]?.longitude != null
-      ) {
-        setRestaurantLongitude(
-          Number(
-            data[0].longitude
-          )
-        );
-      }
+      setRestaurantLongitude(
+        Number(
+          savedRestaurant.longitude
+        )
+      );
 
       setLocationMessage(
         "✓ Locația restaurantului a fost salvată."
@@ -1021,8 +1063,7 @@ export default function DashboardPage() {
       setImagesLoading(false);
     }
   }
-
-  function getNextImagePositions(
+    function getNextImagePositions(
     count
   ) {
     const used =
@@ -1398,7 +1439,8 @@ export default function DashboardPage() {
       setUploadingImages(false);
     }
   }
-    async function setCoverImage(
+
+  async function setCoverImage(
     image
   ) {
     if (
@@ -2697,7 +2739,7 @@ export default function DashboardPage() {
 
       if (
         newStatus ===
-        "rejected"
+          "rejected"
       ) {
         emailSent =
           await sendReservationEmail(
@@ -2946,7 +2988,8 @@ export default function DashboardPage() {
 
     return `${year}-${month}-${day}`;
   }
-    function getStatusLabel(
+
+  function getStatusLabel(
     status
   ) {
     if (
@@ -3718,6 +3761,9 @@ export default function DashboardPage() {
                   {locationMessage}
                 </span>
               )}
+            </div>
+          </div>
+        </section>
             </div>
           </div>
         </section>
