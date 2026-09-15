@@ -16,27 +16,6 @@ export default function DashboardPage() {
   const [restaurantId, setRestaurantId] =
     useState(null);
 
-  /*
-    =========================
-    LOCAȚIE RESTAURANT
-    =========================
-  */
-
-  const [restaurantAddress, setRestaurantAddress] =
-    useState("");
-
-  const [restaurantLatitude, setRestaurantLatitude] =
-    useState(null);
-
-  const [restaurantLongitude, setRestaurantLongitude] =
-    useState(null);
-
-  const [savingLocation, setSavingLocation] =
-    useState(false);
-
-  const [locationMessage, setLocationMessage] =
-    useState("");
-
   const [userEmail, setUserEmail] =
     useState("");
 
@@ -369,7 +348,7 @@ export default function DashboardPage() {
 
       const response =
         await fetch(
-          `${supabaseUrl}/rest/v1/restaurants?name=eq.${encodedName}&select=id,name,address,latitude,longitude&limit=1`,
+          `${supabaseUrl}/rest/v1/restaurants?name=eq.${encodedName}&select=id,name&limit=1`,
           {
             headers: {
               apikey:
@@ -413,18 +392,6 @@ export default function DashboardPage() {
           data[0].name
         );
 
-        setRestaurantAddress(
-          data[0].address || ""
-        );
-
-        setRestaurantLatitude(
-          data[0].latitude ?? null
-        );
-
-        setRestaurantLongitude(
-          data[0].longitude ?? null
-        );
-
         return data[0];
       }
 
@@ -441,190 +408,6 @@ export default function DashboardPage() {
       );
 
       return null;
-    }
-  }
-
-  /*
-    =========================
-    LOCAȚIE RESTAURANT
-    =========================
-  */
-
-  async function saveRestaurantLocation(event) {
-    event.preventDefault();
-
-    setLocationMessage("");
-
-    const cleanAddress =
-      restaurantAddress.trim();
-
-    if (!cleanAddress) {
-      setLocationMessage(
-        "Introdu adresa completă a restaurantului."
-      );
-      return;
-    }
-
-    if (!restaurantId) {
-      setLocationMessage(
-        "Restaurantul nu este identificat."
-      );
-      return;
-    }
-
-    const supabaseUrl =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_URL;
-
-    const supabaseKey =
-      process.env
-        .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-    const accessToken =
-      localStorage.getItem(
-        "masago_access_token"
-      );
-
-    if (
-      !supabaseUrl ||
-      !supabaseKey ||
-      !accessToken
-    ) {
-      setLocationMessage(
-        "Conexiunea cu Supabase nu este disponibilă."
-      );
-      return;
-    }
-
-    setSavingLocation(true);
-
-    try {
-      const geocodeResponse =
-        await fetch(
-          "/api/geocode",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
-            body: JSON.stringify({
-              address:
-                cleanAddress,
-            }),
-          }
-        );
-
-      const geocodeData =
-        await geocodeResponse.json();
-
-      if (!geocodeResponse.ok) {
-        setLocationMessage(
-          geocodeData?.error ||
-            "Adresa nu a putut fi găsită."
-        );
-        return;
-      }
-
-      const latitude =
-        Number(
-          geocodeData.latitude
-        );
-
-      const longitude =
-        Number(
-          geocodeData.longitude
-        );
-
-      if (
-        !Number.isFinite(latitude) ||
-        !Number.isFinite(longitude)
-      ) {
-        setLocationMessage(
-          "Coordonatele adresei nu sunt valide."
-        );
-        return;
-      }
-
-      const saveResponse =
-        await fetch(
-          `${supabaseUrl}/rest/v1/restaurants?id=eq.${restaurantId}`,
-          {
-            method: "PATCH",
-            headers: {
-              apikey:
-                supabaseKey,
-
-              Authorization:
-                `Bearer ${accessToken}`,
-
-              "Content-Type":
-                "application/json",
-
-              Prefer:
-                "return=representation",
-            },
-
-            body:
-              JSON.stringify({
-                address:
-                  cleanAddress,
-                latitude,
-                longitude,
-              }),
-          }
-        );
-
-      const savedData =
-        await saveResponse
-          .json()
-          .catch(() => null);
-
-      if (!saveResponse.ok) {
-        console.error(
-          "Save location:",
-          savedData
-        );
-
-        setLocationMessage(
-          savedData?.message ||
-            "Nu am putut salva locația restaurantului."
-        );
-
-        return;
-      }
-
-      setRestaurantAddress(
-        savedData?.[0]?.address ||
-          cleanAddress
-      );
-
-      setRestaurantLatitude(
-        savedData?.[0]
-          ?.latitude ??
-          latitude
-      );
-
-      setRestaurantLongitude(
-        savedData?.[0]
-          ?.longitude ??
-          longitude
-      );
-
-      setLocationMessage(
-        "✓ Adresa și locația restaurantului au fost salvate."
-      );
-    } catch (error) {
-      console.error(
-        "Save location error:",
-        error
-      );
-
-      setLocationMessage(
-        "A apărut o eroare la salvarea locației."
-      );
-    } finally {
-      setSavingLocation(false);
     }
   }
 
@@ -1492,8 +1275,7 @@ export default function DashboardPage() {
       setCoverImageId(null);
     }
   }
-
-  async function deleteRestaurantImage(image) {
+    async function deleteRestaurantImage(image) {
     if (!image?.id) {
       return;
     }
@@ -1735,7 +1517,8 @@ export default function DashboardPage() {
       setReviewsLoading(false);
     }
   }
-    /*
+
+  /*
     =========================
     RESERVATIONS
     =========================
@@ -3215,169 +2998,186 @@ export default function DashboardPage() {
               flexWrap: "wrap",
             }}
           >
-        {/* LOCAȚIE RESTAURANT */}
+            {userEmail && (
+              <span
+                style={{
+                  color: "#BCC5D3",
+                  fontSize: "14px",
+                }}
+              >
+                {userEmail}
+              </span>
+            )}
+
+            <button
+              onClick={
+                handleLogout
+              }
+              style={{
+                border:
+                  "1px solid rgba(255,255,255,0.25)",
+                background:
+                  "rgba(255,255,255,0.08)",
+                color: "white",
+                borderRadius:
+                  "10px",
+                padding:
+                  "10px 16px",
+                cursor:
+                  "pointer",
+                fontWeight:
+                  "800",
+              }}
+            >
+              Deconectare
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div
+        style={{
+          maxWidth: "1250px",
+          margin: "0 auto",
+          padding:
+            "42px 5% 70px",
+        }}
+      >
+        <section
+          style={{
+            marginBottom:
+              "30px",
+          }}
+        >
+          <p
+            style={{
+              color: "#FF5A3C",
+              fontWeight: "900",
+              margin: 0,
+              fontSize: "13px",
+              letterSpacing:
+                "1.2px",
+            }}
+          >
+            DASHBOARD RESTAURANT
+          </p>
+
+          <h1
+            style={{
+              fontSize:
+                "clamp(32px, 5vw, 46px)",
+              margin:
+                "8px 0 10px",
+              letterSpacing:
+                "-1.5px",
+            }}
+          >
+            Bun venit,{" "}
+            {restaurantName}
+          </h1>
+
+          <p
+            style={{
+              color: "#737C8D",
+              margin: 0,
+              maxWidth:
+                "700px",
+              lineHeight: 1.6,
+            }}
+          >
+            Gestionează rezervările,
+            ofertele, programul,
+            fotografiile și recenziile
+            restaurantului tău.
+          </p>
+        </section>
+
+        {/* STATISTICI */}
 
         <section
           style={{
-            background: "white",
-            borderRadius: "22px",
-            padding: "26px",
-            boxShadow:
-              "0 12px 35px rgba(23,32,51,0.07)",
-            border:
-              "1px solid #ECEEF2",
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(170px, 1fr))",
+            gap: "16px",
             marginBottom:
               "34px",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent:
-                "space-between",
-              alignItems:
-                "flex-start",
-              gap: "20px",
-              flexWrap: "wrap",
-            }}
-          >
-            <div>
-              <p
-                style={{
-                  color: "#FF5A3C",
-                  fontWeight: "900",
-                  fontSize: "12px",
-                  letterSpacing: "1px",
-                  margin: "0 0 7px",
-                }}
-              >
-                LOCAȚIE
-              </p>
-
-              <h2
-                style={{
-                  margin: "0 0 7px",
-                  fontSize: "25px",
-                }}
-              >
-                📍 Locație restaurant
-              </h2>
-
-              <p
-                style={{
-                  color: "#737C8D",
-                  margin: 0,
-                  lineHeight: 1.5,
-                  maxWidth: "720px",
-                }}
-              >
-                Introdu adresa completă a
-                restaurantului. Masago o
-                transformă automat în
-                coordonate pentru funcția
-                „Aproape de tine”.
-              </p>
-            </div>
-          </div>
-
-          <form
-            onSubmit={
-              saveRestaurantLocation
-            }
-            style={{
-              marginTop: "22px",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              <input
-                type="text"
-                value={
-                  restaurantAddress
-                }
-                onChange={(event) => {
-                  setRestaurantAddress(
-                    event.target.value
-                  );
-
-                  setLocationMessage("");
-                }}
-                placeholder="Ex: Piața Unirii 3, Timișoara, România"
-                autoComplete="street-address"
-                style={{
-                  ...formInput,
-                  flex: "1 1 420px",
-                }}
-              />
-
-              <button
-                type="submit"
-                disabled={
-                  savingLocation
-                }
-                style={{
-                  ...greenButton,
-                  opacity:
-                    savingLocation
-                      ? 0.65
-                      : 1,
-                  cursor:
-                    savingLocation
-                      ? "not-allowed"
-                      : "pointer",
-                }}
-              >
-                {savingLocation
-                  ? "Se localizează..."
-                  : "✓ Salvează adresa"}
-              </button>
-            </div>
-          </form>
-
-          {restaurantLatitude !==
-            null &&
-            restaurantLongitude !==
-              null && (
+          {[
+            [
+              "Rezervări azi",
+              stats.today,
+              "📅",
+            ],
+            [
+              "În așteptare",
+              stats.pending,
+              "⏳",
+            ],
+            [
+              "Confirmate",
+              stats.accepted,
+              "✅",
+            ],
+            [
+              "Respinse",
+              stats.rejected,
+              "❌",
+            ],
+            [
+              "Folosite",
+              stats.used,
+              "🎟️",
+            ],
+          ].map(
+            ([
+              label,
+              value,
+              icon,
+            ]) => (
               <div
+                key={label}
                 style={{
-                  marginTop: "14px",
-                  padding:
-                    "12px 14px",
                   background:
-                    "#F8FAFC",
-                  border:
-                    "1px solid #E7E9ED",
+                    "white",
                   borderRadius:
-                    "10px",
-                  color:
-                    "#667085",
-                  fontSize:
-                    "13px",
+                    "18px",
+                  padding:
+                    "20px",
+                  boxShadow:
+                    "0 10px 30px rgba(23,32,51,0.07)",
+                  border:
+                    "1px solid #ECEEF2",
                 }}
               >
-                <strong>
-                  Coordonate:
-                </strong>{" "}
-                {Number(
-                  restaurantLatitude
-                ).toFixed(6)}
-                ,{" "}
-                {Number(
-                  restaurantLongitude
-                ).toFixed(6)}
-              </div>
-            )}
+                <div
+                  style={{
+                    color:
+                      "#737C8D",
+                    fontSize:
+                      "14px",
+                    fontWeight:
+                      "700",
+                    marginBottom:
+                      "10px",
+                  }}
+                >
+                  {icon}{" "}
+                  {label}
+                </div>
 
-          {locationMessage && (
-            <MessageBox
-              text={locationMessage}
-            />
+                <strong
+                  style={{
+                    fontSize:
+                      "34px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {value}
+                </strong>
+              </div>
+            )
           )}
         </section>
 
@@ -3715,6 +3515,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        {/* PARTEA 3 CONTINUĂ DE AICI */}
         {/* FOTOGRAFII */}
 
         <section
@@ -4450,15 +4251,9 @@ export default function DashboardPage() {
         >
           <div style={sectionHeader}>
             <div>
-              <p style={orangeLabel}>
-                FEEDBACK CLIENȚI
-              </p>
+              <p style={orangeLabel}>FEEDBACK CLIENȚI</p>
 
-              <h2
-                style={{
-                  marginBottom: "6px",
-                }}
-              >
+              <h2 style={{ marginBottom: "6px" }}>
                 ⭐ Recenzii
               </h2>
 
@@ -4481,9 +4276,7 @@ export default function DashboardPage() {
                 }}
               >
                 {reviewStats.total > 0
-                  ? reviewStats.average.toFixed(
-                      1
-                    )
+                  ? reviewStats.average.toFixed(1)
                   : "—"}
 
                 <span
@@ -4492,8 +4285,7 @@ export default function DashboardPage() {
                     color: "#737C8D",
                   }}
                 >
-                  {" "}
-                  / 5
+                  {" "}/ 5
                 </span>
               </div>
 
@@ -4734,7 +4526,7 @@ export default function DashboardPage() {
               style={{
                 display:
                   "grid",
-                gap:
+                                gap:
                   "18px",
               }}
             >
